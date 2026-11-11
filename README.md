@@ -47,7 +47,7 @@
 ├── 手机指令.md                      第三通道（手动粘贴）
 ├── TEST.md                         测试清单（含路由实测）
 ├── MANIFEST.json                   机读分层 + 融合映射 + 可靠性
-└── docs/{融合架构.md, 分层落地表.md, 加载机制与可靠性.md}
+└── docs/{融合架构.md, 分层落地表.md, 加载机制与可靠性.md, 探源司安装卡.md（★一页装完全套）}
 ```
 
 > **探源司四件套必须一起装**：`probe-hub` 里 `from core import ...` 依赖 `tvbox-source-hub/scripts/core.py`，单独装必然 `ModuleNotFoundError`。四件套还硬编码过 `/root/.codebuddy`，`fix_paths.py` 已统一改为 `os.path.expanduser('~/.codebuddy')`，换机器/换 HOME 不再失效。
@@ -131,3 +131,5 @@ python3 "$P" harvest scan --repo <仓库URL>       # 采线路
 ```
 
 > 触发词：「探源司」「作者仓库」「找源」「监测仓库」「线路失效」，或显式说「用探源司查一下 XX 仓库」。
+
+> 📋 **第一次装？照 [`docs/探源司安装卡.md`](docs/探源司安装卡.md) 走**：3 条命令装完、自检判据、实测输出、排查表、以及"让新会话 AI 自己装"的可粘贴话术。
