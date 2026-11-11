@@ -27,7 +27,7 @@
 520pro/
 ├── 通用层/                          →  ~/.codebuddy/
 │   ├── rules/core-8.md              →  ~/.codebuddy/rules/（8 铁律）
-│   └── skills/{skill-evolution,feature-gate,machine-bootstrap,artifact-store,learn-hub}
+│   └── skills/{skill-evolution,feature-gate,machine-bootstrap,artifact-store,learn-hub,space-hub}
 ├── 能力层/tvbox/                    →  用户级 或 项目级（按模式）
 │   ├── skills/
 │   │   ├── probe-hub/               →  技能①探源司（monitor/search/harvest/forge/shellcrack，1.6M）

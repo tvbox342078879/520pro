@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -49,6 +49,18 @@
           "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
           "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
           "not_tvbox": "与 TVBox 无关，纯通用层"
+        },
+        "skills/space-hub/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
+          "role": "库务司·云端库总管 v2.0.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号"
+        },
+        "skills/space-hub/scripts/space_hub.py": {
+          "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
+          "role": "引擎：init/classify/create-db/inbox/add/scan/list/restore/move/rename/census"
+        },
+        "skills/space-hub/scripts/classify_rules.json": {
+          "install_to": "~/.codebuddy/skills/space-hub/scripts/classify_rules.json",
+          "role": "归纳登记册（唯一真源，加规则零改代码）"
         }
       }
     },
@@ -239,5 +251,6 @@
     "usage": "bash bootstrap.sh <repo_url_or_path> [shape] [target] [--dry-run] [--install]"
   },
   "plan_c": "2026-11-12：5 技能合为 2 入口 + 1 库（tvbox-core 无 SKILL.md，不路由）",
-  "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）"
+  "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）",
+  "changelog_0_6_0": "space-hub 库务司迁入：tvbox-janitor v1.2.12 去 TVBox 化升级；四层空间解析（init/classify/create-db 三新命令）；坐标修正（空间 RYUDZM，旧 8w5cnq/gZ4x 均亡）；实测建库端到端+回读"
 }

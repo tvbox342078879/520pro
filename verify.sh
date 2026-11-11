@@ -31,6 +31,21 @@ else
   opt "skills/learn-hub 未安装（v0.5.0 之前的旧安装，正常）"
 fi
 
+# 库务司（v2.0.0 起）：通用层云端库总管（清道夫升级版，清理+归纳+建库）
+if [ -f "$U/skills/space-hub/scripts/space_hub.py" ]; then
+  ok "skills/space-hub（库务司）"
+  python3 -c "import ast; ast.parse(open('$U/skills/space-hub/scripts/space_hub.py').read())" 2>/dev/null \
+    && ok "  └ space_hub.py 语法 OK" || no "  └ space_hub.py 语法错误"
+  if grep -q "8w5cnqCqQJ0wNoF2Hb6efH" "$U/skills/space-hub/scripts/space_hub.py"; then
+    no "  └ 残留写死 space id（账号绑定缺陷复发）"
+  else
+    ok "  └ 无写死 space id（四层动态解析）"
+  fi
+  [ -f "$U/skills/space-hub/scripts/classify_rules.json" ] && ok "  └ 归纳登记册在位" || no "  └ 归纳登记册缺失"
+else
+  opt "skills/space-hub 未安装（正常，可后补）"
+fi
+
 echo
 echo "[TVBox·用户级（--user-skill 模式）]"
 [ -d "$U/skills/tvbox-pipeline" ] && ok "skills/tvbox-pipeline" || opt "skills/tvbox-pipeline 未安装（lite 形状或项目级模式，正常）"
