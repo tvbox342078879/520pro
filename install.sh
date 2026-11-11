@@ -112,7 +112,12 @@ deploy_tvbox_user() {
     [ -e "$f" ] || continue
     cp_bak "$f" "$USER_DIR/scripts/$(basename "$f")"
   done
-  cp_bak "$ROOT/能力层/tvbox/master_config.example.json" "$USER_DIR/tvbox/master_config.example.json"
+  # lite 形状不含配置模板，缺失时跳过（不阻断安装）
+  if [ -e "$ROOT/能力层/tvbox/master_config.example.json" ]; then
+    cp_bak "$ROOT/能力层/tvbox/master_config.example.json" "$USER_DIR/tvbox/master_config.example.json"
+  else
+    echo "  · 无 master_config.example.json（lite 形状正常，跳过）"
+  fi
 }
 
 deploy_capability_project() {

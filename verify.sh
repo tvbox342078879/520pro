@@ -9,6 +9,7 @@ P="$TARGET/.codebuddy"
 
 ok(){ printf "  \033[32m✓\033[0m %s\n" "$1"; }
 no(){ printf "  \033[31m✗\033[0m %s\n" "$1"; }
+opt(){ printf "  \033[33m·\033[0m %s\n" "$1"; }
 
 echo "================ 520pro 自检 ================"
 echo "HOME=$U   TARGET=$TARGET"
@@ -21,7 +22,7 @@ done
 
 echo
 echo "[TVBox·用户级（--user-skill 模式）]"
-[ -d "$U/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || no "skills/tvbox-config-sync 缺失（若用项目级模式可忽略）"
+[ -d "$U/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || opt "skills/tvbox-config-sync 未安装（lite 形状或项目级模式，正常）"
 for f in collect_repos check_live merge_config; do
   if [ -f "$U/scripts/$f.py" ]; then
     ok "scripts/$f.py"
@@ -35,8 +36,11 @@ echo
 echo "[探源司·四件套（probe-hub + 共享核心）]"
 SK="$U/skills"
 [ -d "$SK/probe-hub" ] && ok "skills/probe-hub（探源司本体）" || no "skills/probe-hub 缺失"
-for s in tvbox-source-hub tvbox-interface tvbox-source-blacklist; do
-  [ -d "$SK/$s" ] && ok "skills/$s" || no "skills/$s 缺失（探源司依赖，缺了必报 ModuleNotFoundError）"
+# tvbox-source-hub 是硬依赖（core.py 来源），必须存在
+[ -d "$SK/tvbox-source-hub" ] && ok "skills/tvbox-source-hub（含 core.py）" || no "skills/tvbox-source-hub 缺失（探源司必崩 ModuleNotFoundError）"
+# interface / blacklist 为可选增强，lite 形状不含
+for s in tvbox-interface tvbox-source-blacklist; do
+  [ -d "$SK/$s" ] && ok "skills/$s" || opt "skills/$s 未安装（可选增强，lite 形状正常）"
 done
 if [ -d "$SK/tvbox-source-hub/scripts" ]; then
   ( cd "$SK/tvbox-source-hub/scripts" && python3 -c "import core" 2>/dev/null ) \
