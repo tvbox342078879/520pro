@@ -1,8 +1,12 @@
 {
   "ecosystem": "520pro",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
-  "based_on": ["WorkBuddy 平台运行时", "新生态 v0.1.0", "368817 存活素材"],
+  "based_on": [
+    "WorkBuddy 平台运行时",
+    "新生态 v0.1.0",
+    "368817 存活素材"
+  ],
   "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
   "deploy_modes": {
     "user-skill": "通用层→~/.codebuddy + TVBox→~/.codebuddy（★推荐）",
@@ -15,32 +19,106 @@
       "scope": "用户级·跨项目",
       "deploy_to": "~/.codebuddy/",
       "files": {
-        "rules/core-8.md": { "install_to": "~/.codebuddy/rules/core-8.md", "alwaysApply": true, "role": "8 条通用铁律（B-01~B-08 + M1–M7）" },
-        "rules/zh-style.md": { "install_to": "<项目>/.codebuddy/rules/zh-style.md", "alwaysApply": true, "role": "项目级文档/输出纪律契约（项目隔离模式才装）" },
-        "skills/skill-evolution/SKILL.md": { "role": "复发问题固化成技能" },
-        "skills/feature-gate/SKILL.md": { "role": "特性开关+绞杀者切流" },
-        "skills/machine-bootstrap/SKILL.md": { "role": "一键换机/克隆工作副本" },
-        "skills/artifact-store/SKILL.md": { "role": "本地产物轻量化·防手机卡顿" }
+        "rules/core-8.md": {
+          "install_to": "~/.codebuddy/rules/core-8.md",
+          "alwaysApply": true,
+          "role": "8 条通用铁律（B-01~B-08 + M1–M7）"
+        },
+        "rules/zh-style.md": {
+          "install_to": "<项目>/.codebuddy/rules/zh-style.md",
+          "alwaysApply": true,
+          "role": "项目级文档/输出纪律契约（项目隔离模式才装）"
+        },
+        "skills/skill-evolution/SKILL.md": {
+          "role": "复发问题固化成技能"
+        },
+        "skills/feature-gate/SKILL.md": {
+          "role": "特性开关+绞杀者切流"
+        },
+        "skills/machine-bootstrap/SKILL.md": {
+          "role": "一键换机/克隆工作副本"
+        },
+        "skills/artifact-store/SKILL.md": {
+          "role": "本地产物轻量化·防手机卡顿"
+        }
       }
     },
     "能力层": {
       "scope": "TVBox（用户级或项目级，按模式）",
       "files": {
-        "tvbox/skills/tvbox-config-sync/SKILL.md": { "user_install": "~/.codebuddy/skills/tvbox-config-sync/", "project_install": "<项目>/.codebuddy/skills/", "role": "★用户级可被平台路由", "script_dir_auto": "优先 ~/.codebuddy/scripts，回退 .codebuddy/scripts" },
-        "tvbox/skills/probe-hub/": { "user_install": "~/.codebuddy/skills/probe-hub/", "role": "探源司本体：monitor/search/harvest/forge/shellcrack", "depends_on": ["tvbox-source-hub", "tvbox-interface", "tvbox-source-blacklist"], "entry": "scripts/probe.py", "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'" },
-        "tvbox/skills/tvbox-source-hub/": { "user_install": "~/.codebuddy/skills/tvbox-source-hub/", "role": "★共享核心 core.py(41K) + concurrency.py(14K)，探源司/接口/黑名单共同依赖" },
-        "tvbox/skills/tvbox-interface/": { "user_install": "~/.codebuddy/skills/tvbox-interface/", "role": "测活口径 pipeline.py(51K)（_alive / ALIVE_CODES）" },
-        "tvbox/skills/tvbox-source-blacklist/": { "user_install": "~/.codebuddy/skills/tvbox-source-blacklist/", "role": "blk.py 拉黑判据（probe.py 硬引用）" },
-        "tvbox/fix_paths.py": { "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接" },
-        "tvbox/agents/tvbox-agent.md": { "user_install": "~/.codebuddy/agents/", "role": "隔离子代理" },
-        "tvbox/commands/tvbox-sync.md": { "user_install": "~/.codebuddy/commands/", "role": "/tvbox-sync 命令" },
-        "tvbox/scripts/collect_repos.py": { "user_install": "~/.codebuddy/scripts/", "role": "拉仓库抽源" },
-        "tvbox/scripts/check_live.py": { "user_install": "~/.codebuddy/scripts/", "role": "并发测活" },
-        "tvbox/scripts/merge_config.py": { "user_install": "~/.codebuddy/scripts/", "role": "存活源集成" },
-        "tvbox/master_config.example.json": { "user_install": "~/.codebuddy/tvbox/", "role": "主配置模板" },
-        "tvbox/CODEBUDDY.md": { "project_install": "<项目>/.codebuddy/CODEBUDDY.md", "role": "项目级薄壳兜底（用户级模式可不装）" },
-        "tvbox/rules/tvbox-style.md": { "project_install": "<项目>/.codebuddy/rules/", "alwaysApply": true, "role": "TVBox 纪律（项目隔离模式）" },
-        "tvbox/rules/tvbox.paths.md": { "project_install": "<项目>/.codebuddy/rules/", "alwaysApply": false, "paths": ["**/master_config*.json"], "role": "条件规则示例（实测不注入）" }
+        "tvbox/skills/tvbox-config-sync/SKILL.md": {
+          "user_install": "~/.codebuddy/skills/tvbox-config-sync/",
+          "project_install": "<项目>/.codebuddy/skills/",
+          "role": "★用户级可被平台路由",
+          "script_dir_auto": "优先 ~/.codebuddy/scripts，回退 .codebuddy/scripts"
+        },
+        "tvbox/skills/probe-hub/": {
+          "user_install": "~/.codebuddy/skills/probe-hub/",
+          "role": "探源司本体：monitor/search/harvest/forge/shellcrack",
+          "depends_on": [
+            "tvbox-source-hub",
+            "tvbox-interface",
+            "tvbox-source-blacklist"
+          ],
+          "entry": "scripts/probe.py",
+          "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'"
+        },
+        "tvbox/skills/tvbox-source-hub/": {
+          "user_install": "~/.codebuddy/skills/tvbox-source-hub/",
+          "role": "★共享核心 core.py(41K) + concurrency.py(14K)，探源司/接口/黑名单共同依赖"
+        },
+        "tvbox/skills/tvbox-interface/": {
+          "user_install": "~/.codebuddy/skills/tvbox-interface/",
+          "role": "测活口径 pipeline.py(51K)（_alive / ALIVE_CODES）"
+        },
+        "tvbox/skills/tvbox-source-blacklist/": {
+          "user_install": "~/.codebuddy/skills/tvbox-source-blacklist/",
+          "role": "blk.py 拉黑判据（probe.py 硬引用）"
+        },
+        "tvbox/fix_paths.py": {
+          "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接"
+        },
+        "tvbox/agents/tvbox-agent.md": {
+          "user_install": "~/.codebuddy/agents/",
+          "role": "隔离子代理"
+        },
+        "tvbox/commands/tvbox-sync.md": {
+          "user_install": "~/.codebuddy/commands/",
+          "role": "/tvbox-sync 命令"
+        },
+        "tvbox/scripts/collect_repos.py": {
+          "user_install": "~/.codebuddy/scripts/",
+          "role": "拉仓库抽源"
+        },
+        "tvbox/scripts/check_live.py": {
+          "user_install": "~/.codebuddy/scripts/",
+          "role": "并发测活"
+        },
+        "tvbox/scripts/merge_config.py": {
+          "user_install": "~/.codebuddy/scripts/",
+          "role": "存活源集成"
+        },
+        "tvbox/master_config.example.json": {
+          "user_install": "~/.codebuddy/tvbox/",
+          "role": "主配置模板"
+        },
+        "tvbox/CODEBUDDY.md": {
+          "project_install": "<项目>/.codebuddy/CODEBUDDY.md",
+          "role": "项目级薄壳兜底（用户级模式可不装）"
+        },
+        "tvbox/rules/tvbox-style.md": {
+          "project_install": "<项目>/.codebuddy/rules/",
+          "alwaysApply": true,
+          "role": "TVBox 纪律（项目隔离模式）"
+        },
+        "tvbox/rules/tvbox.paths.md": {
+          "project_install": "<项目>/.codebuddy/rules/",
+          "alwaysApply": false,
+          "paths": [
+            "**/master_config*.json"
+          ],
+          "role": "条件规则示例（实测不注入）"
+        }
       }
     }
   },
@@ -69,16 +147,79 @@
     "display_name": "探源司",
     "version": "1.20.8",
     "source": "tvbox342078879/tvbox-skills-eco (master)",
-    "required_set": ["probe-hub", "tvbox-source-hub", "tvbox-interface", "tvbox-source-blacklist"],
+    "required_set": [
+      "probe-hub",
+      "tvbox-source-hub",
+      "tvbox-interface",
+      "tvbox-source-blacklist"
+    ],
     "entry": "python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py <module> <cmd>",
     "note": "仓库内无 tvbox CLI 实现，`tvbox probe` 仅为别名壳；真实入口是 probe.py",
     "modules": {
-      "monitor": ["status", "check", "diff", "forecast", "add", "import", "due", "purge-test"],
-      "search": ["github", "gitee", "gitlab", "rank", "verify"],
-      "harvest": ["scan", "pull", "filter", "export", "dispatch"],
-      "extra": ["forge", "livecheck", "decrypt", "quality", "shellcrack", "self-check"]
+      "monitor": [
+        "status",
+        "check",
+        "diff",
+        "forecast",
+        "add",
+        "import",
+        "due",
+        "purge-test"
+      ],
+      "search": [
+        "github",
+        "gitee",
+        "gitlab",
+        "rank",
+        "verify"
+      ],
+      "harvest": [
+        "scan",
+        "pull",
+        "filter",
+        "export",
+        "dispatch"
+      ],
+      "extra": [
+        "forge",
+        "livecheck",
+        "decrypt",
+        "quality",
+        "shellcrack",
+        "self-check"
+      ]
     }
   },
   "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",
-  "verify": "bash verify.sh"
+  "verify": "bash verify.sh",
+  "sync_shape": {
+    "full": [
+      "MANIFEST.json",
+      "install.sh",
+      "verify.sh",
+      "README.md",
+      "TEST.md",
+      "手机指令.md",
+      "通用层/",
+      "能力层/",
+      "docs/"
+    ],
+    "lite": [
+      "MANIFEST.json",
+      "install.sh",
+      "verify.sh",
+      "通用层/rules/",
+      "通用层/skills/",
+      "能力层/tvbox/skills/probe-hub/",
+      "能力层/tvbox/skills/tvbox-source-hub/",
+      "能力层/tvbox/scripts/"
+    ]
+  },
+  "bootstrap": {
+    "script": "bootstrap.sh",
+    "shapes": "full(默认，全量) / lite(探源司最小可跑集)",
+    "idempotent": "目标已存在且含 MANIFEST.json → 跳过 clone，仅 git pull --ff-only + 重设稀疏",
+    "no_plaintext_token": "token 仅从 $GITHUB_TOKEN / gh auth token 读入内存，apply 后立即 unset，不写任何文件、不打印",
+    "usage": "bash bootstrap.sh <repo_url_or_path> [shape] [target] [--dry-run] [--install]"
+  }
 }
