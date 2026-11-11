@@ -44,7 +44,7 @@ from link import classify                              # noqa: E402  # 体系判
 from guard import Triage                               # noqa: E402
 
 LIB = core.LIB
-BLK = os.path.join(os.path.dirname(LIB), 'tvbox-source-blacklist', 'scripts', 'blk.py')
+BLK = os.path.join(os.path.dirname(LIB), 'tvbox-core', 'scripts', 'blk.py')
 QUERY = os.path.join(LIB, 'database', 'query_database_record.py')
 
 # ⚠️ 两套分类并存，别混用（S111 踩过一次）：

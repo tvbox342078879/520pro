@@ -135,7 +135,7 @@ fi
 
 # ────────────────────── 稀疏检出（MANIFEST 为单一真源）──────────────────────
 FALLBACK_FULL=( "MANIFEST.json" "install.sh" "verify.sh" "README.md" "TEST.md" "手机指令.md" "通用层/" "能力层/" "docs/" )
-FALLBACK_LITE=( "MANIFEST.json" "install.sh" "verify.sh" "通用层/rules/" "通用层/skills/" "能力层/tvbox/skills/probe-hub/" "能力层/tvbox/skills/tvbox-source-hub/" "能力层/tvbox/scripts/" )
+FALLBACK_LITE=( "MANIFEST.json" "install.sh" "verify.sh" "通用层/rules/" "通用层/skills/" "能力层/tvbox/skills/probe-hub/" "能力层/tvbox/skills/tvbox-core/" "能力层/tvbox/scripts/" )
 
 apply_sparse() {
   local -a sets=() raw=()
@@ -268,10 +268,10 @@ check "verify.sh"
 
 if [ "$SHAPE" = full ]; then
   check "通用层/rules/core-8.md"
-  for s in artifact-store feature-gate machine-bootstrap skill-evolution; do
+  for s in artifact-store feature-gate machine-bootstrap skill-evolution learn-hub; do
     check "通用层/skills/$s/SKILL.md"
   done
-  for s in probe-hub tvbox-source-hub tvbox-interface tvbox-source-blacklist tvbox-config-sync; do
+  for s in probe-hub tvbox-pipeline; do
     check "能力层/tvbox/skills/$s/SKILL.md"
   done
   for p in collect_repos.py check_live.py merge_config.py; do
@@ -283,7 +283,7 @@ else
 fi
 
 # 探源司的硬依赖：缺 core.py 必然 ModuleNotFoundError
-check "能力层/tvbox/skills/tvbox-source-hub/scripts/core.py"
+check "能力层/tvbox/skills/tvbox-core/scripts/core.py"
 
 # ────────────────────── 可选：立即安装到用户级 ──────────────────────
 if [ "$DO_INSTALL" = 1 ] && [ "$ok" -eq 1 ]; then

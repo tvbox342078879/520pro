@@ -17,8 +17,8 @@ import os, sys, json, time, argparse, subprocess, re
 from collections import Counter
 
 LIB=os.path.expanduser('~/.codebuddy/skills/library')
-HUB=os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts')
-BLK=os.path.expanduser('~/.codebuddy/skills/tvbox-source-blacklist/scripts/blk.py')  # L7 第一道闸
+HUB=os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts')
+BLK=os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts/blk.py')  # L7 第一道闸
 DB_SESS='TO4LwsjVVdR8JRAUlkejk3'     # ③ 会话台账（业务经验）
 DB_LIB='XTuuj8mKtqnZSolDdeDxkq'      # ④ 资料库操作经验库（平台经验）
 DB_DEAD='hGwE41OpJDOR8CW0sLUwRx'     # 🗑 失效源库（黑名单命中者归档处）
@@ -840,7 +840,7 @@ def cmd_snapshot(a):
 # ---------- M-R114 统一并发入口（S110） ----------
 # 拉自家文档（doc API）
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded, TIER_API  # noqa: E402
 
 

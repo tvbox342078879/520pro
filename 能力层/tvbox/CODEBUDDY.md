@@ -49,8 +49,8 @@ python3 "$P" search github --topic tvbox      # 搜新仓库
 python3 "$P" harvest scan --repo <URL>        # 采线路
 ```
 
-> ⚠️ 探源司**必须四件套齐全**（probe-hub / tvbox-source-hub / tvbox-interface / tvbox-source-blacklist）。
-> 只装 probe-hub 会报 `ModuleNotFoundError: No module named 'core'`——这时不要改代码硬修，先补齐 `tvbox-source-hub`。
+> ⚠️ 探源司**必须两个目录齐全**（`probe-hub` + `tvbox-core`）。v0.4.0 起不再有四件套，`tvbox-core` 是库不是技能。
+> 只装 probe-hub 会报 `ModuleNotFoundError: No module named 'core'`——这时不要改代码硬修，先补齐 `tvbox-core`。
 > 结论必须带三态（通过/失败/无法判定）；超时与网络受限记「无法判定」，不得写成「失败」。
 
 ---
@@ -59,11 +59,11 @@ python3 "$P" harvest scan --repo <URL>        # 采线路
 
 | 组件 | 用户级路径（--user-skill） | 项目级路径（--capability-only） | 作用 |
 |---|---|---|---|
-| 配置同步技能 | `~/.codebuddy/skills/tvbox-config-sync/` | `.codebuddy/skills/tvbox-config-sync/` | 流程编排（用户级可被平台路由） |
+| 出品流水线技能 | `~/.codebuddy/skills/tvbox-pipeline/` | `.codebuddy/skills/tvbox-pipeline/` | 流程编排（用户级可被平台路由） |
 | **探源司本体** | `~/.codebuddy/skills/probe-hub/` | 同左（**须用户级**） | 监测/搜索/采集 |
-| **共享核心** | `~/.codebuddy/skills/tvbox-source-hub/` | 缺则探源司必崩 | `core.py` + `concurrency.py` |
-| **测活口径** | `~/.codebuddy/skills/tvbox-interface/` | — | `pipeline.py` |
-| **拉黑判据** | `~/.codebuddy/skills/tvbox-source-blacklist/` | — | `blk.py` |
+| **共享核心** | `~/.codebuddy/skills/tvbox-core/` | 缺则探源司必崩 | `core.py` + `concurrency.py` |
+| **测活口径** | `~/.codebuddy/skills/tvbox-core/` | — | `pipeline.py` |
+| **拉黑判据** | `~/.codebuddy/skills/tvbox-core/` | — | `blk.py` |
 | 工人 | `~/.codebuddy/agents/tvbox-agent.md` | `.codebuddy/agents/` | 隔离执行 |
 | 命令 | `~/.codebuddy/commands/tvbox-sync.md` | `.codebuddy/commands/` | `/tvbox-sync` |
 | 脚本 | `~/.codebuddy/scripts/` | `.codebuddy/scripts/` | 收集→测活→集成 |

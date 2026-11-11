@@ -19,10 +19,21 @@ echo "[通用层·用户级]"
 for s in skill-evolution feature-gate machine-bootstrap artifact-store; do
   [ -d "$U/skills/$s" ] && ok "skills/$s" || no "skills/$s 缺失"
 done
+# 学习工坊（v0.5.0 起）：通用层业务技能，自带网盘取料模块（原 probe-hub harvest pan）
+if [ -f "$U/skills/learn-hub/scripts/learn.py" ]; then
+  ok "skills/learn-hub（学习工坊）"
+  if [ -f "$U/skills/learn-hub/scripts/pan.py" ]; then
+    ok "  └ pan.py 网盘取料（清单/下载/转存/删除）"
+  else
+    no "  └ pan.py 缺失（网盘取料不可用）"
+  fi
+else
+  opt "skills/learn-hub 未安装（v0.5.0 之前的旧安装，正常）"
+fi
 
 echo
 echo "[TVBox·用户级（--user-skill 模式）]"
-[ -d "$U/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || opt "skills/tvbox-config-sync 未安装（lite 形状或项目级模式，正常）"
+[ -d "$U/skills/tvbox-pipeline" ] && ok "skills/tvbox-pipeline" || opt "skills/tvbox-pipeline 未安装（lite 形状或项目级模式，正常）"
 for f in collect_repos check_live merge_config; do
   if [ -f "$U/scripts/$f.py" ]; then
     ok "scripts/$f.py"
@@ -33,19 +44,25 @@ for f in collect_repos check_live merge_config; do
 done
 
 echo
-echo "[探源司·四件套（probe-hub + 共享核心）]"
+echo "[探源司（probe-hub + tvbox-core 共享库）]"
 SK="$U/skills"
 [ -d "$SK/probe-hub" ] && ok "skills/probe-hub（探源司本体）" || no "skills/probe-hub 缺失"
-# tvbox-source-hub 是硬依赖（core.py 来源），必须存在
-[ -d "$SK/tvbox-source-hub" ] && ok "skills/tvbox-source-hub（含 core.py）" || no "skills/tvbox-source-hub 缺失（探源司必崩 ModuleNotFoundError）"
-# interface / blacklist 为可选增强，lite 形状不含
-for s in tvbox-interface tvbox-source-blacklist; do
-  [ -d "$SK/$s" ] && ok "skills/$s" || opt "skills/$s 未安装（可选增强，lite 形状正常）"
-done
-if [ -d "$SK/tvbox-source-hub/scripts" ]; then
-  ( cd "$SK/tvbox-source-hub/scripts" && python3 -c "import core" 2>/dev/null ) \
+# tvbox-core 是硬依赖（core.py 来源），必须存在；它没有 SKILL.md，不参与路由
+if [ -f "$SK/tvbox-core/scripts/core.py" ]; then
+  ok "skills/tvbox-core（含 core.py，非技能·仅被 import）"
+elif [ -d "$SK/tvbox-core" ]; then
+  no "skills/tvbox-core 存在但缺 scripts/core.py（探源司必崩 ModuleNotFoundError）"
+else
+  no "skills/tvbox-core 缺失（探源司必崩 ModuleNotFoundError）"
+fi
+# pipeline 为出品流水线，lite 形状不含
+[ -d "$SK/tvbox-pipeline" ] && ok "skills/tvbox-pipeline（整包加工+配置同步）" || opt "skills/tvbox-pipeline 未安装（lite 形状正常）"
+if [ -d "$SK/tvbox-core/scripts" ]; then
+  ( cd "$SK/tvbox-core/scripts" && python3 -c "import core" 2>/dev/null ) \
     && ok "共享核心 core.py 可导入" || no "core.py 导入失败"
 fi
+# 核心库不该被当成技能注册：有 SKILL.md 就是装错了
+[ -f "$SK/tvbox-core/SKILL.md" ] && no "tvbox-core 混入了 SKILL.md（会被误注册为技能）" || ok "tvbox-core 无 SKILL.md（正确：不路由）"
 if [ -d "$SK/probe-hub/scripts" ]; then
   # 只看功能性硬编码（sys.path / 变量赋值），文案与注释里的路径不影响运行
   hit=$(grep -rEn "sys\.path\.insert\([^)]*'/root/\.codebuddy|^[[:space:]]*[A-Z_]+[[:space:]]*=[[:space:]]*'/root/\.codebuddy" "$SK" --include="*.py" 2>/dev/null | wc -l | tr -d ' ')
@@ -61,7 +78,7 @@ fi
 echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"
 [ -f "$P/CODEBUDDY.md" ] && ok "CODEBUDDY.md" || opt "CODEBUDDY.md 未装（用户级模式正常）"
-[ -d "$P/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || echo "  · 项目级技能未装（用户级模式正常）"
+[ -d "$P/skills/tvbox-pipeline" ] && ok "skills/tvbox-pipeline" || echo "  · 项目级技能未装（用户级模式正常）"
 for f in collect_repos check_live merge_config; do
   [ -f "$P/scripts/$f.py" ] && ok "scripts/$f.py" || true
 done

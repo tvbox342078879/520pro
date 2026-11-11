@@ -25,7 +25,7 @@ import os
 import json
 import time
 
-GATE_FILE = os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/.session_gate.json')
+GATE_FILE = os.path.expanduser('~/.codebuddy/skills/tvbox-core/.session_gate.json')
 GATE_TTL_SEC = 12 * 3600       # 开工登记有效期：防「一次开工、永久放行」（P087②延长：覆盖多轮长会话，本会话实测 7h 被拦）
 
 

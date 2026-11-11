@@ -10,7 +10,7 @@ tvbox-source-hub 一体化入口：扫描 → 去重 → 判体系 → 批量入
   python3 run.py --db <database_id>     # 指定库(默认主库)
   python3 run.py --dirs /a /b           # 额外扫描目录
 
-依赖环境: /root/.codebuddy/skills/library/space_api.py (库 API)
+依赖环境: ~/.codebuddy/skills/library/space_api.py (库 API)
 """
 import os, sys, json, glob, time, argparse, csv, io
 from urllib.parse import urlparse

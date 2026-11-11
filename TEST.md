@@ -15,7 +15,7 @@ bash install.sh --user-skill               # 真装：通用层+TVBox 全到 ~/.
 bash verify.sh                             # 自检（会打印每个落点 + 脚本冒烟）
 ```
 
-**预期**：`verify.sh` 里通用层 5 项、TVBox 技能 1 项、脚本 3 项全绿，冒烟显示 `check_live.py 可执行`。
+**预期**：`verify.sh` 里通用层 7 项、TVBox 技能 1 项、脚本 3 项全绿，冒烟显示 `check_live.py 可执行`。
 
 > 只想项目隔离：`bash install.sh --capability-only --target /tmp/testproj`
 
@@ -37,22 +37,22 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 
 | 编号 | 动作 | 预期 |
 |---|---|---|
-| T2.1 | **新开会话**，说「帮我更新 TVBox 配置」 | 命中 `tvbox-config-sync` 或按三步链路执行 = **真阳性**（说明用户级技能被路由） |
+| T2.1 | **新开会话**，说「帮我更新 TVBox 配置」 | 命中 `tvbox-pipeline` 或按三步链路执行 = **真阳性**（说明用户级技能被路由） |
 | T2.2 | 输入 `/tvbox-sync all` | 命令被识别 |
 | T2.3 | 观察是否调用了 `~/.codebuddy/scripts/`（而非报"找不到脚本"） | 脚本路径自动适配成功 |
 
-> 这一步是关键：**项目级技能不路由，用户级才路由**。若 T2.1 没反应，回看 `verify.sh` 是否 `~/.codebuddy/skills/tvbox-config-sync` 存在。
+> 这一步是关键：**项目级技能不路由，用户级才路由**。若 T2.1 没反应，回看 `verify.sh` 是否 `~/.codebuddy/skills/tvbox-pipeline` 存在。
 
 ---
 
 ## 3. 探源司四件套（★ 真正的干活能力）
 
-> 前提：必须四件套齐全。**只装 probe-hub 必报 `ModuleNotFoundError: No module named 'core'`。**
+> 前提：`probe-hub` + `tvbox-core` 两个目录必须齐全。**只装 probe-hub 必报 `ModuleNotFoundError: No module named 'core'`。**
 
 | 编号 | 动作 | 预期 |
 |---|---|---|
-| T3.0 | `ls ~/.codebuddy/skills/` | 能看到 `probe-hub` / `tvbox-source-hub` / `tvbox-interface` / `tvbox-source-blacklist` |
-| T3.1 | `cd ~/.codebuddy/skills/tvbox-source-hub/scripts && python3 -c "import core"` | 无报错 |
+| T3.0 | `ls ~/.codebuddy/skills/` | 能看到 `probe-hub` / `tvbox-pipeline` / `tvbox-core`（core 无 SKILL.md 属正常） |
+| T3.1 | `cd ~/.codebuddy/skills/tvbox-core/scripts && python3 -c "import core"` | 无报错 |
 | T3.2 | `python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py monitor status` | 输出 `📡 上游仓库监测台（186 个目标）` 表格 |
 | T3.3 | `python3 .../probe.py monitor check --repo https://github.com/xxx/not-exist-999` | 返回 `❌ 未找到目标`（**若编出内容 = 幻觉**） |
 | T3.4 | 新会话说「用探源司看看 hjdhnx/drpy3 还活着吗」 | 命中 probe-hub 技能并调用 |
@@ -83,9 +83,9 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | 编号 | 动作 | 预期 | 判据 |
 |---|---|---|---|
 | T6.1 | `bash bootstrap.sh <源> lite /tmp/e1 --dry-run` | 打印计划，不落盘 | 结束后 `/tmp/e1` 不存在 |
-| T6.2 | `bash bootstrap.sh <源> lite /tmp/e1` | `换机成功`，断言 6 项全 `✔` | 工作区约 2.4M，含 probe-hub + source-hub |
+| T6.2 | `bash bootstrap.sh <源> lite /tmp/e1` | `换机成功`，断言 6 项全 `✔` | 工作区约 2.4M，含 probe-hub + tvbox-core |
 | T6.3 | **再跑一遍同一命令**（幂等） | 出现 `[幂等] 跳过 clone` → `已拉取最新` → 断言仍全 `✔` | 无重复 clone、无副作用 |
-| T6.4 | `bash bootstrap.sh <源> full /tmp/e2` | 断言 17 项全 `✔` | 含 5 个技能 + 3 脚本 + core.py |
+| T6.4 | `bash bootstrap.sh <源> full /tmp/e2` | 断言 17 项全 `✔` | 含 2 个能力层技能 + 5 个通用层技能 + 3 脚本 + core.py |
 | T6.5 | `bash bootstrap.sh <源> lite /tmp/e3 --install` | 装完显示 `✔ 已安装到 $HOME/.codebuddy` | 新会话可见 probe-hub 技能 |
 | T6.6 | 目标目录已存在且非本仓（`mkdir /tmp/zz` 后跑） | `拒绝覆盖` + exit 1 | **不覆盖用户数据** |
 | T6.7 | 源路径不是 git 仓（`bootstrap.sh /etc lite /tmp/x`） | `不是 git 仓库` + exit 1 | 明确报错不静默 |
@@ -114,7 +114,23 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 
 ## 8. 常见假阴性排查
 
-- **技能没反应** → 可能装成了项目级（不路由）。改用 `--user-skill` 重装，或确认 `~/.codebuddy/skills/tvbox-config-sync/` 存在。
+- **技能没反应** → 可能装成了项目级（不路由）。改用 `--user-skill` 重装，或确认 `~/.codebuddy/skills/tvbox-pipeline/` 存在。
 - **找不到脚本** → `$SCRIPT_DIR` 没定位对；`verify.sh` 会报。
 - **规则没生效** → `/clear` 不算重启；要新开进程/重启客户端。
 - **手机没触发** → 用户级技能是否跨设备同步=无法判定；先在桌面验证 T2.1，再测手机 T3.3。
+
+## 7. 学习工坊 + 网盘取料（v0.5.0 新增）
+
+> 前置：`~/.codebuddy/skills/learn-hub/` 存在，含 `scripts/learn.py` 与 `scripts/pan.py`。
+
+| 编号 | 操作 | 预期（判据） |
+|---|---|---|
+| T7.1 | `python3 ~/.codebuddy/skills/learn-hub/scripts/learn.py self-check` | `self-check 16/16` |
+| T7.2 | `python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py self-check` | `网盘模块自检 2/2 通过` |
+| T7.3 | `python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py info --url <真实夸克分享>` | 列出文件树与大小；**机房 IP 也能成，因为它只走 API** |
+| T7.4 | `python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py info --url https://example.com/s/x` | `❌ 认不出分享 id` 并列出四平台正确格式 |
+| T7.5 | `python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py save --url <链接>`（无 cookie） | `❌ 缺少 ... 网盘登录态` + 获取指引，不崩 |
+| T7.6 | 新会话说「把这个网盘链接里的资料收了」 | 命中 `learn-hub` 并走 `intake pan` |
+
+> 网盘取料原属探源司 `probe harvest pan`，v0.5.0 迁入学习工坊（与 TVBox 零耦合）。
+> `pull` 若被 CDN 以 412 拒绝，属**出口 IP 段**问题，不是文件不存在——清单拿到了就说明东西在。

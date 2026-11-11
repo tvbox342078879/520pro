@@ -5,7 +5,7 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Write
 model: inherit
 ---
 
-按 `tvbox-config-sync` 技能流程，用 $ARGUMENTS 指定的仓库（缺省 all）执行：
+按 `tvbox-pipeline` 技能流程，用 $ARGUMENTS 指定的仓库（缺省 all）执行：
 拉仓库 → 抽源 → 并发测活 → 集成主配置 → 汇报结果。
 
 示例：

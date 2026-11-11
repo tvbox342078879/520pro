@@ -26,13 +26,13 @@ from collections import Counter
 
 # ---------- M-R114 统一并发入口（S110） ----------
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import resolve_workers as _resolve_workers  # noqa: E402
 
 
 # ★ 生态联动（S106 补接门面）：整包坊产出的「抓取/拆分中间残留」「失败整包」AI 删不掉 → 投递清道夫；
 #   出现新体系/新伪装形态（不在 A/B/C/D/🔞 内）→ 登记监察司风险面，纳入下轮扫描。
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 try:
     from core import file_to_janitor, register_monitor, http_get  # ECO 对齐：取数统一入口
 except Exception:                              # 门面不可达时降级为 no-op，绝不阻断流水线
@@ -770,7 +770,7 @@ def _load_link():
     拿不到 link 就必须报错退出——绝不允许"静默降级成不落库还声称完成"。
     """
     try:
-        sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+        sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
         import link  # noqa: E402
         return link, ''
     except Exception as e:

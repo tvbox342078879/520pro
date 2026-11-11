@@ -30,11 +30,11 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts'))
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 
 import quality  # noqa: E402
 from core import SRC_DBS, http_get  # noqa: E402
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded, TIER_WEB, TIERS  # noqa: E402  M-R114 统一入口
 
 LIB = os.path.expanduser('~/.codebuddy/skills/library')

@@ -26,6 +26,15 @@ UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 DB_SHELL = 'hPF6AUmWmOQa26tOg8Wjb5'
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
 
+# ── 本地壳库（2026-11-12 立为权威）──────────────────────────────────────────
+# 为什么改：原实现读回要 `eco-ledger/core_ledger`、入库要 `library/database/*.py`，
+# 而这两个技能在新生态里都没装 —— 于是「入库必须 readback」这条硬规则整条落空，
+# 探源司 self-check 的壳库项一直红着。实测：造一个只提供 rows_of 的假账房司，
+# readback 逻辑一次就正确，说明**缺的是数据源，不是逻辑**。
+# 现在本地 JSON 为权威，云端有就双写、没有就只写本地，任何一边失败都不阻断另一条路。
+SHELL_LIB = os.path.expanduser('~/.codebuddy/tvbox/shell_library.json')
+
+
 # ── 基础 ──
 def fetch(url, timeout=12):
     """收敛到共享核心 core.http_get（T5 / M-R38 单一事实源）。
@@ -129,17 +138,112 @@ def triage(name, api):
                          'note': f'{type(e).__name__}:{str(e)[:50]}——无法判定≠死，勿拉黑(M-R60)'}
 
 
-# ── 入库（batch_add + readback，S144 判真判据）──
+# ── 本地库读写（原子写 + 三态：读失败 ≠ 空库）──
+def _lib_load():
+    """读本地壳库。返回 (records, ok, err)。ok=False 是「读失败」，不是「空库」。"""
+    try:
+        if not os.path.isfile(SHELL_LIB):
+            return [], True, ''
+        with open(SHELL_LIB, encoding='utf-8') as f:
+            d = json.load(f)
+        rows = d.get('records')
+        if not isinstance(rows, list):
+            return [], False, '文件结构异常（records 不是列表）——不敢当成空库'
+        return rows, True, ''
+    except Exception as e:
+        return [], False, f'{type(e).__name__}: {str(e)[:80]}'
+
+
+def _lib_save(rows):
+    """原子写（tmp → rename），防止写一半断电留下半个库。返回 (ok, err)。"""
+    try:
+        os.makedirs(os.path.dirname(SHELL_LIB), exist_ok=True)
+        tmp = SHELL_LIB + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump({'updated': time.strftime('%Y-%m-%dT%H:%M:%S'),
+                       'note': f'播放页壳库（本地权威）。云端 DB_SHELL={DB_SHELL} 仍在双写。',
+                       'records': rows}, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, SHELL_LIB)
+        return True, ''
+    except Exception as e:
+        return False, f'{type(e).__name__}: {str(e)[:80]}'
+
+
+def _cloud_rows():
+    """读云端壳库。返回 (rows, ok, why)。依赖未装时 ok=False 并给出原因，不假装空库。"""
+    d = os.path.expanduser('~/.codebuddy/skills/eco-ledger/scripts')
+    if not os.path.isdir(d):
+        return [], False, '账房司未装（~/.codebuddy/skills/eco-ledger）'
+    try:
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        import core_ledger as L
+        rows, good = L.rows_of(DB_SHELL)
+        return (rows or []), bool(good), ('' if good else '云端读取失败')
+    except Exception as e:
+        return [], False, f'{type(e).__name__}: {str(e)[:80]}'
+
+
+def to_local(x):
+    """扁平记录（本地库用）。人可读、可 diff，不套多维表那层 {'text':...} 壳。"""
+    return {
+        'name': x.get('name', ''),
+        'host': (x.get('page') or '').split('/')[2] if x.get('page') else '',
+        'page': x.get('page', ''),
+        'template': x.get('template') or '',
+        'regex': x.get('regex_note') or '',
+        'status': x.get('status', ''),
+        'note': (x.get('note') or '')[:480],
+        'm3u8': x.get('m3u8') or '',
+        'saved_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
+    }
+
+
+# ── 入库：本地权威 + 云端可选（S144 判真判据保留：回执≠真相，必须 readback）──
 def save(recs):
-    payload = json.dumps({'database_id': DB_SHELL, 'records': recs}, ensure_ascii=False)
-    open('/tmp/shellcrack_recs.json', 'w').write(payload)
-    import subprocess
-    r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py', '--stdin'],
-                       stdin=open('/tmp/shellcrack_recs.json'), capture_output=True, text=True)
-    out = next((ln.strip() for ln in (r.stdout or '').splitlines() if ln.strip().startswith('{')), '')
-    d = json.loads(out) if out else {}
-    n_ok = sum(1 for x in (d.get('results') or []) if x.get('success'))
-    print(f'入库: {n_ok}/{len(recs)} 成功（回执≠真相，请用 `status` readback 复核）')
+    """recs 是 crack/triage 产出的**原始扁平 dict 列表**（不是 to_record 的云端格式）。"""
+    rows, ok, err = _lib_load()
+    if not ok:
+        print(f'❌ 本地壳库读取失败：{err}（不敢覆盖，先修文件再入库）'); return 0
+
+    idx = {r.get('page'): i for i, r in enumerate(rows) if r.get('page')}
+    new_n = upd_n = 0
+    for x in recs:
+        flat = to_local(x)
+        p = flat.get('page')
+        if p and p in idx:
+            rows[idx[p]] = flat; upd_n += 1
+        else:
+            rows.append(flat); new_n += 1
+
+    ok2, err2 = _lib_save(rows)
+    if not ok2:
+        print(f'❌ 本地入库失败：{err2}'); return 0
+    print(f'✅ 本地壳库：新增 {new_n} · 覆盖 {upd_n} · 现有 {len(rows)} 条 → {SHELL_LIB}')
+
+    # 云端双写：有就写、没有就明说、失败不阻断本地
+    if not os.path.isdir(f'{LIB}/database'):
+        print('   · 云端未装（library/database 不存在），本次仅存本地')
+        n_ok = len(recs)
+    else:
+        payload = json.dumps({'database_id': DB_SHELL,
+                              'records': [to_record(x) for x in recs]}, ensure_ascii=False)
+        tmpf = '/tmp/shellcrack_recs.json'
+        with open(tmpf, 'w') as f:
+            f.write(payload)
+        import subprocess
+        with open(tmpf) as fin:
+            r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py', '--stdin'],
+                               stdin=fin, capture_output=True, text=True)
+        out = next((ln.strip() for ln in (r.stdout or '').splitlines() if ln.strip().startswith('{')), '')
+        try:
+            d = json.loads(out) if out else {}
+        except Exception:
+            d = {}
+        n_ok = sum(1 for x in (d.get('results') or []) if x.get('success'))
+        print(f'   云端双写：{n_ok}/{len(recs)} 成功（失败不影响本地）')
+
+    print('   回执≠真相，请用 `shellcrack status` readback 复核')
     return n_ok
 
 
@@ -159,18 +263,33 @@ def to_record(x):
 
 
 def status():
-    """readback：列壳库现状（入库后必须回读，不许只看回执）。"""
-    sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/eco-ledger/scripts'))
-    import core_ledger as L
-    rows, good = L.rows_of(DB_SHELL)
-    if not good:
-        print('❌ 壳库读取失败'); return 2
+    """readback：本地优先、云端兜底。两边都读不到才报「无法判定」，不假装空库。"""
+    rows, ok, err = _lib_load()
+    src = '本地'
+    if not ok:
+        print(f'⚠️ 本地壳库读取失败：{err}')
+    if ok and not rows:
+        crows, cok, cwhy = _cloud_rows()
+        if cok and crows:
+            rows, src = crows, '云端'
+        elif not cok:
+            print(f'   · 本地为空；云端不可用（{cwhy}）→ 无法判定是否有历史记录')
+            return 0
+
     from collections import Counter
-    c = Counter(r.get('状态') for r in rows)
-    print(f'播放页壳库共 {len(rows)} 条：{dict(c)}')
+    c = Counter((r.get('status') or r.get('状态')) for r in rows)
+    print(f'播放页壳库（{src}）共 {len(rows)} 条：{dict(c)}')
     for r in rows[-8:]:
-        link = (r.get('抠出直链') or {}).get('link', '') if isinstance(r.get('抠出直链'), dict) else ''
-        print(f"  [{r.get('状态')}] {r.get('名称')} {(r.get('备注') or '')[:50]}")
+        if 'status' in r:                       # 本地扁平格式
+            name, st, note = r.get('name'), r.get('status'), r.get('note')
+            link = r.get('m3u8') or ''
+        else:                                   # 云端多维表格式
+            name = (r.get('名称') or {}).get('text') if isinstance(r.get('名称'), dict) else r.get('名称')
+            st = r.get('状态')
+            note = (r.get('备注') or {}).get('text') if isinstance(r.get('备注'), dict) else r.get('备注')
+            lk = r.get('抠出直链') or {}
+            link = ((lk.get('url') or {}).get('link') if isinstance(lk, dict) else '') or ''
+        print(f'  [{st}] {name} {(note or "")[:50]}')
         if link:
             print(f'      {link[:90]}')
     return 0
@@ -186,7 +305,7 @@ def cmd_shellcrack(a):
             print(f"  模板: {r.get('template')}")
             print(f"  直链: {r['m3u8']}")
         if a.save:
-            save([to_record(r)])
+            save([r])
         return 0 if r['status'] == '已抠' else 1
     if op == 'probe':
         form, info = triage(a.name, a.api)
@@ -200,7 +319,7 @@ def cmd_shellcrack(a):
                 print(f'    {r["m3u8"][:100]}')
             info.update(r)
             if a.save:
-                save([to_record(info)])
+                save([info])
         return 0
     if op == 'scan':
         cands = []
@@ -220,7 +339,7 @@ def cmd_shellcrack(a):
                     print(f'    {r["m3u8"][:90]}')
             results.append((form, info))
         if a.save:
-            shells = [to_record(info) for form, info in results if form == '壳']
+            shells = [info for form, info in results if form == '壳']
             if shells:
                 save(shells)
         n_shell = sum(1 for f, _ in results if f == '壳')

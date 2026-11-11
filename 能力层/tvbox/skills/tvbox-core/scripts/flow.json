@@ -4,7 +4,7 @@
  "created": "2026-10-15",
  "source": "全量复盘第1轮产物（SKILL.md §8.10 的机器可读版）；v1.4.0 同步规则54四化（SKILL.md §8.17）与 S023 复盘修正；S108 版本线收敛：flow.json 旧独立版本号 1.6.4 → 对齐 SKILL.md/云端台账权威 1.0.34（M-R40 单一权威）",
  "route_decision": {
-  "interface_url_or_local_package": "tvbox-interface 全链路 §0-§8",
+  "interface_url_or_local_package": "tvbox-pipeline 全链路 §0-§8（原 tvbox-interface）",
   "candidate_list_json": "tvbox ingest --candidates <file>",
   "single_or_query_or_maintenance": "tvbox 单命令（log/lib-log/sync/audit/snapshot/block/evolve）",
   "dirty_config": "先 parse_tvbox_config.py 解析，再按上面分流"

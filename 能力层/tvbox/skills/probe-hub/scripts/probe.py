@@ -45,7 +45,7 @@ from datetime import datetime, timezone
 #   但仍**绕过统一入口的写集合登记/拖进程护栏/收益实测**，且 audit_concurrency
 #   的"整文件放行"正是被它触发的。现已全部改走 run_bounded，本函数删除。
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 
 
 def _count_success(out, expect):
@@ -70,8 +70,8 @@ def _count_success(out, expect):
 
 
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
-HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts')
-BLK = os.path.expanduser('~/.codebuddy/skills/tvbox-source-blacklist/scripts/blk.py')
+HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts')
+BLK = os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts/blk.py')
 sys.path.insert(0, HUB)
 from core import SRC_DBS as _SRC_DBS, http_get   # noqa: E402
 _SRC_BY_NAME = dict(_SRC_DBS)
@@ -100,7 +100,7 @@ UA_WEB = ('Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 '
           'Chrome/120 Mobile Safari/537.36')                # 浏览器 UA：发布页探活回退专用（蓝奏云对 okhttp 吐空，实测 0B vs 6551B）
 CURL = 'curl'
 
-# 测活判定码（单一事实源：与 tvbox-interface/scripts/pipeline.py 的 ALIVE_CODES 同口径）
+# 测活判定码（单一事实源：与 tvbox-core/scripts/pipeline.py 的 ALIVE_CODES 同口径）
 # M-R3：监测口径须与上游技能同口径；中立起见在此显式复制并锚定来源，不跨技能 import。
 ALIVE_CODES = {200, 206, 301, 302, 303, 307, 308}
 
@@ -181,8 +181,29 @@ from core import (rows_of, rows_of_t, api, add_records, invalidate,
 #   · harvest prune 剔除的失效候选集/废弃中间产物 AI 删不掉 → core.file_to_janitor 投递清道夫
 #   · 上游侦察发现新失效模式（新停更原因/新仓库类型）→ core.register_monitor 登记监察司
 def _eco_linked_probe():
-    """自证已接门面：返回 (清道夫, 监察司) 可达性，供 inspect 联动覆盖判据与自检。"""
-    return (callable(file_to_janitor), callable(register_monitor))
+    """探联动门面是否**真的能到下游**。True=可达／False=装了但导入失败／None=下游未装。
+
+    ★2026-11-12 更正（实测证据）：原实现 `return (callable(file_to_janitor),
+      callable(register_monitor))` —— 这两个函数定义在 core.py 里，只要 `import core`
+      成功就恒为 True。实测：tvbox-janitor 与 tvbox-inspect 两个目录都不存在，
+      探针照样返回 (True, True)，自检报「生态联动门面可达 ✅」。
+      **这是假阳性，比报红更危险**——它让人以为联动是通的，实际一次都没投递出去。
+      现在按「下游目录存在 + 目标符号可导入」判：未装 = None（无法判定），不折叠成通过。
+    """
+    def _probe(dirp, modname, attr):
+        d = os.path.expanduser(dirp)
+        if not os.path.isdir(d):
+            return None
+        try:
+            if d not in sys.path:
+                sys.path.insert(0, d)
+            import importlib
+            m = importlib.import_module(modname)
+            return True if callable(getattr(m, attr, None)) else False
+        except Exception:
+            return False
+    return (_probe('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor', 'auto_file'),
+            _probe('~/.codebuddy/skills/tvbox-inspect/scripts', 'inspect_engine', 'register_monitor'))
 
 
 # ══════════════════ 三态原语（M-R55~M-R60：禁裸 except 折叠成空） ══════════════════
@@ -259,7 +280,7 @@ def _token_file_path():
 def _global_token_path():
     """全局令牌路径（S209：全组件单一事实源，更新令牌只需覆盖它一处）。
 
-    SELF_DIR=skills/probe-hub/scripts，上三级即 /root/.codebuddy/.gh_token。
+    SELF_DIR=skills/probe-hub/scripts，上三级即 ~/.codebuddy/.gh_token。
     本地 token 文件仅作临时覆盖（token --set）用；本地缺失时自动回退全局，
     不依赖符号链接等本机状态（换机恢复后照样生效）。
     """
@@ -302,7 +323,7 @@ def _load_token(refresh=False):
             return 'ok', _TOKEN_CACHE['value'], _TOKEN_CACHE['source']
 
     # ② token 文件（首行，忽略 # 注释）：本地优先；本地不存在时回退全局令牌
-    #    （S209 单一事实源：全局 /root/.codebuddy/.gh_token 一处更新全组件生效，
+    #    （S209 单一事实源：全局 ~/.codebuddy/.gh_token 一处更新全组件生效，
     #    换机恢复由 clone_restore.sh 自动落位，不再依赖符号链接）
     fp = _token_file_path()
     if not os.path.exists(fp):
@@ -2465,7 +2486,7 @@ def cmd_monitor_check(a):
     #   （_record_sample/save_targets 写共享文件，并发写＝竞态）。
     #   keep_order=True：回写字段按 t 顺序对应，绝不能错位（错位＝把 A 的状态写到 B——S162 同款事故）。
     from concurrency import run_bounded, TIER_WEB
-    _HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts')
+    _HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts')
     if _HUB not in sys.path:
         sys.path.insert(0, _HUB)
     _rep = run_bounded(sel, _probe_target, tier=TIER_WEB, keep_order=True,
@@ -3508,7 +3529,7 @@ def cmd_search_verify(a):
 
 # ══════════════════ 模块 C：harvest（采集高质量线路） ══════════════════
 
-# 线路四类判据 = 整包坊（tvbox-interface）单一事实源（M-R38）。
+# 线路四类判据 = tvbox-pipeline（原整包坊）单一事实源（M-R38）。
 # harvest 与 split 必须同一口径，否则同一源在此算「配置」、在整包坊算「采集」，
 # 下游 ingest 类目分叉。运行时按需 import（同 blk 复用模式），失败显式降级。
 _IFACE_PIPE = None
@@ -3522,7 +3543,7 @@ def _classify_fn():
         _IFACE_TRIED = True
         try:
             _p = os.path.join(os.path.dirname(SELF_DIR), '..',
-                              'tvbox-interface', 'scripts')
+                              'tvbox-core', 'scripts')
             _p = os.path.normpath(_p)
             if os.path.isdir(_p):
                 sys.path.insert(0, _p)
@@ -4192,14 +4213,14 @@ def cmd_harvest_repack(a):
 def _jsm_group_of(name, api):
     """jsm 分组类目——**调用源枢库曹的正本**，不在探源司复制一份（S147）。
 
-    正本：`tvbox-source-hub/scripts/split_jsm.py::group_of`（它才是 jsm 拆包的正主）。
+    正本：`tvbox-core/scripts/split_jsm.py::group_of`（它才是 jsm 拆包的正主）。
     这里只做「找正本 → import → 调用」，找不到时**显式报错**，不悄悄降级成另一套管法——
     两套判据各走各的，同一源在两处归进不同分组，正是 S146 刚收拾过的「同一条线路两个分组」。
     """
     cands = [
         os.path.join(os.path.dirname(os.path.dirname(SELF_DIR)),
-                     'tvbox-source-hub', 'scripts'),
-        os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'),
+                     'tvbox-core', 'scripts'),
+        os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'),
     ]
     for d in cands:
         if os.path.isfile(os.path.join(d, 'split_jsm.py')):
@@ -4328,7 +4349,7 @@ def cmd_harvest_splitjsm(a):
     """harvest splitjsm：把 jsm 聚合配置拆成线路候选，并**按 api 形态分诊**（S147）。
 
     病根（2026-10-17 溯源）：SKILL.md §4 扩展点「harvest 深度抽取（jsm 拆包复用
-    tvbox-interface 的 split）」挂了一轮又一轮没做。老的 `split_jsm.py` 是**模块级执行**
+    tvbox-pipeline 的 split）」挂了一轮又一轮没做。老的 `split_jsm.py` 是**模块级执行**
     的一次性脚本（写死 /tmp/jsm.json → /tmp/to_add.json），既不接受参数也不区分形态——
     实测 A1015 包 164 条里有 150 条是 csp/drpy/本地相对路径，**根本不是可采集的外链**，
     却被一并当成候选产物丢给下游。分母冒充答案，就是本条要修的错位。
@@ -6868,7 +6889,7 @@ def _sc_search_cloud(results):
     base_xml = False
     try:
         # S143 修：原写 `import livecheck`——在脚本目录直跑能过，但经 `tvbox` 入口
-        # （以模块方式加载 probe，sys.path 只有 tvbox-source-hub/scripts）时
+        # （以模块方式加载 probe，sys.path 只有 tvbox-core/scripts）时
         # ModuleNotFoundError → 探针被 except 吞掉、判"捕获=否"，自检 15/16 假红。
         # 用同目录绝对路径加载，两种调用方式同源。
         import importlib.util as _ilu
@@ -7286,53 +7307,8 @@ def _sc_harvest_payload(results):
     except Exception as e:
         print(f'  ⚠️ jsm 拆包探针异常：{type(e).__name__}: {e}')
     results.append(('jsm拆包分诊·非外链不冒充候选', hit_sj, clean_sj, base_sj))
-def _sc_pan_pak(results):
+def _sc_pak(results):
     """self-check 组8：网盘取料/412归因/MSITEPK2 key自取（C6 拆出，顺序不变）。"""
-    # ㉓ 网盘分享取料：分享文案能认出 id + 412 不被当"文件坏"（S170）
-    #     为什么必须活体证明：这条链路的坑全在**识别**上，不在下载上——
-    #       ① 用户贴的是**整段分享文案**（含口令 `/~xxx~/`），不是干净 URL。
-    #          口令长得很像 id，认错了会拿口令去查分享，报"分享不存在"，
-    #          而真正的原因是解析错了。所以必须用真实文案喂进去证明抠对了。
-    #       ② 412 的成因（机房 IP 段被 CDN 边缘拒，**不是** IPv6 也不是文件坏）必须与"文件损坏"分开报，
-    #          探针用**字符串级证据**锁死：报错文案里必须出现"非文件问题"。
-    hit_pan = clean_pan = base_pan = False
-    try:
-        _txt = ('我用夸克网盘给你分享了「夸克上传文件」，点击链接或复制整段内容，'
-                '打开「夸克APP」即可获取。祄七另枫诶并闭页冉为喔汢 /~d9803bYsb2~:/\n'
-                '链接：https://pan.quark.cn/s/9d5b78140523 查看链接中文件')
-        hit_pan = (pan_parse_share(_txt) == '9d5b78140523')          # 从文案里抠对
-        clean_pan = (pan_parse_share('https://pan.quark.cn/s/abc123') == 'abc123'
-                     and pan_parse_share('随便一段没有链接的话') == '')   # 干净URL/无链接都不误判
-        # 反例：口令片段不能被当成 id
-        base_pan = (pan_parse_share('/~d9803bYsb2~/') == '')
-    except Exception as e:
-        print(f'  ⚠️ 网盘取料探针异常：{type(e).__name__}: {e}')
-    results.append(('网盘取料·整段文案认出id且口令不误认', hit_pan, clean_pan, base_pan))
-
-    # ㉓b 归因不能错：412 的处置建议里**不许**出现"换 IPv6"（S170 更正的固化）
-    #     为什么值得单列一条：S170 初版把 412 判成"域名 IPv6-only"，处置写"换 IPv6 机器"，
-    #     实测复查后证明**换过去还是 412**（A 记录 8 个，逐 IP 全 412；坏 token 也 412）。
-    #     判据错法不会让程序报错、不会让 self-check 变红，只会**把人指向不会成功的动作**。
-    #     所以这里用源码级检查：pull 的处置文案若又出现"换 IPv6"这类错误指引，直接判失败。
-    hit_why = clean_why = base_why = False
-    try:
-        import ast as _ast
-        _src = open(__file__, encoding='utf-8').read()
-        _tree = _ast.parse(_src)
-        _fn = next((n for n in _tree.body
-                    if isinstance(n, _ast.FunctionDef) and n.name == 'cmd_pan_pull'), None)
-        # ★只取**字符串字面量**，把注释排除掉——注释里提到旧错法是在说明它错，不是错法本身。
-        #   （探针初版直接 grep 源码，被自己的"更正注释"判失败，属于同侧变量互比。）
-        _lits = [n.value for n in _ast.walk(_fn)
-                 if isinstance(n, _ast.Constant) and isinstance(n.value, str)] if _fn else []
-        _text = '\n'.join(_lits)
-        hit_why = ('机房' in _text and '412' in _text)      # 正确归因写明
-        _bad = [k for k in ('在有 IPv6 的机器上', '换 IPv6 机器') if k in _text]
-        clean_why = not _bad                                # 错误处置已清除
-        base_why = ('坏' in _text)                          # 保留"坏 token 也 412"的证据
-    except Exception as e:
-        print(f'  ⚠️ 网盘归因探针异常：{type(e).__name__}: {e}')
-    results.append(('网盘412归因·机房IP段而非IPv6', hit_why, clean_why, base_why))
 
     # ㉔ MSITEPK2 容器：**key 能自动取到** + **错 key/错文件不许折叠成成功**（S171）
     #     为什么必须测：`pak` 是本技能新增的第一个"离线解容器"能力。它最大的假绿风险是
@@ -7904,38 +7880,66 @@ def _sc_forge_shell(results):
         subprocess.run = _orig_run
     results.append(('record_id三态·读失败≠空表', hit_rid, clean_rid, base_rid))
 
-    # C3（T4 治理·2026-1027）：壳源零探针 → 接入壳库 readback，呼应 S196 ⑤「入库必须 readback」
-    # 实测：DB_SHELL=hPF6AUmWmOQa26tOg8Wjb5，good=True，rows=19；坏 id good=False（构造数据可证伪）
+    # C3（T4·2026-1027）→ 2026-11-12 改本地库：原判据依赖账房司 core_ledger，而账房司
+    # 在新生态里没装，于是「入库必须 readback」整条落空、这项一直红着。
+    # 壳库已改本地 JSON 权威（shellcrack.SHELL_LIB），判据改为验**本地库三态**：
+    #   ① 不存在的库 → ok=True 且 0 条（空库合法，不是读失败）
+    #   ② 损坏 JSON   → ok=False（读失败绝不许折叠成空库）
+    #   ③ 真库可读    → ok=True
     hit_shell = clean_shell = base_shell = False
     try:
-        import shellcrack  # probe.py 顶层未 import，此处按需导入（SSOT 取 DB_SHELL）
-        sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/eco-ledger/scripts'))
-        import core_ledger as _L
-        _rows, _good = _L.rows_of(shellcrack.DB_SHELL)
-        base_shell = bool(_good) and len(_rows) > 0            # 正常态：壳库可读且有数据
-        _bad, _bad_good = _L.rows_of('__不存在的壳库id__')       # 构造数据：改坏目标
-        hit_shell = (_bad_good is False) and base_shell         # 改坏仍红 + 正常态绿
+        import shellcrack
+        import tempfile as _tf2
+        _rows, _good, _ = shellcrack._lib_load()
+        base_shell = bool(_good)
+        _orig = shellcrack.SHELL_LIB
+        try:
+            shellcrack.SHELL_LIB = '/tmp/__probe_no_such_shell_lib__.json'
+            _r0, _g0, _ = shellcrack._lib_load()
+            _bf = _tf2.mktemp(suffix='.json')
+            with open(_bf, 'w', encoding='utf-8') as _fh:
+                _fh.write('{坏')
+            shellcrack.SHELL_LIB = _bf
+            _r1, _g1, _ = shellcrack._lib_load()
+            os.remove(_bf)
+        finally:
+            shellcrack.SHELL_LIB = _orig
+        hit_shell = (_g0 is True and len(_r0) == 0) and (_g1 is False) and base_shell
         clean_shell = base_shell
     except Exception as e:
         print(f'  ⚠️ 壳库 readback 探针异常：{type(e).__name__}: {e}')
-    results.append(('壳库readback', hit_shell, clean_shell, base_shell))
+    results.append(('壳库readback（本地库三态）', hit_shell, clean_shell, base_shell))
 
-    # C4（T2 治理·2026-1027）：_eco_linked_probe 原为零调用休眠函数 → 接入自检验证生态联动门面可达
-    # 实测：file_to_janitor/register_monitor 均可调用（core.py:279/317）
-    # 呼应 S169 ⑤：构造数据——临时令门面不可达，探针必须变红（防探针自骗）
+    # C4（T2·2026-1027）→ 2026-11-12 修假阳性：原探针只判 callable()，而目标函数在 core 里
+    # 恒可调用，下游一个没装也报「可达 ✅」。现改为探下游目录：未装 = 无法判定（None）。
     hit_eco = clean_eco = base_eco = False
     try:
-        import unittest.mock as _mock
         _janitor_ok, _monitor_ok = _eco_linked_probe()
-        base_eco = bool(_janitor_ok and _monitor_ok)            # 正常态：两门面可达
-        _mod = sys.modules[__name__]
-        with _mock.patch.object(_mod, 'file_to_janitor', None):
-            _janitor_bad, _ = _eco_linked_probe()
-        hit_eco = (_janitor_bad is False) and base_eco          # 门面失效时仍红 + 正常态绿
-        clean_eco = base_eco
     except Exception as e:
+        _janitor_ok = _monitor_ok = False
         print(f'  ⚠️ 生态联动门面探针异常：{type(e).__name__}: {e}')
-    results.append(('生态联动门面可达', hit_eco, clean_eco, base_eco))
+
+    if _janitor_ok is None or _monitor_ok is None:
+        _miss = []
+        if _janitor_ok is None:
+            _miss.append('清道夫 tvbox-janitor')
+        if _monitor_ok is None:
+            _miss.append('监察司 tvbox-inspect')
+        # 5 元组：全 None + 原因 → 汇总按「无法判定」处理，不计入通过也不计入失败
+        results.append(('生态联动门面可达', None, None, None,
+                        '下游未装：' + '、'.join(_miss)))
+    else:
+        try:
+            import unittest.mock as _mock
+            base_eco = bool(_janitor_ok and _monitor_ok)      # 正常态：两门面都真能到下游
+            # 构造数据：目录都不存在时必须返回 None（未装不许判成可达）
+            with _mock.patch('os.path.isdir', return_value=False):
+                _bad = _eco_linked_probe()
+            hit_eco = all(v is None for v in _bad) and base_eco
+            clean_eco = base_eco
+        except Exception as e:
+            print(f'  ⚠️ 生态联动门面探针异常：{type(e).__name__}: {e}')
+        results.append(('生态联动门面可达', hit_eco, clean_eco, base_eco))
 
 
 def cmd_self_check(a):
@@ -7958,7 +7962,7 @@ def cmd_self_check(a):
     _sc_search_cloud(results)
     _sc_blacklist(results)
     _sc_harvest_payload(results)
-    _sc_pan_pak(results)
+    _sc_pak(results)
     _sc_eco_gate(results)
     _sc_forge_shell(results)
 
@@ -7975,13 +7979,24 @@ def cmd_self_check(a):
     results.append(('总调度路由可达', hit_rt, clean_rt, base_rt))
 
     ok = 0
-    for name, hit, clean, base in results:
+    _skip_n = 0
+    for _r in results:
+        name, hit, clean, base = _r[0], _r[1], _r[2], _r[3]
+        _why = _r[4] if len(_r) > 4 else ''
+        # ★2026-11-12：hit is None = 依赖未装，属「无法判定」。不计通过、也不计失败——
+        #   把「查不了」写成 ❌（失败）和写成 ✅（通过）是同一种谎，方向相反而已。
+        if hit is None:
+            _skip_n += 1
+            print(f'  · {name}：无法判定（{_why or "依赖不可达"}）')
+            continue
         good = hit and clean and base
         ok += 1 if good else 0
         print(f'  {"✅" if good else "❌"} {name}：捕获={"是" if hit else "否"} '
               f'清理后清零={"是" if clean else "否"} 假阳性基线={"净" if base else "脏"}')
-    print(f'\n探针结果: {ok}/{len(results)} 监测器逻辑有效'
-          f'（"依赖可达≠逻辑对"，故需活体证明）')
+    _scored = len(results) - _skip_n
+    print(f'\n探针结果: {ok}/{_scored} 监测器逻辑有效'
+          f'（"依赖可达≠逻辑对"，故需活体证明）'
+          + (f'；另有 {_skip_n} 项无法判定（依赖未装，不算失败）' if _skip_n else ''))
 
     # S177 步2：--json 结构化输出。
     # 判定逻辑**完全没动**——上面那圈 ok/print 就是原样，这里只是额外吐一份机器可读的。
@@ -8003,27 +8018,32 @@ def cmd_self_check(a):
     #   现在的顺序：判红 → 先把证据吐出来 → 再 exit(1)。
     if getattr(_opt, 'as_json', False):
         items = []
-        for _n, _h, _c, _b in results:
+        for _r in results:
+            _n, _h, _c, _b = _r[0], _r[1], _r[2], _r[3]
             _miss = [k for k, v in (('hit', _h), ('clean', _c), ('base', _b))
                      if v is None]
+            if len(_r) > 4 and _r[4]:
+                _miss.append(_r[4])
             items.append({'name': _n,
                           'hit': bool(_h) if _h is not None else None,
                           'clean': bool(_c) if _c is not None else None,
                           'base': bool(_b) if _b is not None else None,
-                          'good': bool(_h and _c and _b),
+                          'good': None if _h is None else bool(_h and _c and _b),
                           'missing': _miss})
         print(json.dumps({
             'probe': 'probe-hub/self-check',
             'spec': 'self_probe_spec/v1',
             'ts': datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
             'total': len(items),
+            'scored': len(items) - _skip_n,
+            'skipped': _skip_n,
             'passed': ok,
-            'all_good': ok == len(items),
+            'all_good': ok == len(items) - _skip_n,
             'items': items,
         }, ensure_ascii=False, indent=1))
 
     # 证据先出、判红后走。顺序不许调（见上面 ★★ 那段）。
-    if ok != len(results):
+    if ok != len(results) - _skip_n:
         sys.exit(1)
 
 
@@ -8104,7 +8124,7 @@ def cmd_bl_audit(a):
     与 `pardon` 同一把尺子（M-R38）。本命令只做"抽样 + 报告 + 可选平反"。
     """
     from concurrency import run_bounded, TIER_WEB
-    _HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts')
+    _HUB = os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts')
     if _HUB not in sys.path:
         sys.path.insert(0, _HUB)
 
@@ -8461,1196 +8481,6 @@ def _cloud_insert(db_id, records):
 #   归因错了，处置就会把人引到死路上——这正是本技能 §3.13 反复在防的那种病。
 
 
-PAN_API = 'https://drive-pc.quark.cn'
-# S197 扩 UC 网盘（drive.uc.cn）：与夸克同 API 体系（阿里系），接口路径一致，
-# 差异只在域名 / pr 参数 / Referer。UC 的 pr 值实测验证，不对再按三态调整。
-PAN_PLATFORMS = {
-    'quark': {'api': 'https://drive-pc.quark.cn', 'referer': 'https://pan.quark.cn/', 'pr': 'ucpro'},
-    'uc':    {'api': 'https://pc-api.uc.cn',     'referer': 'https://drive.uc.cn/', 'pr': 'UCBrowser'},
-    'xunlei':{'api': 'https://api-pan.xunlei.com', 'referer': 'https://pan.xunlei.com/', 'pr': ''},
-}
-#   ⚠️ UC 下载 403 坏法清单（S197 实测，真实分享 4bb62a7a8e794）：
-#     · API 全通：token/detail/直链签发都成功（pc-api.uc.cn 不拒机房 IP）；
-#     · 下载 CDN（dl-uf-sz.pds.uc.cn）→ 18/18 全 403；
-#     · 对照实验 5 组头全 403（无Referer/UC Referer/api来源页/默认UA/Range）→ 拦截与请求头无关；
-#     · 结论：与夸克 412 同构——**下载 CDN 按出口 IP 段拒绝机房网络**，归「无法判定·出口被拒」，
-#       不是文件坏、不是 token 错。处置同夸克：换出口网络或用户手动下载，不许记「源失效」。
-PAN_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-
-
-def _pan_req(path, data=None, timeout=30, platform='quark', cookie=None):
-    """调分享 API（夸克/UC）。返回 (ok, json|err)。**不吞异常**——网络问题要显式分类。
-
-    cookie：网盘登录 cookie。实测含 __pus/__puus/__kps 组即有效，**不必含 ck 字段**。
-    save 类接口 require login 必须传；info/pull 留空即 guest。
-    """
-    import urllib.request
-    import urllib.error
-    pf = PAN_PLATFORMS.get(platform) or PAN_PLATFORMS['quark']
-    path = path.replace('pr=ucpro', f'pr={pf["pr"]}')
-    url = f'{pf["api"]}{path}'
-    hdr = {'User-Agent': PAN_UA, 'Referer': pf['referer']}
-    if cookie:
-        hdr['Cookie'] = cookie
-    body = None
-    if data is not None:
-        hdr['Content-Type'] = 'application/json'
-        body = json.dumps(data).encode()
-    # C1b：底层取数统一走 core.http_get（err_body 保留服务端错误正文，排障必需）
-    try:
-        _st, _pl, _rs = http_get(url, timeout=timeout, headers=hdr,
-                                 method='POST' if data is not None else 'GET',
-                                 data=body, err_body=True)
-        if _st == 'ok':
-            return True, json.loads(_pl)
-        if isinstance(_pl, tuple):
-            _code, _b = _pl
-            return False, f'HTTP {_code} {(_b or "")[:300]}'.strip()
-        return False, f'HTTP错误 {_rs}' if _rs and _rs.startswith('http_') else f'网络错误 {_rs}'
-    except Exception as e:
-        return False, f'{type(e).__name__}: {e}'
-
-
-def pan_parse_share(text):
-    """从分享文本里抠出 pwd_id。用户常见贴法是**整段分享文案**，不是干净 URL。
-
-    实测样本：
-      「…打开「夸克APP」即可获取。祄七另枫诶并闭页冉为喔汢 /~d9803bYsb2~:/
-       链接：https://pan.quark.cn/s/9d5b78140523 …」
-    注意 `/~xxx~/` 是**口令**不是 pwd_id，真正的 id 在 /s/ 后面。
-    """
-    import re as _re
-    if not text:
-        return ''
-    m = _re.search(r'pan\.quark\.cn/s/([0-9a-zA-Z]+)', text)
-    if m:
-        return m.group(1)
-    # S197：UC 网盘分享（drive.uc.cn/s/<id>）
-    m = _re.search(r'drive\.uc\.cn/s/([0-9a-zA-Z]+)', text)
-    return m.group(1) if m else ''
-
-
-def pan_parse_share_ex(text):
-    """四平台版：返回 (id, platform)。platform ∈ {'quark','uc','xunlei','baidu'}；认不出返回 ('', '')。"""
-    import re as _re
-    if not text:
-        return '', ''
-    m = _re.search(r'pan\.quark\.cn/s/([0-9a-zA-Z_]+)', text)
-    if m:
-        return m.group(1), 'quark'
-    m = _re.search(r'drive\.uc\.cn/s/([0-9a-zA-Z_]+)', text)
-    if m:
-        return m.group(1), 'uc'
-    m = _re.search(r'pan\.xunlei\.com/s/([0-9a-zA-Z_-]+)', text)
-    if m:
-        return m.group(1), 'xunlei'
-    m = _re.search(r'pan\.baidu\.com/s/([0-9a-zA-Z_-]+)', text)
-    if m:
-        return m.group(1), 'baidu'
-    return '', ''
-
-
-def cmd_pan_info(a):
-    """摸清分享里有什么：文件树 + 大小 + 格式。**不下载**。
-
-    这一步在 IPv4-only 环境下也能完全成功——它走的是 API，不是 CDN。
-    """
-    pwd_id, plat = pan_parse_share_ex(a.url)
-    if not pwd_id:
-        print('❌ 认不出分享 id：需要夸克 https://pan.quark.cn/s/<id> 或 UC https://drive.uc.cn/s/<id> 或 迅雷 https://pan.xunlei.com/s/<id> 或 百度 https://pan.baidu.com/s/<id>（或含它们的整段分享文案）')
-        sys.exit(2)
-    if plat == 'xunlei':
-        return cmd_pan_info_xunlei(a, pwd_id)
-    if plat == 'baidu':
-        return cmd_pan_info_baidu(a, pwd_id)
-
-    ok, r = _pan_req(f'/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc&uc_param_str=',
-                     {'pwd_id': pwd_id, 'passcode': a.passcode or ''}, platform=plat)
-    if not ok:
-        print(f'❌ 取 stoken 失败：{r}')
-        sys.exit(1)
-    if r.get('status') != 200:
-        # 三态：有明确业务码就照实报，不折叠成"网络失败"
-        print(f"❌ 分享不可用：code={r.get('code')} {r.get('message')}")
-        sys.exit(1)
-    st = r['data']['stoken']
-    meta = r['data']
-
-    # BFS 遍历：分享通常有外层文件夹包着，不能只看第一层
-    queue = [('0', '')]
-    rows, seen = [], 0
-    while queue and seen < (a.limit or 500):
-        pdir, prefix = queue.pop(0)
-        q = (f'/1/clouddrive/share/sharepage/detail?pr=ucpro&fr=pc'
-             f'&pwd_id={pwd_id}&stoken={quote(st, safe="")}&pdir_fid={pdir}'
-             f'&force=0&_page=1&_size=200&_fetch_total=1')
-        ok, d = _pan_req(q, platform=plat)
-        if not ok:
-            print(f'  ⚠️ 目录 {prefix or "/"} 读取失败：{d}（无法判定，不当作空目录）')
-            continue
-        for f in ((d.get('data') or {}).get('list') or []):
-            seen += 1
-            name = f.get('file_name') or ''
-            full = f'{prefix}{name}'
-            if f.get('dir'):
-                rows.append({'path': full + '/', 'kind': 'dir', 'size': 0})
-                queue.append((f['fid'], full + '/'))
-            else:
-                rows.append({'path': full, 'kind': 'file',
-                             'size': int(f.get('size') or 0),
-                             'fmt': f.get('format_type') or '',
-                             'fid': f.get('fid'),
-                             'token': f.get('share_fid_token') or ''})
-
-    print(f"📦 {'UC' if plat == 'uc' else '夸克'}分享 {pwd_id}")
-    print(f"   标题：{meta.get('title')}｜作者：{(meta.get('author') or {}).get('nick_name')}"
-          f"｜类型：{meta.get('share_type')}")
-    print(f"   本期：{'需提取码' if meta.get('expired_type') == 2 else '无需提取码'}"
-          f"｜条目 {len(rows)}\n")
-    if a.json:
-        print(json.dumps({'pwd_id': pwd_id, 'stoken': st, 'items': rows},
-                         ensure_ascii=False, indent=1))
-        return
-
-    files = [r for r in rows if r['kind'] == 'file']
-    if files:
-        print(f"   {'大小':>10}  格式                 路径")
-        for r in sorted(files, key=lambda x: -x['size']):
-            print(f"   {_fmt_size(r['size']):>10}  {(r.get('fmt') or '-'):<20} {r['path']}")
-
-        # ★这是个**有用的旁证**，不是装饰：正常 apk 不可能几十 KB，
-        #   而 format_type=application/zip 说明它是个包。两者一起看就能判断"是不是被改名了"。
-        susp = [r for r in files
-                if r['path'].lower().endswith('.apk') and r['size'] < 100 * 1024]
-        if susp:
-            print(f"\n   ⚠️ {len(susp)} 个 .apk 小于 100KB —— 正常 apk 不会这么小，"
-                  f"多半是改了后缀的 zip/文本。取回后先 `file` 一下再当安装包看待。")
-        zips = [r for r in files
-                if 'zip' in (r.get('fmt') or '') and r['path'].lower().endswith('.apk')]
-        if zips:
-            print(f"   ℹ️ {len(zips)} 个 .apk 的 format_type 是 application/zip（容器是 zip，后缀是 apk）")
-    print(f"\n   下一步：tvbox probe harvest pan pull --url <同一链接> --outdir <目录>"
-          f"\n   （下载受 CDN 出口策略限制：本类机房 IP 段会被 412 拒绝，与 IPv6 无关）")
-
-
-def _fmt_size(n):
-    for u in ('B', 'KB', 'MB', 'GB'):
-        if n < 1024:
-            return f'{n:.0f}{u}' if u == 'B' else f'{n:.1f}{u}'
-        n /= 1024
-    return f'{n:.1f}TB'
-
-
-def cmd_pan_pull(a):
-    """取料：拿直链 → 下载。**412 的成因是出口网络被 CDN 拒（非 IPv6、非文件坏）**，必须说清楚。"""
-    import urllib.request
-    import urllib.error
-    pwd_id, plat = pan_parse_share_ex(a.url)
-    if not pwd_id:
-        print('❌ 认不出分享 id')
-        sys.exit(2)
-
-    ok, r = _pan_req(f'/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc&uc_param_str=',
-                     {'pwd_id': pwd_id, 'passcode': a.passcode or ''}, platform=plat)
-    if not ok or r.get('status') != 200:
-        print(f'❌ 分享不可用：{r if not ok else r.get("message")}')
-        sys.exit(1)
-    st = r['data']['stoken']
-
-    # 收齐所有文件（含子目录）
-    queue, files = [('0', '')], []
-    while queue:
-        pdir, prefix = queue.pop(0)
-        q = (f'/1/clouddrive/share/sharepage/detail?pr=ucpro&fr=pc'
-             f'&pwd_id={pwd_id}&stoken={quote(st, safe="")}&pdir_fid={pdir}'
-             f'&force=0&_page=1&_size=200&_fetch_total=1')
-        ok, d = _pan_req(q, platform=plat)
-        if not ok:
-            print(f'  ⚠️ 目录读取失败：{d}'); continue
-        for f in ((d.get('data') or {}).get('list') or []):
-            if f.get('dir'):
-                queue.append((f['fid'], f"{prefix}{f.get('file_name')}/"))
-            else:
-                files.append({'name': f"{prefix}{f.get('file_name')}",
-                              'fid': f['fid'], 'size': int(f.get('size') or 0),
-                              'token': f.get('share_fid_token') or '',
-                              'pdir': f.get('pdir_fid') or pdir})
-    if a.match:
-        files = [f for f in files if a.match in f['name']]
-    if not files:
-        print('❌ 没有匹配的文件'); sys.exit(1)
-
-    outdir = a.outdir or '.'
-    os.makedirs(outdir, exist_ok=True)
-
-    ok_n, fail_n, cdn_reject = 0, 0, 0
-    for f in files:
-        # 按 pdir 分组取直链（接口一次能要多条同目录的）
-        ok, d = _pan_req('/1/clouddrive/file/download?pr=ucpro&fr=pc&uc_param_str=',
-                         {'fids': [f['fid']], 'pwd_id': pwd_id, 'stoken': st,
-                          'fids_token': [f['token']], 'pdir_fid': f['pdir']}, platform=plat)
-        if not ok or not (d.get('data') or []):
-            print(f'  ❌ {f["name"]}：取直链失败（{d}）'); fail_n += 1; continue
-        url = d['data'][0].get('download_url') or ''
-        if not url:
-            print(f'  ❌ {f["name"]}：接口未返回 download_url'); fail_n += 1; continue
-
-        dst = os.path.join(outdir, os.path.basename(f['name']))
-        try:
-            rq = urllib.request.Request(url, headers={'User-Agent': PAN_UA,
-                                                     'Referer': (PAN_PLATFORMS.get(plat) or PAN_PLATFORMS['quark'])['referer']})
-            with urllib.request.urlopen(rq, timeout=a.timeout) as resp, open(dst, 'wb') as fh:
-                shutil.copyfileobj(resp, fh)
-            got = os.path.getsize(dst)
-            if got != f['size']:
-                print(f'  ⚠️ {f["name"]}：大小不符 {got}≠{f["size"]}（可能被截断）')
-            print(f'  ✅ {f["name"]}  {_fmt_size(got)}')
-            ok_n += 1
-        except urllib.error.HTTPError as e:
-            if e.code == 412:
-                cdn_reject += 1
-                print(f'  🚫 {f["name"]}：412 Precondition Failed —— **CDN 拒绝本出口，非文件问题**')
-            else:
-                print(f'  ❌ {f["name"]}：HTTP {e.code}')
-            fail_n += 1
-            try:
-                os.remove(dst)
-            except Exception:
-                pass
-        except Exception as e:
-            print(f'  ❌ {f["name"]}：{type(e).__name__}: {e}'); fail_n += 1
-
-    print(f'\n   取料小结：成功 {ok_n}｜失败 {fail_n}｜保存到 {os.path.abspath(outdir)}')
-    if cdn_reject:
-        # ★这是**无法判定**，不是"下载失败"。412 的成因是出口网络被拒，重试无用。
-        print(f"""
-   🚫 其中 {cdn_reject} 个被 CDN 以 412 拒绝。**不是文件坏了，也不是签名过期**：
-      · **正确 token 与故意改坏的 token 都是 412**（响应体一模一样）→ 拦截在校验签名**之前**；
-      · 同一出口访问 `pan.quark.cn` 200、`image.quark.cn` 200 → 不是断网、不是全站封禁；
-      · 响应头 `Server: Tengine` + `Via: ens-cache2.<节点>`，262 字节固定 HTML。
-      → 成因是**请求来自机房/云 IP 段，被 CDN 边缘节点策略性拒绝**（与 IPv4/IPv6 无关）。
-   处置（按代价从低到高）：
-      ① 换一个**家宽/移动网络**出口跑同一条命令（机房 IP 换机房 IP 没用）；
-      ② 用夸克 App/网页版手动下载后放进指定目录；
-      ③ 让分享者换网盘（直链可公网访问的）。
-      **清单已拿到（`pan info`），别把"取不到"当成"里面没东西"。**""")
-        sys.exit(0 if ok_n else 1)
-    sys.exit(0 if ok_n else 1)
-
-
-def _load_pan_cookie(plat='quark'):
-    """读网盘登录态（按平台分文件/环境变量，同 S209 单一事实源风格）。
-    夸克 → .quark_cookie / QUARK_COOKIE；UC → .uc_cookie / UC_COOKIE；
-    迅雷 → .xunlei_cookie / XUNLEI_COOKIE；百度 → .baidu_cookie / BAIDU_COOKIE。
-    缺则返回 ''，由调用方按需报错（转存必须登录）。"""
-    import os
-    if plat == 'uc':
-        fpath, env = os.path.expanduser('~/.codebuddy/.uc_cookie'), 'UC_COOKIE'
-    elif plat == 'xunlei':
-        fpath, env = os.path.expanduser('~/.codebuddy/.xunlei_cookie'), 'XUNLEI_COOKIE'
-    elif plat == 'baidu':
-        fpath, env = os.path.expanduser('~/.codebuddy/.baidu_cookie'), 'BAIDU_COOKIE'
-    else:
-        fpath, env = os.path.expanduser('~/.codebuddy/.quark_cookie'), 'QUARK_COOKIE'
-    try:
-        if os.path.exists(fpath):
-            return open(fpath, encoding='utf-8').read().strip()
-    except Exception:
-        pass
-    return (os.environ.get(env) or '').strip()
-
-
-# ── 迅雷网盘（S218 续·2026-10-24 本轮回补）──────────────────────────────
-# 迅雷分享转存接口与夸克/UC **不同构**：独立验证码（X-Captcha-Token）+ 独立鉴权
-# （Authorization: x_token）+ 独立列文件（/share + /share/detail）+ 独立转存
-# （POST /share/restore，无需 users/me）。x_token 在网页 localStorage，不在 Cookie 头。
-# captcha_sign 为动态签名（12 轮 md5 加盐），来自 Gopeed 开源迅雷扩展（适配 1.92.89），2026-10-24 实测有效。
-XUNLEI_CLIENT_ID = 'Xqp0kJBXWhwaTpB6'
-XUNLEI_CLIENT_VERSION = '1.92.89'
-XUNLEI_CAPTCHA_SALTS = [
-    'q1FLg', 'OECaw0higFYs7qCdOWvMEe', '1UQvF/CWht+RATnmBnyakvJFHL1jaAb8MRYvdVHQLZ',
-    'OV+xWBsbnAehPNmDEUnjcVT', 'bbuvyCYHdJwBOtJ8Cdeg', '9ROgxnyRfQInpATpkchBTZW',
-    'vXA2EpRk8', 'oEd', 'QCBQwX/', 'P5NlYzyVtGjJUI/dIzi+SOL+mf0Wl17',
-    '7GRbxu7OmpasI841c66J', 'PEVQN9w+A4wRbGoX', 'CJ3yz0fu1kqhPDOyL438W', 'tD75Q',
-]
-
-def _xunlei_captcha_sign(ts, device_id):
-    """迅雷验证码签名：CLIENT_ID+版本+域名+device_id+时间戳 经 12 轮 md5 加盐。"""
-    cur = XUNLEI_CLIENT_ID + XUNLEI_CLIENT_VERSION + 'pan.xunlei.com' + device_id + ts
-    for s in XUNLEI_CAPTCHA_SALTS:
-        cur = hashlib.md5((cur + s).encode()).hexdigest()
-    return '1.' + cur
-
-def _xunlei_device_id(cookie):
-    """迅雷 device_id：取 cookie 里 wdi10. 后的 32 位 hex（与 captcha 签名一致）。"""
-    import re as _re
-    m = _re.search(r'deviceid=wdi10\.([a-f0-9]+)', cookie or '')
-    return (m.group(1)[:32] if m else '0' * 32)
-
-def _xunlei_pwd_from_url(url):
-    """从迅雷分享链接 query 取访问密码（pwd=）；取不到返回空串。"""
-    import urllib.parse as _up
-    try:
-        return (_up.parse_qs(_up.urlparse(url or '').query).get('pwd') or [''])[0]
-    except Exception:
-        return ''
-
-def _xunlei_captcha_token(device_id):
-    """POST xluser-ssl.xunlei.com/v1/shield/captcha/init 拿验证码令牌。"""
-    import time as _t
-    ts = str(int(_t.time() * 1000))
-    sign = _xunlei_captcha_sign(ts, device_id)
-    body = {'client_id': XUNLEI_CLIENT_ID, 'action': 'get:/drive/v1/share',
-            'device_id': device_id,
-            'meta': {'username': '', 'phone_number': '', 'email': '',
-                     'package_name': 'pan.xunlei.com', 'client_version': XUNLEI_CLIENT_VERSION,
-                     'captcha_sign': sign, 'timestamp': ts, 'user_id': '0'}}
-    hdr = {'User-Agent': PAN_UA, 'Content-Type': 'application/json',
-           'X-Client-Id': XUNLEI_CLIENT_ID, 'X-Client-Version': XUNLEI_CLIENT_VERSION,
-           'X-Device-Id': device_id, 'Referer': 'https://pan.xunlei.com/'}
-    # C1b：底层取数统一走 core.http_get（err_body 保留服务端错误正文）
-    try:
-        _st, _pl, _rs = http_get('https://xluser-ssl.xunlei.com/v1/shield/captcha/init',
-                                 timeout=30, headers=hdr, method='POST',
-                                 data=json.dumps(body).encode(), err_body=True)
-        if _st == 'ok':
-            d = json.loads(_pl)
-        elif isinstance(_pl, tuple):
-            return False, 'captcha/init HTTP %d %s' % (_pl[0], (_pl[1] or '')[:120])
-        else:
-            return False, 'captcha/init %s' % _rs
-        if not d.get('captcha_token'):
-            return False, 'captcha/init 未返回 captcha_token：%s' % str(d)[:120]
-        return True, d['captcha_token']
-    except Exception as e:
-        return False, '%s: %s' % (type(e).__name__, e)
-
-def _xunlei_headers(captcha_token, cookie=None, token=None, device_id=''):
-    """迅雷请求头：验证码令牌 + Cookie + Authorization(登录态) + 设备标识。"""
-    hdr = {'User-Agent': PAN_UA, 'X-Client-Id': XUNLEI_CLIENT_ID,
-           'X-Client-Version': XUNLEI_CLIENT_VERSION, 'X-Device-Id': device_id,
-           'X-Captcha-Token': captcha_token, 'Referer': 'https://pan.xunlei.com/'}
-    if cookie:
-        hdr['Cookie'] = cookie
-    if token:
-        hdr['Authorization'] = token
-    return hdr
-
-def _xunlei_get(url, hdr):
-    """迅雷 GET，返回解析后的 json。（C1b：走 core.http_get）"""
-    _st, _pl, _rs = http_get(url, timeout=30, headers=hdr)
-    if _st != 'ok':
-        raise RuntimeError('迅雷 GET 失败: %s' % _rs)
-    return json.loads(_pl)
-
-def _xunlei_post(url, hdr, body):
-    """迅雷 POST（JSON），返回解析后的 json。（C1b：走 core.http_get）"""
-    h = dict(hdr)
-    h['Content-Type'] = 'application/json'
-    _st, _pl, _rs = http_get(url, timeout=30, headers=h, method='POST',
-                             data=json.dumps(body).encode())
-    if _st != 'ok':
-        raise RuntimeError('迅雷 POST 失败: %s' % _rs)
-    return json.loads(_pl)
-
-def _xunlei_token(cookie):
-    """迅雷登录态 x_token（JWT）。优先从 cookie 文本解析 x_token=；取不到则回退到
-    独立文件 .xunlei_token 或环境变量 XUNLEI_TOKEN
-    （迅雷 x_token 在网页 localStorage，不在请求 Cookie 头，故单独存放）。"""
-    import os, re as _re
-    if cookie:
-        m = _re.search(r'(?:^|;\s*)x_token=([^;]+)', cookie)
-        if m:
-            return m.group(1).strip()
-        m = _re.search(r'(?:^|;\s*)(?:authorization|token)=([^;]+)', cookie, _re.I)
-        if m:
-            return m.group(1).strip()
-    p = os.path.expanduser('~/.codebuddy/.xunlei_token')
-    if os.path.exists(p):
-        return open(p, encoding='utf-8').read().strip()
-    return (os.environ.get('XUNLEI_TOKEN') or '').strip()
-
-
-def _xunlei_share_files(share_id, passcode, cookie=None, token=None, device_id=''):
-    """递归列出迅雷分享内全部文件。返回 (ok, rows, pass_code_token, root_ids)。
-    根层 /share?share_id=&pass_code=；folder 递归 /share/detail?parent_id=&pass_code_token=。
-    文件在响应顶层 files（非 data.files）；folder kind=drive#folder。参数必须 urlencode。
-    root_ids 为分享顶层条目 id（转存 file_ids 用）。"""
-    import urllib.parse as _up
-    ok, ct = _xunlei_captcha_token(device_id)
-    if not ok:
-        return False, ct, '', []
-    hdr = _xunlei_headers(ct, cookie=cookie, token=token, device_id=device_id)
-    q = _up.urlencode({'share_id': share_id, 'pass_code': passcode or '',
-                       'limit': '100', 'space': '', 'thumbnail_size': 'SIZE_MEDIUM', 'scene': 'NORMAL'})
-    try:
-        d = _xunlei_get('https://api-pan.xunlei.com/drive/v1/share?' + q, hdr)
-    except Exception as e:
-        return False, '根层列文件失败：%s' % e, '', []
-    pct = (d.get('pass_code_token') or '').strip()
-    root = d.get('files') or []
-    out, root_ids = [], []
-    for f in root:
-        out.append(f)
-        root_ids.append(f.get('id'))
-        if f.get('kind') == 'drive#folder':
-            _xunlei_walk(share_id, f['id'], pct, hdr, out)
-    return True, out, pct, root_ids
-
-def _xunlei_walk(share_id, folder_id, pct, hdr, out, _depth=0):
-    """递归展开 folder（/share/detail?parent_id=&pass_code_token=，必须 urlencode）。"""
-    import urllib.parse as _up
-    if _depth > 20:
-        return
-    q = _up.urlencode({'share_id': share_id, 'parent_id': folder_id, 'pass_code_token': pct,
-                       'limit': '100', 'space': '', 'thumbnail_size': 'SIZE_MEDIUM', 'scene': 'NORMAL'})
-    try:
-        d = _xunlei_get('https://api-pan.xunlei.com/drive/v1/share/detail?' + q, hdr)
-    except Exception:
-        return
-    for f in (d.get('files') or []):
-        out.append(f)
-        if f.get('kind') == 'drive#folder':
-            _xunlei_walk(share_id, f['id'], pct, hdr, out, _depth + 1)
-
-
-def _xunlei_restore_status(d):
-    """转存任务状态：优先读取 restore_status/phase_type/task_status/status/phase。"""
-    for k in ('restore_status', 'phase_type', 'task_status', 'status', 'phase'):
-        v = d.get(k)
-        if v:
-            return str(v).upper()
-    return ''
-
-def _xunlei_restore_task_id(d):
-    """转存任务 id：优先读取 restore_task_id/task_id/id。"""
-    for k in ('restore_task_id', 'task_id', 'id'):
-        v = d.get(k)
-        if v:
-            return str(v)
-    return ''
-
-def _xunlei_restore_done(d, file_ids):
-    """转存是否已同步完成。"""
-    return _xunlei_restore_status(d) in ('RESTORE_COMPLETE', 'PHASE_TYPE_COMPLETE', 'COMPLETE')
-
-def _xunlei_restore_error(d):
-    """转存是否已失败。"""
-    return _xunlei_restore_status(d) in ('RESTORE_ERROR', 'PHASE_TYPE_ERROR', 'ERROR', 'FAILED')
-
-def _xunlei_wait_restore(task_id, file_ids, hdr, timeout=60):
-    """轮询转存任务（GET /drive/v1/tasks/{id}），最多 timeout 秒。返回 (done, msg)。
-    参考 Gopeed 开源迅雷扩展 waitRestoreTask（MAX_RESTORE_POLL=120，1s 间隔）。"""
-    url = 'https://api-pan.xunlei.com/drive/v1/tasks/' + quote(task_id, safe='')
-    for _ in range(timeout):
-        try:
-            d = _xunlei_get(url, hdr)
-        except Exception as e:
-            return False, '轮询异常：%s' % e
-        st = _xunlei_restore_status(d)
-        if st in ('RESTORE_COMPLETE', 'PHASE_TYPE_COMPLETE', 'COMPLETE'):
-            return True, '任务完成'
-        if st in ('RESTORE_ERROR', 'PHASE_TYPE_ERROR', 'ERROR', 'FAILED'):
-            return False, '任务失败：%s' % (d.get('message') or st)
-        time.sleep(1)
-    return False, '超时未结束'
-
-
-def cmd_pan_info_xunlei(a, pwd_id):
-    """迅雷分享清单（不下载，走 API，IPv4 可成功）。"""
-    ck = _load_pan_cookie('xunlei')
-    token = _xunlei_token(ck) if ck else ''
-    did = _xunlei_device_id(ck) if ck else ''
-    passcode = a.passcode or _xunlei_pwd_from_url(a.url)
-    ok, rows, _pct, _root = _xunlei_share_files(pwd_id, passcode, cookie=ck, token=token, device_id=did)
-    if not ok:
-        print(f'❌ 读取迅雷分享失败：{rows}')
-        sys.exit(1)
-    files = [r for r in rows if r.get('kind') != 'drive#folder']
-    print(f"📦 迅雷分享 {pwd_id}｜条目 {len(rows)}（文件 {len(files)}）\n")
-    if a.json:
-        print(json.dumps({'share_id': pwd_id, 'items': rows}, ensure_ascii=False, indent=1))
-        return
-    if files:
-        print(f"   {'大小':>10}  路径")
-        for r in sorted(files, key=lambda x: -int(x.get('size') or 0)):
-            print(f"   {_fmt_size(int(r.get('size') or 0)):>10}  {r.get('name')}")
-    print(f"\n   下一步：tvbox probe harvest pan save --url https://pan.xunlei.com/s/{pwd_id}")
-
-
-def cmd_pan_save_xunlei(a, pwd_id):
-    """★迅雷网盘分享转存（S218 续）。
-
-    链路：列分享文件（/share + /share/detail，验证码令牌即可，无需登录态）
-    → 转存（POST /drive/v1/share/restore，需 Authorization: x_token 登录态）。
-    转存 body（下划线风格）：parent_id(空=我的云盘根)、share_id、pass_code_token、
-    ancestor_ids=[]、file_ids=[顶层条目id]、specify_parent_id=true。
-    异步任务则轮询 GET /drive/v1/tasks/{id}。
-    参考 Gopeed 开源迅雷扩展（1.92.89），2026-10-24 实测列文件有效。"""
-    import os
-    ck = _load_pan_cookie('xunlei')
-    if not ck:
-        print("""❌ 缺少迅雷网盘 Cookie，无法读取分享/转存。
-   迅雷凭证分两部分（实测确认）：
-     · Cookie 部分（sessionid/deviceid）→ 写入 `/root/.codebuddy/.xunlei_cookie`
-       （登录 pan.xunlei.com 后复制任意请求的 Cookie 头整串；你已给过）
-     · **x_token（JWT，Authorization 用）不在 Cookie 头，在网页 localStorage**
-       → 写入 `/root/.codebuddy/.xunlei_token`（单行，权限 600）
-         或环境变量 `export XUNLEI_TOKEN='eyJ...'`
-   获取 x_token：F12 → 应用/Application → 本地存储/Local Storage → 选 pan.xunlei.com
-     → 找键 `x_token`（值是一长串 eyJ...）→ 复制完整值
-   注：仅复制 Cookie 头（sessionid）不够——转存报 401 帐号认证失败；必须有 x_token。""")
-        sys.exit(1)
-    did = _xunlei_device_id(ck)
-
-    # 1) 列文件（验证码令牌即可，不需要 x_token）
-    passcode = a.passcode or _xunlei_pwd_from_url(a.url)
-    ok, rows, pct, root_ids = _xunlei_share_files(pwd_id, passcode, cookie=ck, device_id=did)
-    if not ok:
-        print(f'❌ 读取迅雷分享失败：{rows}')
-        sys.exit(1)
-    files = [r for r in rows if r.get('kind') != 'drive#folder']
-    if a.match:
-        files = [f for f in files if a.match in f.get('name', '')]
-    if not files:
-        print('❌ 没有可转存的文件'); sys.exit(1)
-
-    # 2) 校验登录态（转存必须有 x_token）
-    token = _xunlei_token(ck)
-    if not token:
-        print(f'✅ 分享可读（共 {len(files)} 个文件），但**缺少 x_token 登录态，无法转存**。\n'
-              f'   请按上方提示把 x_token 写入 /root/.codebuddy/.xunlei_token 或环境变量 XUNLEI_TOKEN 后重试。')
-        sys.exit(1)
-
-    # 3) 计算要转存的顶层 file_ids（默认整分享；--match 时取其所在根条目）
-    root_set = set(root_ids)
-    if a.match:
-        by_id = {r.get('id'): r for r in rows}
-        sel = set()
-        for f in files:
-            fid = f.get('id')
-            if fid in root_set:
-                sel.add(fid); continue
-            cur = by_id.get(f.get('parent_id'))
-            while cur and cur.get('id') not in root_set:
-                cur = by_id.get(cur.get('parent_id'))
-            if cur:
-                sel.add(cur.get('id'))
-        file_ids = list(sel)
-    else:
-        file_ids = list(root_ids)
-    if not file_ids:
-        print('❌ 没有可转存的顶层条目'); sys.exit(1)
-
-    # 4) 转存：POST /drive/v1/share/restore（需 x_token 登录态）
-    ok2, ct = _xunlei_captcha_token(did)
-    if not ok2:
-        print(f'❌ 获取验证码令牌失败：{ct}'); sys.exit(1)
-    hdr = _xunlei_headers(ct, cookie=ck, token=token, device_id=did)
-    to_parent = '' if (a.to in ('', '0', None)) else a.to  # 迅雷根目录是空串，非 '0'
-    body = {
-        'parent_id': to_parent,
-        'share_id': pwd_id,
-        'pass_code_token': pct,
-        'ancestor_ids': [],
-        'file_ids': file_ids,
-        'specify_parent_id': True,
-    }
-    try:
-        d = _xunlei_post('https://api-pan.xunlei.com/drive/v1/share/restore', hdr, body)
-    except urllib.error.HTTPError as e:
-        print(f'❌ 转存请求被拒 HTTP {e.code}：{e.read()[:240].decode("utf-8", "replace")}')
-        sys.exit(1)
-    except Exception as e:
-        print(f'❌ 转存请求失败：{type(e).__name__} {e}'); sys.exit(1)
-
-    # 5) 处理响应：同步完成 / 异步任务轮询 / 失败
-    if _xunlei_restore_done(d, file_ids):
-        print(f'  ✅ 转存完成：{len(file_ids)} 个顶层条目（含 {len(files)} 个文件）'
-              f'→ 网盘（parent_id={to_parent or "我的云盘根"}）')
-        sys.exit(0)
-    task_id = _xunlei_restore_task_id(d)
-    if task_id:
-        done, msg = _xunlei_wait_restore(task_id, file_ids, hdr)
-        if done:
-            print(f'  ✅ 转存任务完成：{msg}｜{len(file_ids)} 个顶层条目'
-                  f'→ 网盘（parent_id={to_parent or "我的云盘根"}）')
-            sys.exit(0)
-        print(f'  ❌ 转存任务未完成：{msg}'); sys.exit(1)
-    if _xunlei_restore_error(d):
-        print(f'  ❌ 转存被拒：{d.get("message") or d}'); sys.exit(1)
-    print(f'  ⚠️ 转存已提交（无明确完成状态）：task={task_id}'
-          f'｜file_ids={len(file_ids)} 个顶层条目。请稍后到网盘确认。')
-    sys.exit(0)
-
-
-def cmd_pan_save(a):
-    """★直送二期（S170 延续）：把分享里的文件**转存到用户自己的夸克网盘**。
-
-    链路：token → detail 取清单 → sharepage/save（**fid 参数必须是数组**，
-    逗号串会 500 inner error，2026-10-24 实测）→ task 轮询确认（2=完成 3=失败）。
-    save 接口 `require login [guest]`——**必须有你的夸克登录态**，否则被拒。
-    与 pull 不同，save **走 API 域（drive-pc.quark.cn），不经过 CDN 下载域**，
-    所以本机房出口可达（同 token/detail），唯一卡点是登录态。
-    """
-    import os
-    from collections import defaultdict
-    pwd_id, plat = pan_parse_share_ex(a.url)
-    if not pwd_id:
-        print('❌ 认不出分享 id：需要夸克 https://pan.quark.cn/s/<id> 或 UC https://drive.uc.cn/s/<id> 或 迅雷 https://pan.xunlei.com/s/<id> 或 百度 https://pan.baidu.com/s/<id>')
-        sys.exit(2)
-    if plat == 'xunlei':
-        return cmd_pan_save_xunlei(a, pwd_id)
-    if plat == 'baidu':
-        return cmd_pan_save_baidu(a, pwd_id)
-
-    ok, r = _pan_req(f'/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc&uc_param_str=',
-                     {'pwd_id': pwd_id, 'passcode': a.passcode or ''}, platform=plat)
-    if not ok or r.get('status') != 200:
-        print(f'❌ 分享不可用：{r if not ok else r.get("message")}')
-        sys.exit(1)
-    st = r['data']['stoken']
-
-    # 收齐文件（含子目录），记录 fid + share_fid_token + pdir
-    queue, files = [('0', '')], []
-    while queue:
-        pdir, prefix = queue.pop(0)
-        q = (f'/1/clouddrive/share/sharepage/detail?pr=ucpro&fr=pc'
-             f'&pwd_id={pwd_id}&stoken={quote(st, safe="")}&pdir_fid={pdir}'
-             f'&force=0&_page=1&_size=200&_fetch_total=1')
-        ok, d = _pan_req(q, platform=plat)
-        if not ok:
-            print(f'  ⚠️ 目录读取失败：{d}'); continue
-        for f in ((d.get('data') or {}).get('list') or []):
-            if f.get('dir'):
-                queue.append((f['fid'], f"{prefix}{f.get('file_name')}/"))
-            else:
-                files.append({'name': f"{prefix}{f.get('file_name')}",
-                              'fid': f['fid'],
-                              'token': f.get('share_fid_token') or '',
-                              'pdir': f.get('pdir_fid') or pdir})
-
-    if a.fid:
-        files = [f for f in files if f['fid'] == a.fid]
-    if a.match:
-        files = [f for f in files if a.match in f['name']]
-    if not files:
-        print('❌ 没有可转存的文件'); sys.exit(1)
-
-    # ★硬前置：登录态（save 必须，按平台选凭证文件）
-    ck = _load_pan_cookie(plat)
-    if not ck:
-        if plat == 'uc':
-            print("""❌ 缺少 UC 网盘登录态，无法转存。
-   转存接口 sharepage/save 要求登录。请提供你的 UC 网盘登录 cookie：
-     · 方式①：写入文件 `/root/.codebuddy/.uc_cookie`（单行，cookie 原文，权限 600）
-     · 方式②：环境变量 `export UC_COOKIE='...'`
-   获取方法：登录 drive.uc.cn 后复制任意请求的 Cookie 头**整串**即可——
-   实测含 __pus/__puus 组就有效，不需要专门找 ck 字段。""")
-        else:
-            print("""❌ 缺少夸克登录态，无法转存。
-   转存接口 sharepage/save 要求登录。请提供你的夸克网盘登录 cookie：
-     · 方式①：写入文件 `/root/.codebuddy/.quark_cookie`（单行，cookie 原文，权限 600）
-     · 方式②：环境变量 `export QUARK_COOKIE='...'`
-   获取方法：登录 pan.quark.cn 后复制任意请求的 Cookie 头**整串**即可——
-   实测含 __pus/__puus/__kps 组就有效，**不需要专门找 ck 字段**。""")
-        sys.exit(1)
-
-    to = a.to or '0'
-    by_pdir = defaultdict(list)
-    for f in files:
-        by_pdir[f['pdir']].append(f)
-
-    ok_n, fail_n = 0, 0
-    for pdir, grp in by_pdir.items():
-        ok, d = _pan_req('/1/clouddrive/share/sharepage/save?pr=ucpro&fr=pc&uc_param_str=',
-                         {'pwd_id': pwd_id, 'stoken': st,
-                          'fid_list': [x['fid'] for x in grp],          # ★必须是数组，逗号串会 500
-                          'fid_token_list': [x['token'] for x in grp],  # ★同上
-                          'to_pdir_fid': to, 'pdir_fid': pdir, 'scene': 'link'},
-                         platform=plat, cookie=ck)
-        if not ok:
-            print(f'  ❌ 目录 {pdir} 转存请求失败：{d}'); fail_n += len(grp); continue
-        code = d.get('status') or d.get('code')
-        if code != 200:
-            print(f'  ❌ 目录 {pdir} 转存被拒：code={code} {d.get("message")}'); fail_n += len(grp); continue
-        # 轮询任务状态：2=完成 3=失败（实测约 2 秒一轮内完成）
-        task_id = (d.get('data') or {}).get('task_id') or ''
-        done = False
-        if task_id:
-            import time as _t
-            for _i in range(15):
-                _t.sleep(2)
-                ok2, t2 = _pan_req(f'/1/clouddrive/task?pr=ucpro&fr=pc&task_id={quote(task_id, safe="")}&retry_index={_i}',
-                                   platform=plat, cookie=ck)
-                td = (t2.get('data') or {}) if ok2 and isinstance(t2, dict) else {}
-                if td.get('status') == 2:
-                    done = True; break
-                if td.get('status') == 3:
-                    break
-        else:
-            done = True  # 无 task_id 时以 200 受理为准
-        if done:
-            ok_n += len(grp)
-            print(f'  ✅ 转存 {len(grp)} 个文件到网盘（to_pdir_fid={to}，任务已完成）')
-        else:
-            print(f'  ⚠️ 目录 {pdir} 转存任务未确认完成（task_id={task_id}）'); fail_n += len(grp)
-
-    if plat == 'uc':
-        src = '文件 .uc_cookie' if os.path.exists(os.path.expanduser('~/.codebuddy/.uc_cookie')) else '环境变量 UC_COOKIE'
-    else:
-        src = '文件 .quark_cookie' if os.path.exists(os.path.expanduser('~/.codebuddy/.quark_cookie')) else '环境变量 QUARK_COOKIE'
-    print(f'\n   转存小结：成功 {ok_n}｜失败 {fail_n}｜分享 {pwd_id}｜登录态来源：{src}')
-    if ok_n:
-        sid = _pan_snapshot_save(plat, pwd_id, to, [f['name'] for f in files])
-        if sid:
-            print(f'   快照已存 id={sid}｜撤销用：tvbox probe harvest pan rm --undo {sid} --platform {plat}')
-    sys.exit(0 if ok_n and not fail_n else 1)
-
-
-def _parse_since(s):
-    """--since 时间解析：'30'→最近30分钟；13位数字→毫秒时间戳；否则试 ISO。
-
-    为什么要它：按文件名关键词猜"哪些是刚转存的"很脆弱（漏掉不含关键词的、
-    误伤同名的）。接口每个文件都返回 created_at，按时间筛才稳。
-    """
-    import time as _t
-    import datetime as _dt
-    s = (s or '').strip()
-    if not s:
-        return 0
-    if s.isdigit():
-        n = int(s)
-        if n < 100000:          # 小于十万视为"分钟数"
-            return int((_t.time() - n * 60) * 1000)
-        return n                # 13 位＝毫秒时间戳
-    for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
-        try:
-            return int(_dt.datetime.strptime(s, fmt).timestamp() * 1000)
-        except ValueError:
-            continue
-    print(f'❌ 认不出时间：{s}（用分钟数如 30，或 2026-10-25 00:00）')
-    sys.exit(2)
-
-
-def _fmt_ts(ms):
-    import datetime as _dt
-    try:
-        return _dt.datetime.fromtimestamp(ms / 1000).strftime('%Y-%m-%d %H:%M:%S')
-    except Exception:
-        return str(ms)
-
-
-def _pan_snapshot_save(plat, pwd_id, to, names):
-    """转存快照：记下本次转存了哪些文件（供 --undo 精确撤销）。
-
-    为什么必须有：转存接口只回 task_id，**不回"落盘后的新 fid"**，
-    所以事后只能按文件名反推。把当时转存的文件名清单存下来，
-    撤销时才能精确匹配，而不是拿关键词瞎猜（本轮 42 个误转就是这么猜的）。
-    """
-    import time as _t
-    import hashlib as _h
-    fp = os.path.expanduser('~/.codebuddy/.pan_snapshots.json')
-    try:
-        d = json.load(open(fp, encoding='utf-8')) if os.path.exists(fp) else {'snapshots': []}
-    except Exception:
-        d = {'snapshots': []}
-    sid = _h.sha1(('%s|%s|%s' % (plat, pwd_id, _t.time())).encode('utf-8')).hexdigest()[:10]
-    d.setdefault('snapshots', []).append({
-        'id': sid, 'time': int(_t.time() * 1000), 'platform': plat,
-        'pwd_id': pwd_id, 'to': to, 'names': list(names)})
-    d['snapshots'] = d['snapshots'][-20:]      # 只留最近 20 次，防无限膨胀
-    try:
-        json.dump(d, open(fp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-        os.chmod(fp, 0o600)
-        return sid
-    except Exception:
-        return ''
-
-
-def _pan_snapshot_load(sid):
-    """读快照：sid='last' 取最近一次，否则按 id 精确取。"""
-    fp = os.path.expanduser('~/.codebuddy/.pan_snapshots.json')
-    try:
-        d = json.load(open(fp, encoding='utf-8'))
-    except Exception:
-        return None
-    snaps = d.get('snapshots') or []
-    if not snaps:
-        return None
-    if sid == 'last':
-        return snaps[-1]
-    for s in snaps:
-        if s.get('id') == sid:
-            return s
-    return None
-
-
-def _write_backup_manifest(sel, plat):
-    """破坏性操作门禁第 2 步：删前把待删清单落盘备份（可据此核对/恢复）。"""
-    import time as _t
-    fp = os.path.expanduser('~/.codebuddy/pan_rm_backup_%s.json') % _t.strftime('%m%d_%H%M%S')
-    try:
-        json.dump({'time': int(_t.time() * 1000), 'platform': plat,
-                   'items': [{'fid': x['fid'], 'name': x['name'],
-                              'dir': x.get('dir'), 'size': x.get('size', 0)} for x in sel]},
-                  open(fp, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
-        print(f'   💾 删前备份清单已落盘：{fp}')
-        return fp
-    except Exception as e:
-        print(f'   ⚠️ 备份清单写入失败：{e}')
-        return ''
-
-
-def cmd_pan_rm(a):
-    """★删除你自己网盘里的文件/目录。默认**预演**（只列将删的），--yes 才真删。
-
-    删除走 `/1/clouddrive/file/delete`（夸克/UC 同构），body 传 filelist（fid 数组）。
-    删目录会递归清掉里面所有内容。写操作，需登录态（与 save 同套 cookie）。
-    筛选：--fid 精确（逗号分隔，优先）｜--match 多关键词（逗号分隔，任一命中即选）｜都不给则删整个 --pdir 范围。
-    """
-    import urllib.parse as _up
-    plat = a.platform
-    ck = _load_pan_cookie(plat)
-    if not ck:
-        print('❌ 缺少 %s 网盘登录态，无法删除。请提供 cookie 写入 /root/.codebuddy/.%s_cookie（权限600）'
-              % ('夸克' if plat == 'quark' else 'UC', plat))
-        sys.exit(1)
-
-    # 1) 列出目标范围内全部条目（支持递归进子目录）
-    items = []
-    queue = [a.pdir or '0']
-    while queue:
-        pdir = queue.pop(0)
-        q = (f'/1/clouddrive/file?pr=ucpro&fr=pc&pdir_fid={_up.quote(pdir, safe="")}'
-             f'&_page=1&_size=200&_fetch_total=1&_fetch_sub_count=1')
-        ok, d = _pan_req(q, platform=plat, cookie=ck)
-        if not ok:
-            print(f'  ⚠️ 目录 {pdir} 读取失败：{d}'); continue
-        for f in ((d.get('data') or {}).get('list') or []):
-            items.append({'fid': f.get('fid'), 'name': f.get('file_name') or '',
-                          'dir': bool(f.get('dir')), 'size': int(f.get('size') or 0),
-                          'ct': int(f.get('created_at') or 0)})   # ★创建时间，供 --since 用
-            if a.recursive and f.get('dir'):
-                queue.append(f['fid'])
-
-    # 2) 筛选（--undo 优先：按转存快照精确撤销，不用文件名猜）
-    if getattr(a, 'undo', ''):
-        snap = _pan_snapshot_load(a.undo)
-        if not snap:
-            print(f'❌ 找不到快照：{a.undo}（用 last 取最近一次）'); sys.exit(1)
-        want = set(snap.get('names') or [])
-        sel = [x for x in items if x['name'] in want]      # 精确名匹配，不是子串
-        print(f'   ↩️  按快照 {snap.get("id")} 撤销（快照 {len(want)} 个文件名，精确匹配到 {len(sel)} 项）')
-    elif a.fid:
-        want = set(x for x in a.fid.split(',') if x.strip())
-        sel = [x for x in items if x['fid'] in want]
-    elif a.match:
-        keys = [k.strip() for k in a.match.split(',') if k.strip()]
-        sel = [x for x in items if any(k in x['name'] for k in keys)]
-    else:
-        sel = items  # 没指定则整个 --pdir 范围
-
-    # 2.5) --since：只保留该时间点之后新增的（按转存/创建时间筛，不靠文件名猜）
-    if getattr(a, 'since', ''):
-        th = _parse_since(a.since)
-        before = len(sel)
-        sel = [x for x in sel if x['ct'] >= th]
-        print(f'   ⏱️  按创建时间筛（{_fmt_ts(th)} 之后）：{before} → {len(sel)} 项')
-
-    if not sel:
-        print('❌ 没有匹配到要删的文件'); sys.exit(1)
-
-    # 3) 预演 / 执行
-    print(f"🗑️  将删除 {len(sel)} 项（{'【执行】' if a.yes else '【预演】加 --yes 才真删'}）：")
-    for x in sel:
-        print(f"   [{'目录' if x['dir'] else '文件'}] {x['name']}  (fid={x['fid']})")
-
-    if not a.yes:
-        print('\n   预演完毕，未删除任何东西。确认无误后加 --yes 执行。')
-        sys.exit(0)
-
-    # 破坏性门禁第 2 步：执行前必须落备份清单（清单→备份→确认→执行，缺一即中止）
-    _bk = _write_backup_manifest(sel, plat)
-    if not _bk:
-        print('❌ 备份清单未生成，按破坏性操作门禁中止删除')
-        sys.exit(1)
-
-    fids = [x['fid'] for x in sel]
-    ok_n = 0
-    for i in range(0, len(fids), 50):
-        chunk = fids[i:i + 50]
-        ok, d = _pan_req('/1/clouddrive/file/delete?pr=ucpro&fr=pc&uc_param_str=',
-                         {'actoin_type': 2, 'exclude_fids': [], 'filelist': chunk},
-                         platform=plat, cookie=ck)
-        if not ok:
-            print(f'  ❌ 删除请求失败：{d}'); continue
-        code = d.get('status') or d.get('code')
-        if code not in (200, 0, 'ok', None):
-            print(f'  ❌ 删除被拒：code={code} {d.get("message")}'); continue
-        ok_n += len(chunk)
-        print(f'  ✅ 已删除 {len(chunk)} 项')
-    print(f'\n   删除小结：成功 {ok_n}｜失败 {len(fids) - ok_n}')
-    sys.exit(0 if ok_n == len(fids) else 1)
-
-
-# ── 百度网盘（S218 续·2026-10-24 本轮回补）──────────────────────────────
-# 百度与夸克/UC/迅雷**不同构**：独立 cookie（BDUSS/STOKEN/PANPSC）+
-# 独立分享解析（surl→shareid+uk）+ 独立列文件（share/list）+
-# 独立转存（share/transfer，fsidlist 明文 JSON 数组，配 shareid+share_uk+bdstoken，
-#   无需 RSA 加密——disk-share 前端 JS 无 RSA 公钥，契约来自 BaiduPCS-Go 逆向佐证）。
-BAIDU_REF = 'https://pan.baidu.com/'
-BAIDU_APP_ID = '250528'
-
-def _baidu_req(url, ck, data=None, timeout=20):
-    """百度 GET/POST（form）。data 有则 POST(form-urlencoded)，无则 GET。返回解析 json。"""
-    hdr = {'User-Agent': PAN_UA, 'Cookie': ck, 'Referer': BAIDU_REF}
-    if data is not None:
-        import urllib.parse as _up
-        _st, _pl, _rs = http_get(url, timeout=timeout,
-                                 headers={**hdr, 'Content-Type': 'application/x-www-form-urlencoded'},
-                                 method='POST', data=_up.urlencode(data).encode('utf-8'))
-    else:
-        _st, _pl, _rs = http_get(url, timeout=timeout, headers=hdr)
-    if _st != 'ok':
-        raise RuntimeError('百度请求失败: %s' % _rs)
-    return json.loads(_pl)
-
-def _baidu_fetch_raw(url, ck, timeout=20):
-    """抓原始 HTML/JS（用于从分享页 JS 提取 RSA 公钥）。（C1b：走 core.http_get）"""
-    _st, _pl, _rs = http_get(url, timeout=timeout,
-                             headers={'User-Agent': PAN_UA, 'Cookie': ck, 'Referer': BAIDU_REF})
-    if _st != 'ok':
-        raise RuntimeError('百度页面抓取失败: %s' % _rs)
-    return _pl
-
-def _baidu_parse_surl(text):
-    """从分享文本抠出 surl + 提取码。返回 (surl, pwd)。"""
-    import re as _re
-    m = _re.search(r'pan\.baidu\.com/s/([0-9a-zA-Z_-]+)', text or '')
-    if not m:
-        return '', ''
-    surl = m.group(1)
-    pm = _re.search(r'[?&]pwd=([0-9a-zA-Z]+)', text or '')
-    return surl, (pm.group(1) if pm else '')
-
-def _baidu_shareinfo(surl, pwd, ck):
-    """从分享页内联 locals 提取 shareid + share_uk（分享者 uk）+ bdstoken。返回 (ok, shareid, share_uk, bdstoken, err)。
-
-    实测确证：百度 `api/shareinfo` 接口已废弃（404），而页面 locals 内联了 shareid/share_uk/bdstoken；
-    `uk`（当前登录用户）≠ `share_uk`（分享者），分享列表/转存必须用 share_uk。故直接抓页提取。"""
-    import re as _re
-    try:
-        html = _baidu_fetch_raw('https://pan.baidu.com/s/' + surl + ('?pwd=' + pwd if pwd else ''), ck)
-    except Exception as e:
-        return False, '', '', '', '抓分享页失败：%s' % e
-    sid = _re.search(r'share_uk["\']?\s*[:=]\s*["\']?(\d+)', html)
-    uk = _re.search(r'shareid["\']?\s*[:=]\s*["\']?(\d+)', html)
-    bt = _re.search(r'bdstoken["\']?\s*[:=]\s*["\']?([0-9a-f]+)', html)
-    if not sid or not uk:
-        return False, '', '', '', '分享页未含 shareid/share_uk（链接无效、需登录查看，或 cookie 失效）'
-    return True, uk.group(1), sid.group(1), (bt.group(1) if bt else ''), ''
-
-def _baidu_verify(surl, pwd, ck, shareid, share_uk):
-    """验证提取码，返回 (ok, stoken, err)。百度要求先 verify 拿 stoken，再带 stoken 列文件/转存。"""
-    import urllib.parse as _up
-    data = {'shareid': shareid, 'uk': share_uk, 'pwd': pwd,
-            'clienttype': '0', 'channel': 'chunlei', 'web': '1', 'app_id': BAIDU_APP_ID}
-    try:
-        d = _baidu_req('https://pan.baidu.com/share/verify', ck, data)
-    except Exception as e:
-        return False, '', 'share/verify 失败：%s' % e
-    if d.get('errno') != 0:
-        return False, '', 'share/verify 错误：errno=%s %s（提取码错误，或 cookie 登录态失效需重登重发）' % (d.get('errno'), d.get('errmsg'))
-    return True, (d.get('stoken') or ''), ''
-
-def _baidu_bduss_alive(ck):
-    """轻量探活：BDUSS 登录态是否有效（仅依赖 BDUSS，不依赖分享专用 STOKEN）。返回 bool。"""
-    try:
-        d = _baidu_req('https://pan.baidu.com/api/quota?check_free=1&checkexpire=1&web=1', ck)
-        return d.get('errno') == 0
-    except Exception:
-        return False
-
-def _baidu_verify_hint(ck, err_v):
-    """verify 失败时的精准指引：区分「服务端风控(出口IP)」与「登录态整体失效」。"""
-    if 'errno=-12' in err_v:
-        if _baidu_bduss_alive(ck):
-            return ('❌ 验证提取码失败（errno=-12，err_msg 为空）：账号 BDUSS 登录态有效、'
-                    'quota 正常，但分享验证被百度服务端静默拒绝。\n'
-                    '   实测「所有参数/UA/请求方式组合都 -12 且空 err_msg、连无效 shareid 也 -12」，'
-                    '而 quota/list 接口正常——这种表现通常是当前运行出口'
-                    '（数据中心 / 云服务器 IP）被百度对分享操作风控。\n'
-                    '   → 请在你的本机（家庭宽带、已登录该账号的浏览器网络）运行同样命令，'
-                    '用此 cookie 重试；或让请求走非机房出口 IP。cookie 本身无需重发。')
-        return ('❌ 验证提取码失败（errno=-12）：登录态整体失效。\n'
-                '   → 重新登录 pan.baidu.com，F12 复制整串 Cookie 覆盖写入 '
-                '/root/.codebuddy/.baidu_cookie（权限 600），再重跑。')
-    return '❌ 验证提取码失败：%s' % err_v
-
-
-def _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk, force_verify=False):
-    """决定列文件/转存所需的 stoken。百度契约：无密码分享直接 list（errno=0）；
-    有密码分享 list 返回 -9，需先 verify 拿 stoken。返回 (stoken, err)，err='' 即成功。
-
-    force_verify：转存(save)场景必须为 True——公开分享虽能直接 list，但 transfer
-    仍需要 verify 拿到的 stoken。列文件(info)场景用默认 False（公开分享跳过 verify 即可）。
-
-    实测价值：沙箱环境 share/verify 被百度静默风控（errno=-12 空 err_msg），但 share/list
-    对公开分享完全可用——故「先无密码试 list」既能让公开分享端到端跑通列文件，
-    又能把转存所需的 verify/transfer 风控精准隔离出来。"""
-    import urllib.parse as _up
-    short = surl[1:] if surl.startswith('1') else surl
-    q = {'web': '5', 'app_id': BAIDU_APP_ID, 'desc': '1', 'showempty': '0',
-         'page': '1', 'num': '100', 'order': 'time',
-         'shorturl': short, 'root': '1', 'view_mode': '1'}
-    try:
-        d = _baidu_req('https://pan.baidu.com/share/list?' + _up.urlencode(q), ck)
-    except Exception as e:
-        return '', 'share/list 失败：%s' % e
-    errno = d.get('errno')
-    if errno == 0:
-        if not force_verify:
-            return '', ''  # 列文件(info)：公开无密码，无需 stoken
-        # 转存(save)：公开分享也需 verify 拿 stoken 供 transfer
-        ok_v, stoken, err_v = _baidu_verify(surl, pwd, ck, shareid, share_uk)
-        if not ok_v:
-            return '', err_v
-        return stoken, ''
-    if errno == -9:
-        if not pwd:
-            return '', '此分享需要提取码，请加 ?pwd= 或在命令后加 --passcode <提取码>'
-        ok_v, stoken, err_v = _baidu_verify(surl, pwd, ck, shareid, share_uk)
-        if not ok_v:
-            return '', err_v  # 命令函数会用 hint 美化 -12
-        return stoken, ''
-    return '', 'share/list 错误：errno=%s %s' % (errno, d.get('errmsg'))
-
-
-def _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken='', dir_fsid='', prefix='', _depth=0):
-    """递归列文件，写入 out（含子目录）。返回 err 或 ''。
-    实测契约（来自 disk-share 前端 JS getShareList）：GET /share/list?
-      web=5&app_id=250528&desc=1&showempty=0&page=N&num=100&order=time
-      &shorturl=<surl去开头1>&root=1&view_mode=1[&pwd=..][&stoken=..][&dir=<fs_id>]
-    shorturl 必须把 URL 里 surl 开头的 '1' 去掉（JS: _surl.split('').slice(1).join('')）。"""
-    import urllib.parse as _up
-    if _depth > 20:
-        return ''
-    short = surl[1:] if surl.startswith('1') else surl
-    page = 1
-    while True:
-        q = {'web': '5', 'app_id': BAIDU_APP_ID, 'desc': '1', 'showempty': '0',
-             'page': str(page), 'num': '100', 'order': 'time',
-             'shorturl': short, 'root': '1', 'view_mode': '1'}
-        if pwd:
-            q['pwd'] = pwd
-        if stoken:
-            q['stoken'] = stoken
-        if dir_fsid:
-            q['dir'] = dir_fsid
-        try:
-            d = _baidu_req('https://pan.baidu.com/share/list?' + _up.urlencode(q), ck)
-        except Exception as e:
-            return 'share/list 失败：%s' % e
-        if d.get('errno') != 0:
-            return 'share/list 错误：errno=%s %s' % (d.get('errno'), d.get('errmsg'))
-        lst = d.get('list') or []
-        if not lst:
-            break
-        for f in lst:
-            isdir = (f.get('isdir') == 1)
-            name = f.get('server_filename') or f.get('filename') or ''
-            full = prefix + name
-            out.append({'fs_id': f.get('fs_id'), 'name': full, 'isdir': isdir,
-                        'size': int(f.get('size') or 0), 'md5': f.get('md5')})
-            if isdir:
-                e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken,
-                                    dir_fsid=str(f.get('fs_id')), prefix=full + '/', _depth=_depth + 1)
-                if e2:
-                    return e2
-        if not d.get('more') or len(lst) < 100:
-            break
-        page += 1
-    return ''
-
-# 注：百度网盘网页端分享转存（/share/transfer）实测用 fsidlist 明文 JSON 数组（非 RSA filelist），
-# disk-share 前端 JS（common-chunks-all）中亦无 RSA 公钥，故无需 RSA 加密与公钥提取。
-# 转存见 _baidu_transfer（fsidlist 方式，契约来自 BaiduPCS-Go 逆向 + 网页端佐证）。
-
-def _baidu_transfer(surl, pwd, ck, shareid, share_uk, bdstoken, items, to_path='/'):
-    """转存。items=[(fs_id, server_filename), ...]。返回 (ok, err)。
-    实测契约（BaiduPCS-Go 逆向 + 网页端 disk-share JS 佐证）：POST /share/transfer，
-    fsidlist 为明文 JSON 数组字符串，配 shareid + share_uk + bdstoken，无需 RSA 加密 filelist。"""
-    fsidlist = json.dumps([str(f) for f, _ in items], ensure_ascii=False)
-    data = {'shareid': shareid, 'uk': share_uk, 'fsidlist': fsidlist,
-            'path': to_path, 'bdstoken': bdstoken,
-            'clienttype': '0', 'channel': 'chunlei', 'web': '1', 'app_id': BAIDU_APP_ID}
-    try:
-        d = _baidu_req('https://pan.baidu.com/share/transfer', ck, data)
-    except Exception as ex:
-        return False, 'share/transfer 失败：%s' % ex
-    if d.get('errno') != 0:
-        return False, 'share/transfer 错误：errno=%s %s' % (d.get('errno'), d.get('errmsg'))
-    return True, ''
-
-def cmd_pan_info_baidu(a, surl):
-    """百度分享清单（列文件，不下载）。"""
-    ck = _load_pan_cookie('baidu')
-    if not ck:
-        print('❌ 缺少百度网盘登录态（/root/.codebuddy/.baidu_cookie）。F12 复制 pan.baidu.com 的 Cookie 整串写入该文件（权限600）。')
-        sys.exit(1)
-    pwd = a.passcode or _baidu_parse_surl(a.url)[1]
-    ok, shareid, share_uk, bdstoken, err = _baidu_shareinfo(surl, pwd, ck)
-    if not ok:
-        print('❌ 读取百度分享失败：%s' % err); sys.exit(1)
-    stoken, e = _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk)
-    if e:
-        if 'errno=-12' in e:
-            print(_baidu_verify_hint(ck, e)); sys.exit(1)
-        print('❌ ' + e); sys.exit(1)
-    out = []
-    e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken=stoken)
-    if e2:
-        print('❌ 列文件失败：%s' % e2); sys.exit(1)
-    files = [r for r in out if not r['isdir']]
-    print(f"📦 百度分享 {surl}｜条目 {len(out)}（文件 {len(files)}）\n")
-    if files:
-        print(f"   {'大小':>10}  路径")
-        for r in sorted(files, key=lambda x: -x['size']):
-            print(f"   {_fmt_size(r['size']):>10}  {r['name']}")
-    print(f"\n   下一步：tvbox probe harvest pan save --url https://pan.baidu.com/s/{surl}")
-
-def cmd_pan_save_baidu(a, surl):
-    """★百度网盘分享转存（S218 续）。"""
-    ck = _load_pan_cookie('baidu')
-    if not ck:
-        print('❌ 缺少百度网盘登录态（/root/.codebuddy/.baidu_cookie）。F12 复制 pan.baidu.com 的 Cookie 整串写入该文件（权限600）。')
-        sys.exit(1)
-    pwd = a.passcode or _baidu_parse_surl(a.url)[1]
-    ok, shareid, share_uk, bdstoken, err = _baidu_shareinfo(surl, pwd, ck)
-    if not ok:
-        print('❌ 读取百度分享失败：%s' % err); sys.exit(1)
-    stoken, e = _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk, force_verify=True)
-    if e:
-        if 'errno=-12' in e:
-            print(_baidu_verify_hint(ck, e)); sys.exit(1)
-        print('❌ ' + e); sys.exit(1)
-    out = []
-    e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken=stoken)
-    if e2:
-        print('❌ 列文件失败：%s' % e2); sys.exit(1)
-    files = [r for r in out if not r['isdir']]
-    if a.match:
-        files = [f for f in files if a.match in f['name']]
-    if not files:
-        print('❌ 没有可转存的文件'); sys.exit(1)
-    items = [(f['fs_id'], f['name']) for f in files]
-    ok2, err2 = _baidu_transfer(surl, pwd, ck, shareid, share_uk, bdstoken, items, to_path=(a.to or '/'))
-    if not ok2:
-        print(f'❌ 转存失败：{err2}'); sys.exit(1)
-    print(f'✅ 转存完成：{len(items)} 个文件 → 网盘（{a.to or "我的网盘根"}）')
-    sys.exit(0)
 
 
 # ══════════════════ MSITEPK2 单文件资源容器（S171） ══════════════════
@@ -9965,35 +8795,6 @@ def build_parser():
     hsj.add_argument('--workers', type=int, default=12)
 
     # ★S170 网盘分享取料：网盘是**外部分发**渠道，与 GitHub 仓库并列的料源
-    hpi = hs.add_parser('pan', help='★网盘分享取料：摸清单/下载（S170）')
-    hps = hpi.add_subparsers(dest='pan_cmd', required=True)
-    p1 = hps.add_parser('info', help='列分享清单（只走 API，IPv4 环境也能成功）')
-    p1.add_argument('--url', required=True, help='分享链接或整段分享文案')
-    p1.add_argument('--passcode', default='', help='提取码（无则留空）')
-    p1.add_argument('--limit', type=int, default=500, help='最多遍历条目数')
-    p1.add_argument('--json', action='store_true')
-    p2 = hps.add_parser('pull', help='下载文件（机房 IP 段可能被 CDN 以 412 拒绝，会如实报）')
-    p2.add_argument('--url', required=True)
-    p2.add_argument('--passcode', default='')
-    p2.add_argument('--outdir', default='.')
-    p2.add_argument('--match', default='', help='只下文件名含该子串的')
-    p2.add_argument('--timeout', type=int, default=120)
-    p3 = hps.add_parser('save', help='★直送二期：转存分享到你的夸克网盘（需登录态 ck）')
-    p3.add_argument('--url', required=True)
-    p3.add_argument('--passcode', default='')
-    p3.add_argument('--fid', default='', help='只转存该 fid（默认全部）')
-    p3.add_argument('--match', default='', help='只转存文件名含该子串的')
-    p3.add_argument('--to', default='0', help='目标目录 fid，0=根目录')
-    p3.add_argument('--json', action='store_true')
-    p4 = hps.add_parser('rm', help='★删除你自己网盘里的文件/目录（先预演，--yes 才真删）')
-    p4.add_argument('--pdir', default='0', help='从哪个目录开始列，0=根目录')
-    p4.add_argument('--recursive', action='store_true', help='递归进入子目录')
-    p4.add_argument('--match', default='', help='只删文件名含该子串的')
-    p4.add_argument('--fid', default='', help='直接指定 fid（逗号分隔），优先于 --match')
-    p4.add_argument('--platform', default='quark', choices=['quark', 'uc'])
-    p4.add_argument('--yes', action='store_true', help='确认执行删除（缺省仅预演列出）')
-    p4.add_argument('--since', default='', help='只删创建时间晚于该点的：数字=最近N分钟；13位=毫秒时间戳；或 2026-10-25 00:00')
-    p4.add_argument('--undo', default='', help='按转存快照精确撤销：last=最近一次转存，或快照 id')
 
     # ★C8（T6）入口分裂收口：S110 质量评测 + 内容层探查 接入总调度（不删、不降级）
     qy = sub.add_parser('quality', help='S110 单条质量评测（画质/速度/广告/质量分）')
@@ -10180,10 +8981,6 @@ DISPATCH = {
     ('shellcrack', 'scan'): cmd_shellcrack,
     ('shellcrack', 'status'): cmd_shellcrack,
     ('harvest', 'splitjsm'): cmd_harvest_splitjsm,
-    ('harvest', 'pan'): lambda a: (cmd_pan_info(a) if a.pan_cmd == 'info'
-                                   else cmd_pan_pull(a) if a.pan_cmd == 'pull'
-                                   else cmd_pan_save(a) if a.pan_cmd == 'save'
-                                   else cmd_pan_rm(a)),
     ('quality', None): cmd_quality_one,             # C8 S110 单条质量评测
     ('quality-batch', None): cmd_quality_batch_run,  # C8 S110 批量评测回填
     ('content-probe', None): cmd_content_probe_run,  # C8 内容层探查

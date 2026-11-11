@@ -18,14 +18,14 @@ import tempfile
 # 本文件原先就地写死 max_workers=N，数字无依据。改为按档位表取上限。
 # 保留一个同名 shim，避免改动所有调用点（改动面越小越安全）。
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded  # noqa: E402
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORKER = os.path.join(HERE, 'worker.py')
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from core import ORIG_DIR  # noqa: E402  # 共享核心(B3)：原仓库目录，env TVBOX_ORIG_DIR 可覆写
 BASE = 'https://clun.top'
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0'

@@ -17,7 +17,7 @@ TVBox 联动效率核心（技能↔脚本联动 + 并行加速 的运行时落�
 """
 import os, sys, json, csv, io, time, subprocess, threading
 
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded  # noqa: E402  M-R114 统一入口
 
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
@@ -25,7 +25,7 @@ LIB = os.path.expanduser('~/.codebuddy/skills/library')
 # 统一收口到共享核心，避免再写死旧路径。
 ORIG_DIR = os.environ.get('TVBOX_ORIG_DIR', '/workspace/原仓库库')
 # S153 会话闸门状态落点：写在技能目录（可被 verify/探针检查），不写 /tmp（重启即失忆）
-GATE_FILE = os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/.session_gate.json')
+GATE_FILE = os.path.expanduser('~/.codebuddy/skills/tvbox-core/.session_gate.json')
 GATE_TTL_SEC = 6 * 3600      # 开工登记有效期 6 小时：防「一次开工、无限放行」
 _MEM = {}                 # 进程内缓存: db_id -> rows | ('api',script,args) -> stdout
 _MEM_LOCK = threading.Lock()

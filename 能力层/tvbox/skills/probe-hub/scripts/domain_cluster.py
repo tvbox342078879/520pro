@@ -13,7 +13,7 @@ import sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts'))
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/library'))
 
 from core import SRC_DBS, rows_of  # noqa

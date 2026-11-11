@@ -23,7 +23,7 @@ import concurrent.futures as cf
 
 # 共享核心（M-R38 单一事实源 / M-R213 共享核心）：统一 HTTP 取数，含 SSRF/超时/三态
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from core import http_get  # noqa: E402
 
 UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'

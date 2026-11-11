@@ -24,7 +24,7 @@ from core import src_rows_t, SRC_DBS
 # 本文件原先就地写死 max_workers=N，数字无依据。改为按档位表取上限。
 # 保留一个同名 shim，避免改动所有调用点（改动面越小越安全）。
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded, TIER_WEB  # noqa: E402
 
 

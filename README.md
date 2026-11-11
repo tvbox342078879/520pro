@@ -27,14 +27,12 @@
 520pro/
 ├── 通用层/                          →  ~/.codebuddy/
 │   ├── rules/core-8.md              →  ~/.codebuddy/rules/（8 铁律）
-│   └── skills/{skill-evolution,feature-gate,machine-bootstrap,artifact-store}
+│   └── skills/{skill-evolution,feature-gate,machine-bootstrap,artifact-store,learn-hub}
 ├── 能力层/tvbox/                    →  用户级 或 项目级（按模式）
 │   ├── skills/
-│   │   ├── tvbox-config-sync/       →  配置同步（搜集→测活→集成）
-│   │   ├── probe-hub/               →  探源司本体（monitor/search/harvest，1.6M）
-│   │   ├── tvbox-source-hub/        →  ★共享核心 core.py + concurrency.py
-│   │   ├── tvbox-interface/         →  测活口径 pipeline.py
-│   │   └── tvbox-source-blacklist/  →  blk.py（拉黑判据）
+│   │   ├── probe-hub/               →  技能①探源司（monitor/search/harvest/forge/shellcrack，1.6M）
+│   │   ├── tvbox-pipeline/          →  技能②出品流水线（整包加工 + 配置同步）
+│   │   └── tvbox-core/              →  ★共享代码库（core/link/pipeline/blk，**无 SKILL.md·不路由**）
 │   ├── agents/tvbox-agent.md        →  ~/.codebuddy/agents/
 │   ├── commands/tvbox-sync.md       →  ~/.codebuddy/commands/
 │   ├── scripts/{collect,check,merge}.py → ~/.codebuddy/scripts/
@@ -51,7 +49,9 @@
 └── docs/{融合架构.md, 分层落地表.md, 加载机制与可靠性.md, 探源司安装卡.md（★一页装完全套）}
 ```
 
-> **探源司四件套必须一起装**：`probe-hub` 里 `from core import ...` 依赖 `tvbox-source-hub/scripts/core.py`，单独装必然 `ModuleNotFoundError`。四件套还硬编码过 `/root/.codebuddy`，`fix_paths.py` 已统一改为 `os.path.expanduser('~/.codebuddy')`，换机器/换 HOME 不再失效。
+> **技能 2 个 + 代码库 1 个**（v0.4.0 起）：`probe-hub`（找源）与 `tvbox-pipeline`（出成品）是唯二会被平台路由的入口；`tvbox-core` 是它们共同 import 的代码库，**故意不放 SKILL.md**——不占路由名额、不进上下文，但 `core.py` 必须在，否则探源司必崩 `ModuleNotFoundError`。
+>
+> 为什么不是 5 个技能：用户的话只落进两种意图（"给我找源" / "我有源帮我做成能用的"）。拆成 5 个会让平台在 2400 字触发词里挑，反而路由不准；合成 1 个则每次命中都要吃满 117KB 的 SKILL.md。2 入口 + 1 库是两者之间的解。
 
 ---
 
@@ -94,7 +94,7 @@ bash bootstrap.sh <源> lite /tmp/x --dry-run
 | shape | 检出内容 | 工作区 |
 |---|---|---|
 | `full`（默认） | 全部（通用层 + 5 技能 + 脚本 + 文档 + 配置模板） | 约 2.8M |
-| `lite` | `通用层/` + `probe-hub` + `tvbox-source-hub`（含 `core.py`）+ 3 脚本 | 约 2.4M，**探源司可跑** |
+| `lite` | `通用层/` + `probe-hub` + `tvbox-core`（含 `core.py`）+ 3 脚本 | 约 2.4M，**探源司可跑** |
 
 三条承诺：**幂等**（同命令可重跑）、**零明文 token**（仅内存，用完 `unset`，不写任何文件）、**失败显式**（报错即非 0，不静默降级）。
 
@@ -129,8 +129,8 @@ bash bootstrap.sh <源> lite /tmp/x --dry-run
 ## 六、素材与边界
 
 - 通用层（core-8 / 4 技能）取自 368817 去 TVBox 化版本，原样保留。
-- 配置同步层取自 368817 仓根 `.codebuddy/` 存活的 TVBox 件（tvbox-config-sync / tvbox-agent / /tvbox-sync / 3 脚本 / 配置模板）。
-- **探源司已找回并打包**：`probe-hub` + `tvbox-source-hub` + `tvbox-interface` + `tvbox-source-blacklist` 四件套取自 `tvbox342078879/tvbox-skills-eco`（此前判断"已丢失"有误——`tvbox-eco` 是 private 仓库，raw 取不到才显示 404）。
+- 配置同步层取自 368817 仓根 `.codebuddy/` 存活的 TVBox 件（tvbox-config-sync → 现已并入 tvbox-pipeline / tvbox-agent / /tvbox-sync / 3 脚本 / 配置模板）。
+- **探源司已找回并打包**：`probe-hub` + `tvbox-source-hub` + `tvbox-interface` + `tvbox-source-blacklist`（v0.4.0 合为 `probe-hub` + `tvbox-pipeline` + `tvbox-core`）取自 `tvbox342078879/tvbox-skills-eco`（此前判断"已丢失"有误——`tvbox-eco` 是 private 仓库，raw 取不到才显示 404）。
 - 探源司实测可跑：`monitor status` 输出 186 个监测目标，带存活/活跃度/判定依据；缺 `core.py` 则必崩。
 - **换机司仍未打包**：本仓无 `machine-bootstrap` 之外的换机流程件。
 

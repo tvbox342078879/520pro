@@ -43,7 +43,7 @@ from urllib.parse import quote
 # ---------- M-R114 统一并发入口（S110） ----------
 # 下载 jar 解 dex，打公网
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded, TIER_WEB  # noqa: E402
 from core import http_get  # noqa: E402  # 共享核心(C1)：统一取数入口
 

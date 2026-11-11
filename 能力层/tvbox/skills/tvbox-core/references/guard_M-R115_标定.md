@@ -110,7 +110,7 @@ S111 真实比例：假设 1.0s/条，实测 9.0s/条（错 9 倍，即沙箱测
 ## 复现
 
 ```bash
-cd ~/.codebuddy/skills/tvbox-source-hub/scripts
+cd ~/.codebuddy/skills/tvbox-core/scripts
 python3 calibrate_guard.py      # 决策点1/2/3 的模型与阈值
 python3 verify_estimate.py      # 估算准确性（第一版，暴露偏差）
 python3 verify_sample_size.py   # 中位数 vs 均值，样本量标定

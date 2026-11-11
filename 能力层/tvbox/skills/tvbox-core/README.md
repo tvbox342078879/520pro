@@ -1,8 +1,11 @@
----
-version: "1.0.66"
-name: tvbox-source-hub
-description: "TVBox 数据源总库（线路级）：批量扫描配置包提取数据源（sites/lives/parses），去重、判「可用体系」、批量写入「数据源总库」。边界：整包加工成品走 tvbox-interface，线路拆解入库走本技能。 触发词：线路存哪个库 / 这些线路能进哪个包 / 哪条线能用 / 把线路记下来 / 这条源能在哪些包用 / 录一下这些线路 / 线路归谁 / 存进源库 / 扫一遍底包 / 包里有什么线 / 这线哪些体系能用 / 扫描底包提取线路 / 数据源归库 / 源总库 / 可用体系 / 某条源能在哪些体系用 / 批量录线路 / 线路去重 / 数据源总库 / 数据源状况。"
----
+# tvbox-core · TVBox 共享代码库
+
+> **这不是技能。没有 `SKILL.md`，平台不注册、不路由、不进上下文。**
+> 它是被 `probe-hub` 与 `tvbox-pipeline` 共同 import 的代码库：库坐标、测活判据、去重、拉黑闸门。
+> 改动这里 = 改动全生态的判据，**改之前先确认没有第二份实现**。
+>
+> 原 `tvbox-source-hub`（源枢库曹）的技能说明保留在本文档，作为库的**参考手册**阅读，不再作为触发词注册。
+
 
 > **🗣 语言铁律（M-R110 · 全模型适用）**：本技能所有输出——正文、思考过程、进度播报、
 > 工具调用说明、报错与澄清提问——**一律简体中文**。切换模型（快速/Hy3/深度思考等）、
@@ -143,7 +146,7 @@ S160 起了真实分级：对含 `api.php` / `provide` 的 CMS 接口，现场�
 **一体化入口**（推荐，幂等，可反复跑）：
 
 ```bash
-cd /root/.codebuddy/skills/tvbox-source-hub/scripts
+cd /root/.codebuddy/skills/tvbox-core/scripts
 python3 run.py               # 全流程并写入主库
 python3 run.py --dry-run     # 只算不写，先看清楚再决定
 python3 run.py --dirs /path  # 追加扫描目录

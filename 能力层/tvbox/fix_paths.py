@@ -5,7 +5,7 @@ fix_paths.py —— 把探源司系列脚本里硬编码的 /root/.codebuddy 改
                 os.path.expanduser('~/.codebuddy')，跨机器可用。
 
 背景：probe.py / core.py 等写死
-    _sys.path.insert(0, '/root/.codebuddy/skills/tvbox-source-hub/scripts')
+    _sys.path.insert(0, '/root/.codebuddy/skills/tvbox-core/scripts')
 非 root 用户 / Windows / 换机后全部失效。
 
 【关键】不能简单正则替换！很多路径出现在多行字符串隐式拼接里，例如：

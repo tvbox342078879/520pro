@@ -24,9 +24,8 @@ import re
 import sys
 
 ECO_SKILLS = [
-    'ecosys-conductor', 'tvbox-source-hub', 'tvbox-inspect', 'tvbox-interface',
-    'tvbox-source-blacklist', 'probe-hub', 'legacy-watchdog', 'skill-evolution',
-    'tvbox-janitor', 'unfinished-audit', 'eco-ledger',
+    'probe-hub', 'tvbox-core', 'tvbox-pipeline',
+    'skill-evolution', 'machine-bootstrap', 'feature-gate', 'artifact-store',
 ]
 
 # 本文件与被审工具自身豁免

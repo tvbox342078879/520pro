@@ -33,7 +33,7 @@ import re
 import subprocess
 import sys
 from urllib.parse import urlsplit
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded, TIER_WEB  # noqa: E402  M-R114 统一入口
 
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

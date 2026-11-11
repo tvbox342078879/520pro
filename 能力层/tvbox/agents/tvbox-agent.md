@@ -5,7 +5,7 @@ tools: Bash(python3:*), Bash(git:*), Read, Write, Glob
 model: inherit
 ---
 
-你是 TVBox 配置维护专员。收到任务后，严格走 `tvbox-config-sync` 技能的流程：
+你是 TVBox 配置维护专员。收到任务后，严格走 `tvbox-pipeline` 技能的流程：
 
 1. 拉取仓库、抽取源（`collect_repos.py`）
 2. 并发测活线路（`check_live.py`）

@@ -1,6 +1,6 @@
 ---
 name: probe-hub
-description: "探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测作者仓库动态（存活/内容变更/新增文件/活跃度）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯网盘取料 `pan`+单文件容器 `pak`（S170/S171）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定。★破甲 `decrypt`。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要入库 → tvbox-interface；要判断某条源该不该拉黑 → tvbox-source-blacklist。 触发词：哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 / 探源司 / 真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / DmaxPro908 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳。"
+description: "探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测作者仓库动态（存活/内容变更/新增文件/活跃度）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定。★破甲 `decrypt`。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 / 探源司 / 真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / DmaxPro908 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳。"
 version: "1.20.8"
 ---
 
@@ -145,9 +145,11 @@ python3 skills/probe-hub/scripts/danmu_pick.py <url...> [--demo]              # 
 python3 skills/probe-hub/scripts/parse_apilinks.py <tvboxapilinks.txt> [out]  # 聚合分发站清单→监测 seed（S199 配套）
 python3 skills/probe-hub/scripts/armor.py                        # 破甲底层库（decrypt 的实现体，仅 self_test 入口）
 python3 skills/probe-hub/scripts/extract_live_urls.py            # live.json→测活 batch json（§3.5.0）
-# ★网盘分享取料（S170）：网盘与 GitHub 仓库并列的料源
-tvbox probe harvest pan info --url <分享链接或整段文案> [--passcode X] [--json]  # 列清单（只走API，IPv4可成功）
-tvbox probe harvest pan pull --url <同上> [--outdir 目录] [--match 子串]         # 下载（机房IP段会被412拒，与IPv6无关）
+# 网盘分享取料已迁出（2026-11-12）：改由 learn-hub 承接，命令为
+#   python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py info  --url <分享链接>
+#   python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py pull  --url <同上> --outdir <目录>
+# 理由：网盘取料与 TVBox 业务零耦合，且 learn-hub 的 intake 职责本就写着「网盘资料」。
+# 412 判据不变，已随代码一并迁移（pan.py self-check 里有专门探针）。
 # ★MSITEPK2 单文件资源容器（S171）：一个 pak 装整站（源清单+图标+前端页面）
 tvbox probe pak <site.pak> [--list] [--get 名字 [--out 单文件|--outdir 目录]] [--key 64hex]  # key 缺省从同目录 classes.dex 自动取（多候选时逐键自证选中能解开的）
 
@@ -403,7 +405,7 @@ file 唯一 / 四要素齐全 / 双向对账（孤儿=WARN、幽灵=FAIL）/ 内
 
 > 正本：监测台 → [`references/S169_监测台静默缺陷.md`](references/S169_监测台静默缺陷.md)；
 > 黑名单误杀 → [`references/S169_黑名单误杀三根因.md`](references/S169_黑名单误杀三根因.md)；
-> 网盘取料 → [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md)（四判据全推演 + 412 对照组 + 接口存活表）。
+> 网盘取料 → **已迁至 learn-hub**（`learn-hub/scripts/pan.py`）。原判据文档仍留 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md) 作历史参考。
 
 **共同形态：不报错、退出码 0、结果一直不变**——不是"功能坏了"，是"空转"或"归因错位"。
 
@@ -434,10 +436,18 @@ file 唯一 / 四要素齐全 / 双向对账（孤儿=WARN、幽灵=FAIL）/ 内
 **`pan` 另两条判据**：① 只认 `/s/<id>`（用户贴的整段文案含口令 `/~xxx~/` 极像 id，口令单独输入返回空）；
 ② **`format_type` 判改名包**——实测 4 个 `.apk` 里 2 个原生是 `application/zip`，`.apk` <100KB 必预警。
 
-## 3.14 ★ 网盘分享取料（S170·`probe harvest pan`）
+## 3.14 网盘分享取料 —— 已迁出（2026-11-12）
 
-> 判据见上表 ④；正本 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md)（含 S171 MSITEPK2 全解 + 密钥取法 + 三类分发形态）。
-> `pan info` 只走 API，`pan pull` 才碰 CDN；`pak` 解整站容器。
+> 命令 `probe harvest pan` 已移除，实现整体迁至 `~/.codebuddy/skills/learn-hub/scripts/pan.py`。
+>
+> **为什么迁**：网盘取料与 TVBox 业务零耦合；而 learn-hub 的 `intake` 模块职责里本来就写着
+> 「公众号文章 / **网盘资料** / 本地文档 / PDF / 扫描图 / 网页 / 音视频」—— 它才是这份代码的归属。
+> 迁出同时解除了一处隐形依赖：原实现的「入库必须 readback」依赖账房司 `core_ledger`，
+> 而账房司在新生态里没装，那条硬规则整条落空。
+>
+> **判据一个字没改**：412 是机房 IP 段被 CDN 边缘拒，不是 IPv6、不是文件坏；
+> 这条探针随代码搬到了 `pan.py self-check`（2/2 通过）。
+> 历史文档留在 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md)，只作回溯用。
 
 ## 3.15 ★ 解析接口：采集与真实出流（S173·`harvest parse` / `livecheck --kind parse`）
 
@@ -487,8 +497,8 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
                                        └─► 用户据成品源库给 **直链系线路池**换路线（三系口径 1025；D 包=历史别名）
 ```
 
-- **上游**：`/root/.codebuddy/skills/library`（云读写）+ `tvbox-source-hub/scripts/core.py`（共享效率核心）
-- **下游**：`tvbox-source-blacklist`（质检闸·guard 拦截）、`tvbox-source-hub`（源枢库曹·ingest 入库）
+- **上游**：`/root/.codebuddy/skills/library`（云读写）+ `tvbox-core/scripts/core.py`（共享效率核心）
+- **下游**：`tvbox-core/scripts/blk.py`（第一道闸·guard 拦截）→ `tvbox-core/scripts/link.py`（ingest 入库）
 - **横向**：`legacy-watchdog`（遗迹哨·监测上游遗留）、`ecosys-conductor`（总指挥·信号源18 守护）
 
 ## 6. 升级契约（规则 48 + 54 三件套）
@@ -501,7 +511,7 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 
 | 项 | 值 |
 |---|---|
-| 共享核心 | `/root/.codebuddy/skills/tvbox-source-hub/scripts/core.py`（同 §5 上游） |
+| 共享核心 | `/root/.codebuddy/skills/tvbox-core/scripts/core.py`（同 §5 上游） |
 | 源库 DB_SRC | 已收口至 `core.SRC_DBS`（**本技能不读源库**；线路源库 `pNwZ9uBOTz6FzRuvu8nryI` / 成品源库 `8JBrhSwsJ3pnPYtoGLo9XV`） |
 | 成品源库 DB_PROD | `8JBrhSwsJ3pnPYtoGLo9XV`（S160 由「成品源库」更名；取自 core，勿写死） |
 | 失效源库 DB_DEAD | `92dSuG6uUbxitGuyx4Saaf` |
@@ -509,8 +519,8 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 | 上游监测库 DB_UPSTREAM | （下轮建：用真实数据验证 18 字段 schema 后创建） |
 | 监测目标登记册 | `scripts/monitor_targets.json`（本轮承载；下轮迁 DB_UPSTREAM） |
 | 采样史数据基座 | `scripts/activity_log.json`（三态守护，损坏拒绝回写） |
-| 闸门 / 入库 | `tvbox-source-blacklist/scripts/blk.py` · `tvbox-source-hub/scripts/link.py`（cmd_ingest）（同 §5 下游） |
-| 测活口径 | `tvbox-interface/scripts/pipeline.py`（`_alive` / `ALIVE_CODES`） |
+| 闸门 / 入库 | `tvbox-core/scripts/blk.py` · `tvbox-core/scripts/link.py`（cmd_ingest）（同 §5 下游） |
+| 测活口径 | `tvbox-core/scripts/pipeline.py`（`_alive` / `ALIVE_CODES`） |
 | 云规则 | 生态1015_TVBox生态全局规则（M-R55~M-R60 监测器铁律） |
 
 ## 8. 历史专项脚本归档（C5 · 2026-1027 生态对齐治理）

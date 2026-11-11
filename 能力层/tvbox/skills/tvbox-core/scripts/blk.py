@@ -28,7 +28,7 @@ PROBE='/tmp/probe_result.json'
 UA='okhttp/3.12.0'
 
 # 共享效率核心（S123 收窄：仅同一进程内与 link/evolve 共享 core 模块实例；跨技能 CLI 单命令调用时各自独立实例）
-sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from core import (rows_of, add_records, add_records_parallel,
 
                   invalidate, file_to_janitor, register_monitor,
@@ -38,7 +38,7 @@ from core import (rows_of, add_records, add_records_parallel,
 # 本文件原先就地写死 max_workers=N，数字无依据。改为按档位表取上限。
 # 保留一个同名 shim，避免改动所有调用点（改动面越小越安全）。
 import sys as _sys
-_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-source-hub/scripts'))
+_sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from concurrency import run_bounded as _run_bounded, TIER_WEB  # noqa: E402
 
 

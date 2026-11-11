@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -40,40 +40,48 @@
         },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿"
+        },
+        "skills/learn-hub/": {
+          "install_to": "~/.codebuddy/skills/learn-hub/",
+          "role": "学习工坊：资料采集/分类/精炼/质检/入库/监测，13 个模块",
+          "entry": "scripts/learn.py",
+          "contains": "SKILL.md · scripts/learn.py · scripts/pan.py · scripts/flow.json · library/tree.json",
+          "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
+          "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
+          "not_tvbox": "与 TVBox 无关，纯通用层"
         }
       }
     },
     "能力层": {
       "scope": "TVBox（用户级或项目级，按模式）",
       "files": {
-        "tvbox/skills/tvbox-config-sync/SKILL.md": {
-          "user_install": "~/.codebuddy/skills/tvbox-config-sync/",
+        "tvbox/skills/tvbox-core/": {
+          "user_install": "~/.codebuddy/skills/tvbox-core/",
           "project_install": "<项目>/.codebuddy/skills/",
-          "role": "★用户级可被平台路由",
-          "script_dir_auto": "优先 ~/.codebuddy/scripts，回退 .codebuddy/scripts"
+          "role": "★共享代码库：core.py / concurrency.py / guard.py / link.py / pipeline.py / blk.py。无 SKILL.md，平台不注册不路由",
+          "not_a_skill": true,
+          "depended_by": [
+            "probe-hub",
+            "tvbox-pipeline"
+          ],
+          "critical": "缺此目录，探源司必报 ModuleNotFoundError: No module named 'core'"
         },
         "tvbox/skills/probe-hub/": {
           "user_install": "~/.codebuddy/skills/probe-hub/",
-          "role": "探源司本体：monitor/search/harvest/forge/shellcrack",
+          "role": "探源司本体：monitor/search/harvest/forge/shellcrack + 源库查询",
           "depends_on": [
-            "tvbox-source-hub",
-            "tvbox-interface",
-            "tvbox-source-blacklist"
+            "tvbox-core"
           ],
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'"
         },
-        "tvbox/skills/tvbox-source-hub/": {
-          "user_install": "~/.codebuddy/skills/tvbox-source-hub/",
-          "role": "★共享核心 core.py(41K) + concurrency.py(14K)，探源司/接口/黑名单共同依赖"
-        },
-        "tvbox/skills/tvbox-interface/": {
-          "user_install": "~/.codebuddy/skills/tvbox-interface/",
-          "role": "测活口径 pipeline.py(51K)（_alive / ALIVE_CODES）"
-        },
-        "tvbox/skills/tvbox-source-blacklist/": {
-          "user_install": "~/.codebuddy/skills/tvbox-source-blacklist/",
-          "role": "blk.py 拉黑判据（probe.py 硬引用）"
+        "tvbox/skills/tvbox-pipeline/": {
+          "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
+          "role": "出品流水线：A 整包加工（原 tvbox-interface）+ B 配置同步（原 tvbox-config-sync）",
+          "depends_on": [
+            "tvbox-core"
+          ],
+          "entry": "SKILL.md → SOP_整包加工.md"
         },
         "tvbox/fix_paths.py": {
           "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接"
@@ -211,7 +219,7 @@
       "通用层/rules/",
       "通用层/skills/",
       "能力层/tvbox/skills/probe-hub/",
-      "能力层/tvbox/skills/tvbox-source-hub/",
+      "能力层/tvbox/skills/tvbox-core/",
       "能力层/tvbox/scripts/"
     ]
   },
@@ -221,5 +229,7 @@
     "idempotent": "目标已存在且含 MANIFEST.json → 跳过 clone，仅 git pull --ff-only + 重设稀疏",
     "no_plaintext_token": "token 仅从 $GITHUB_TOKEN / gh auth token 读入内存，apply 后立即 unset，不写任何文件、不打印",
     "usage": "bash bootstrap.sh <repo_url_or_path> [shape] [target] [--dry-run] [--install]"
-  }
+  },
+  "plan_c": "2026-11-12：5 技能合为 2 入口 + 1 库（tvbox-core 无 SKILL.md，不路由）",
+  "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）"
 }
