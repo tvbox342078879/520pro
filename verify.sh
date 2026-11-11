@@ -111,5 +111,23 @@ else
   no "未找到脚本目录，跳过冒烟"
 fi
 
+# 巡检司（v0.7.0 起）：520 自家健康巡检（八卦八门面板）
+if [ -f "$U/skills/inspect-hub/scripts/inspect_hub.py" ]; then
+  ok "skills/inspect-hub（巡检司）"
+  python3 "$U/skills/inspect-hub/scripts/inspect_hub.py" self-check >/dev/null 2>&1 \
+    && ok "  └ self-check 通过（8 门齐+impl 映射+模板可渲染）" || no "  └ self-check 失败"
+else
+  opt "skills/inspect-hub 未安装（可后补）"
+fi
+
+echo
+echo "[密钥安全（v0.7.0 起·core-8 规则 5 零明文凭证）]"
+if [ -f "$TARGET/secret_scan.py" ]; then
+  python3 "$TARGET/secret_scan.py" "$TARGET" && ok "secret_scan 无明文密钥（含 .git/config 复查）" \
+    || no "secret_scan 发现疑似明文密钥（见上方清单，立即处置）"
+else
+  no "secret_scan.py 缺失（零明文凭证防线未装）"
+fi
+
 echo "============================================"
 echo "提示：装完/改完要【开新会话】才加载；手机按 手机指令.md 手动粘规则。"

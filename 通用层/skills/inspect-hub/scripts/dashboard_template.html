@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>520 巡检 · 卦门合阵面板</title>
+</head>
+<body style="margin:0;background:#0b0e1a;">
+<div id="zhenApp" style="--bg:#0b0e1a;--card:rgba(20,26,48,.72);--gold:#e8c46a;--blue:#7aa2e8;--green:#3ecf8e;--red:#ff5d6c;--yellow:#f5b83d;--tx:#e6e9f5;font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1a2140 0%,var(--bg) 55%),var(--bg);color:var(--tx);padding:20px 8px 18px;min-height:100vh;position:relative;overflow-x:hidden;">
+<div id="mapView">
+  <div style="text-align:center;margin-bottom:2%;"><span style="font-size:13px;letter-spacing:6px;color:var(--gold);">卦 门 合 阵 · 520 巡 检</span></div>
+  <div style="text-align:center;font-size:11px;color:#8a93b5;margin-bottom:3%;">卦为象 · 门为义 · 双鱼抱数 · 数定阵心</div>
+
+  <div id="stageWrap" style="container-type:inline-size;width:100%;">
+    <div id="stage" style="position:relative;width:100%;aspect-ratio:700/664;">
+      <svg id="outerRing" viewBox="0 0 700 664" preserveAspectRatio="xMidYMid meet" style="position:absolute;inset:0;width:100%;height:100%;"></svg>
+      <div id="doors" style="position:absolute;inset:0;"></div>
+
+      <div class="tent">
+        <div class="tent-in">
+          <div class="orbit">
+            <div class="fish fg"><svg viewBox="0 0 60 28"><path d="M14 14 Q22 3 36 7 Q46 10 52 14 Q46 18 36 21 Q22 25 14 14 Z" fill="#3ecf8e" opacity=".95"/><path d="M14 14 L3 5 Q7 14 3 23 Z" fill="#3ecf8e" opacity=".75"/><circle cx="44" cy="12" r="2.2" fill="#0b0e1a"/></svg></div>
+            <div class="fish fr"><svg viewBox="0 0 60 28"><path d="M14 14 Q22 3 36 7 Q46 10 52 14 Q46 18 36 21 Q22 25 14 14 Z" fill="#ff5d6c" opacity=".95"/><path d="M14 14 L3 5 Q7 14 3 23 Z" fill="#ff5d6c" opacity=".75"/><circle cx="44" cy="12" r="2.2" fill="#0b0e1a"/></svg></div>
+          </div>
+          <div class="dring"></div>
+          <div class="score" id="score">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="envBar" style="text-align:center;font-size:12px;margin:6px 0 2px;color:#9aa4c8;"></div>
+  <div style="text-align:center;font-size:12.5px;color:#9aa4c8;line-height:2;letter-spacing:1px;">
+    ☰开门启规则 · ☴休门守时效 · ☳生门活技能 · ☷伤门探结构<br>
+    ☶死门压遗留 · ☵杜门堵密钥 · ☲景门照文档 · ☱惊门悬待补
+  </div>
+  <div style="max-width:640px;margin:10px auto 0;background:rgba(122,162,232,.08);border:1px solid rgba(122,162,232,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:#b9c4e8;line-height:1.8;">
+    <b style="color:var(--blue);">行为生效层</b>（本会话技能清单 / 规则注入实况）脚本查不了，由 AI 在体检对话中<b>自报对账</b>；对不上结构层结果即记红。规则只在会话构建时注入——改规则后必须开新会话。
+  </div>
+  <div id="tsBar" style="text-align:center;font-size:11px;color:#6a7392;margin-top:8px;"></div>
+</div>
+
+<div id="detailView" style="display:none;max-width:680px;margin:0 auto;padding:16px 10px 30px;">
+  <button onclick="backToMap()" style="background:none;border:1px solid rgba(232,196,106,.45);color:var(--gold);padding:6px 16px;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:14px;">← 返回八阵盘</button>
+  <div id="detailBody"></div>
+</div>
+
+<style>
+#stageWrap{--u:0.1428cqw;}
+@supports not (width:1cqw){ #stageWrap{--u:0.1428vw;} }
+.tent{position:absolute;left:50%;top:49.7%;transform:translate(-50%,-50%);width:calc(200*var(--u));height:calc(200*var(--u));clip-path:polygon(29% 3%,71% 3%,97% 29%,97% 71%,71% 97%,29% 97%,3% 71%,3% 29%);background:linear-gradient(160deg,rgba(40,34,18,.9),rgba(24,22,14,.92));filter:drop-shadow(0 0 22px rgba(232,196,106,.18));}
+.tent-in{position:absolute;inset:calc(7*var(--u));clip-path:polygon(29% 3%,71% 3%,97% 29%,97% 71%,71% 97%,29% 97%,3% 71%,3% 29%);background:linear-gradient(200deg,rgba(30,28,20,.95),rgba(16,16,12,.98));}
+.orbit{position:absolute;left:50%;top:50%;width:calc(128*var(--u));height:calc(128*var(--u));transform:translate(-50%,-50%);animation:spin 14s linear infinite;}
+@keyframes spin{from{transform:translate(-50%,-50%) rotate(0deg);}to{transform:translate(-50%,-50%) rotate(360deg);}}
+.fish{position:absolute;width:calc(54*var(--u));filter:drop-shadow(0 0 6px rgba(62,207,142,.35));}
+.fish svg{display:block;width:100%;height:auto;}
+.fg{top:calc(-6*var(--u));left:50%;margin-left:calc(-27*var(--u));}
+.fr{bottom:calc(-6*var(--u));left:50%;margin-left:calc(-27*var(--u));}
+.dring{position:absolute;left:50%;top:50%;width:calc(118*var(--u));height:calc(118*var(--u));transform:translate(-50%,-50%);border:1px dashed rgba(232,196,106,.4);border-radius:50%;}
+.score{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);font-size:calc(44*var(--u));font-weight:800;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.6);}
+.door{position:absolute;transform:translate(-50%,-50%);width:calc(158*var(--u));padding:calc(10*var(--u)) calc(12*var(--u));background:var(--card);border:1px solid rgba(122,162,232,.28);border-radius:calc(12*var(--u));cursor:pointer;transition:border-color .2s;backdrop-filter:blur(6px);box-sizing:border-box;white-space:nowrap;}
+.door:hover{border-color:var(--gold);box-shadow:0 0 16px rgba(232,196,106,.3);}
+.door.red{border-color:rgba(255,93,108,.6);animation:breath 2.6s ease-in-out infinite;}
+.door.yellow{border-color:rgba(245,184,61,.55);}
+.door.pending,.door.unknown{border-style:dashed;border-color:rgba(90,100,120,.5);opacity:.8;}
+@keyframes breath{0%,100%{box-shadow:0 0 4px rgba(255,93,108,.35);}50%{box-shadow:0 0 18px rgba(255,93,108,.75);}}
+.door .gua{font-size:calc(17*var(--u));color:var(--blue);margin-right:calc(8*var(--u));}
+.door .men{font-family:'Kaiti SC','KaiTi','STKaiti',serif;font-size:calc(19*var(--u));color:var(--gold);margin-right:calc(8*var(--u));font-weight:700;}
+.door .face{font-size:calc(12.5*var(--u));color:var(--tx);}
+.door .dot{display:inline-block;width:calc(9*var(--u));height:calc(9*var(--u));border-radius:50%;margin-left:calc(8*var(--u));vertical-align:middle;}
+.finding{background:var(--card);border:1px solid rgba(122,162,232,.22);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+.finding.warn{border-left-color:var(--yellow);}
+.finding.ok{border-left-color:var(--green);}
+.finding.gray{border-left-color:var(--gray,#5a6478);}
+.finding .ft{font-size:13.5px;font-weight:700;margin-bottom:6px;line-height:1.5;}
+.finding .fe{font-size:12px;color:#9aa4c8;margin-bottom:8px;font-family:monospace;background:rgba(0,0,0,.3);padding:5px 8px;border-radius:6px;word-break:break-all;white-space:pre-wrap;}
+.cmd{display:flex;align-items:center;gap:8px;font-size:12px;background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:8px;padding:7px 10px;font-family:monospace;color:#bfe9d6;}
+.cmd button{margin-left:auto;background:rgba(62,207,142,.15);border:none;color:var(--green);cursor:pointer;font-size:11px;padding:3px 10px;border-radius:6px;flex-shrink:0;}
+</style>
+
+<script>
+var DATA = /*__DATA__*/null;
+(function(){
+  if(!DATA){document.getElementById('score').textContent='!';return;}
+  var C={x:350,y:330},R1=304,R2=322,NS='http://www.w3.org/2000/svg';
+  var colmap={red:'#ff5d6c',yellow:'#f5b83d',green:'#3ecf8e',pending:'#3a4358',unknown:'#3a4358'};
+  var dotmap={red:'#ff5d6c',yellow:'#f5b83d',green:'#3ecf8e',pending:'#5a6478',unknown:'#8a93b5'};
+  var stTxt={red:'🔴 有事',yellow:'🟡 观察',green:'🟢 正常',pending:'⚪ 在册待补',unknown:'⚪ 无法判定'};
+  document.getElementById('score').textContent=DATA.score;
+  document.getElementById('tsBar').textContent='巡检时间 '+DATA.ts+' · 对象 '+DATA.target+' · 判定口径见各门详情底注 · 脚本失灵显示「无法判定」绝不装绿';
+  var env=DATA.env||{},parts=[];
+  if(env.new&&env.new.length)parts.push('🆕新增 '+env.new.length);
+  if(env.cleared&&env.cleared.length)parts.push('✅已清零 '+env.cleared.length);
+  if(env.persist&&env.persist.length)parts.push('♻️持续 '+env.persist.length);
+  document.getElementById('envBar').innerHTML=parts.length?('环比：'+parts.join(' · ')):'首期巡检（下期起显示环比）';
+  var svg=document.getElementById('outerRing');
+  DATA.gates.forEach(function(g,i){
+    var a0=(i*45-90+4)*Math.PI/180,a1=(i*45-90+41)*Math.PI/180;
+    var p=document.createElementNS(NS,'path');
+    p.setAttribute('d','M'+(C.x+R1*Math.cos(a0))+','+(C.y+R1*Math.sin(a0))+' A'+R1+','+R1+' 0 0 1 '+(C.x+R1*Math.cos(a1))+','+(C.y+R1*Math.sin(a1))+' L'+(C.x+R2*Math.cos(a1))+','+(C.y+R2*Math.sin(a1))+' A'+R2+','+R2+' 0 0 0 '+(C.x+R2*Math.cos(a0))+','+(C.y+R2*Math.sin(a0))+' Z');
+    p.setAttribute('fill',colmap[g.status]||'#3a4358');p.setAttribute('opacity','.5');
+    svg.appendChild(p);
+  });
+  var box=document.getElementById('doors');
+  DATA.gates.forEach(function(g,idx){
+    var el=document.createElement('div');
+    el.className='door '+g.status;
+    el.style.left=g.lp+'%';el.style.top=g.tp+'%';
+    el.innerHTML='<span class="gua">'+g.gua+'</span><span class="men">'+g.men+'</span><span class="face">'+g.face+'</span><span class="dot" style="background:'+(dotmap[g.status]||'#5a6478')+';box-shadow:0 0 8px '+(dotmap[g.status]||'#5a6478')+';"></span>';
+    el.onclick=function(){openDetail(g,idx)};
+    box.appendChild(el);
+  });
+  window.openDetail=function(g,idx){
+    document.getElementById('mapView').style.display='none';
+    document.getElementById('detailView').style.display='block';
+    var cls={'red':'','yellow':'warn','green':'ok','pending':'gray','unknown':'gray'}[g.status]||'';
+    document.getElementById('detailBody').innerHTML=
+      '<div style="margin-bottom:16px;"><span style="font-size:30px;color:var(--blue);margin-right:10px;">'+g.gua+'</span>'+
+      '<span style="font-family:Kaiti,serif;font-size:26px;color:var(--gold);font-weight:700;">'+g.men+'门</span>'+
+      '<span style="font-size:15px;color:#9aa4c8;margin-left:12px;">'+g.face+'</span>'+
+      '<span style="float:right;font-size:14px;">'+(stTxt[g.status]||'')+'</span></div>'+
+      (g.items||[]).map(function(it){
+        return '<div class="finding '+cls+'"><div class="ft">'+it.t+'</div><div class="fe">'+it.e+'</div><div class="cmd"><span>'+it.c+'</span><button onclick="cp(this)">复制</button></div></div>';
+      }).join('')+
+      '<div style="font-size:11.5px;color:#6a7392;margin-top:12px;">判定口径：本门由 inspect_registry.json '+g.id+' 检查器产出 · 结构生效由脚本查证，行为生效由 AI 自报对账</div>';
+  };
+  window.backToMap=function(){
+    document.getElementById('detailView').style.display='none';
+    document.getElementById('mapView').style.display='block';
+  };
+  window.cp=function(btn){
+    var txt=btn.parentNode.querySelector('span').textContent;
+    if(navigator.clipboard){navigator.clipboard.writeText(txt);}
+    btn.textContent='已复制';setTimeout(function(){btn.textContent='复制'},1200);
+  };
+})();
+</script>
+</div>
+</body>
+</html>

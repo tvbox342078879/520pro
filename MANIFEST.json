@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -61,6 +61,22 @@
         "skills/space-hub/scripts/classify_rules.json": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/classify_rules.json",
           "role": "归纳登记册（唯一真源，加规则零改代码）"
+        },
+        "skills/inspect-hub/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/inspect-hub/SKILL.md",
+          "role": "巡检司 v1.0.0：520 自家健康 8 面巡检（八卦八门面板），登记册驱动，结构生效+行为生效两层判定"
+        },
+        "skills/inspect-hub/scripts/inspect_hub.py": {
+          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_hub.py",
+          "role": "巡检引擎：run/self-check，检查器失灵报「无法判定」绝不装绿，环比指纹落 findings_history.json"
+        },
+        "skills/inspect-hub/scripts/inspect_registry.json": {
+          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_registry.json",
+          "role": "巡检登记册：加巡检面零改引擎（先登记占位灰，补码后转正）"
+        },
+        "skills/inspect-hub/scripts/dashboard_template.html": {
+          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/dashboard_template.html",
+          "role": "卦门合阵面板模板（纯 CSS cqw 自适应，单文件零依赖，手机/电脑双端）"
         }
       }
     },
@@ -252,5 +268,12 @@
   },
   "plan_c": "2026-11-12：5 技能合为 2 入口 + 1 库（tvbox-core 无 SKILL.md，不路由）",
   "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）",
-  "changelog_0_6_0": "space-hub 库务司迁入：tvbox-janitor v1.2.12 去 TVBox 化升级；四层空间解析（init/classify/create-db 三新命令）；坐标修正（空间 RYUDZM，旧 8w5cnq/gZ4x 均亡）；实测建库端到端+回读"
+  "changelog_0_6_0": "space-hub 库务司迁入：tvbox-janitor v1.2.12 去 TVBox 化升级；四层空间解析（init/classify/create-db 三新命令）；坐标修正（空间 RYUDZM，旧 8w5cnq/gZ4x 均亡）；实测建库端到端+回读",
+  "changelog_0_7_0": [
+    "件① secret_scan.py 迁入仓库根（tvbox-eco verify 正本去 kill-switch 改造）：PAT/user:pass/api_key/拼接拆解四类明文 + .git/config 兜底复查；is_placeholder_concat 改整行分段（修中段起匹配截歪引号的漏报，2026-11-12 实测）",
+    "verify.sh 第 27 项：密钥安全扫描，红=发现明文即不绿（落实 core-8 规则 5 零明文凭证）",
+    "件② inspect-hub 巡检司 v1.0.0：8 门（开规则/生技能/杜密钥/景文档/伤结构/死遗留/休新鲜/惊触发词待补码），单文件 dashboard.html 八卦八门面板，造脏五门实测全部抓到、清脏清零",
+    "docs/遗留登记.md 新建：巡检司死门数据源，【待】黄【阻】红，闭环删行自动消色",
+    "旧仓 archive 盘点定案：legacy-diagnostics 化石不迁；tvbox-inspect/legacy-watchdog 原代码死引用不迁、机制（登记册可成长/健康预检/报告环比）由 inspect-hub 继承；ecosys-conductor 仅 secret_scan 迁"
+  ]
 }

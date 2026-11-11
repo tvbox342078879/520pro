@@ -15,3 +15,7 @@ __pycache__/
 
 # 系统
 .DS_Store
+
+# 巡检产物（生成物不入库，只留本机最新）
+docs/巡检/
+通用层/skills/inspect-hub/scripts/findings_history.json
