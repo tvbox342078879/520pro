@@ -96,18 +96,22 @@ CLONE_MODE=""
 
 if [ "$is_remote" -eq 1 ]; then
   CLONE_MODE=remote
-  # 520pro 是公开仓 → 无 token 也能 clone；有 token 则注入（支持私有 fork）
+  # 520pro 是公开仓 → 默认匿名克隆即可。
+  # 实测：带 x-access-token 的 URL 反而更容易被 TLS 断连（GnuTLS -110，重试 3 次全败），
+  # 且 token 会被 git 写进 .git/config。所以 token 只当"匿名失败后的兜底"，不作默认。
   if [ -n "${GITHUB_TOKEN:-}" ]; then
     TOKEN="$GITHUB_TOKEN"
   elif command -v gh >/dev/null 2>&1; then
     TOKEN="$(gh auth token 2>/dev/null)" || TOKEN=""
   fi
+  CLONE_URL="$REPO_ARG"
+  TOKEN_URL=""
   if [ -n "$TOKEN" ]; then
-    CLONE_URL="${REPO_ARG/#https:\/\//https://x-access-token:${TOKEN}@}"
-    CLONE_URL="${CLONE_URL/#http:\/\//http://x-access-token:${TOKEN}@}"
-    say "[凭证] 使用内存 token（来源: 环境变量或 gh auth），不落盘、不打印"
+    TOKEN_URL="${REPO_ARG/#https:\/\//https://x-access-token:${TOKEN}@}"
+    TOKEN_URL="${TOKEN_URL/#http:\/\//http://x-access-token:${TOKEN}@}"
+    say "[凭证] 内存 token 待用（先匿名，失败才升级；用完即清）"
   else
-    say "[凭证] 未提供 token → 按公开仓匿名克隆（若是私有 fork 会失败，请设 GITHUB_TOKEN）"
+    say "[凭证] 未提供 token → 匿名克隆（公开仓足够；私有 fork 请设 GITHUB_TOKEN）"
   fi
 else
   # 本地路径
@@ -119,9 +123,10 @@ else
       TOKEN="$GITHUB_TOKEN"
       origin_url="$(git -C "$REPO_ARG" config remote.origin.url 2>/dev/null)"
       [ -n "$origin_url" ] || { echo "错误: 源是部分克隆且缺 $missing 个对象，但无 origin 可补全。" >&2; exit 1; }
-      CLONE_URL="${origin_url/#https:\/\//https://x-access-token:${TOKEN}@}"
+      CLONE_URL="$origin_url"
+      TOKEN_URL="${origin_url/#https:\/\//https://x-access-token:${TOKEN}@}"
       CLONE_MODE=remote
-      say "[注意] 源是部分克隆且本地缺 $missing 个对象 → 改从 origin 远程克隆（已注入内存 token）"
+      say "[注意] 源是部分克隆且本地缺 $missing 个对象 → 改从 origin 远程克隆（token 兜底）"
     else
       echo "错误: 源仓库是部分克隆，本地缺 $missing 个对象（promisor），无法离线补全。" >&2
       echo "      请设置 GITHUB_TOKEN 后重跑，或在源仓库先 'git fetch' 补全对象。" >&2
@@ -132,6 +137,24 @@ else
     say "[判定] 源为本地完整仓库 → 离线克隆（不注入 token）"
   fi
 fi
+
+# ── 凭证不外落 ──────────────────────────────────────────────
+# git 会把含 token 的 clone URL 原样写进 .git/config。实测过：稀疏检出失败提前 exit 时，
+# token 就留在盘上了（README 承诺的"零明文"因此是假的）。任何退出路径都要还原 origin：
+# EXIT trap 兜底中断/断言失败，成功路径再显式清一次。
+scrub_remote() {
+  local cfg="$TARGET/.git/config" cur clean
+  [ -f "$cfg" ] || return 0
+  cur="$(git -C "$TARGET" config --get remote.origin.url 2>/dev/null)" || return 0
+  case "$cur" in
+    *x-access-token:*)
+      clean="$(printf '%s' "$cur" | sed -E 's#https://x-access-token:[^@]*@#https://#')"
+      git -C "$TARGET" remote set-url origin "$clean" 2>/dev/null || true
+      say "  · 已清除 .git/config 中的 token"
+      ;;
+  esac
+}
+[ -n "${TOKEN_URL:-}" ] && trap scrub_remote EXIT
 
 # ────────────────────── 稀疏检出（MANIFEST 为单一真源）──────────────────────
 FALLBACK_FULL=( "MANIFEST.json" "install.sh" "verify.sh" "README.md" "TEST.md" "手机指令.md" "通用层/" "能力层/" "docs/" )
@@ -186,8 +209,23 @@ PY
   git sparse-checkout init --no-cone >/dev/null 2>&1 || true
   mkdir -p .git/info
   printf '%s\n' "${sets[@]}" > .git/info/sparse-checkout
-  if ! git read-tree -mu HEAD >/dev/null 2>&1; then
-    echo "错误: 应用稀疏检出失败（集合: ${sets[*]}）。" >&2
+  local sperr; sperr="$(mktemp)"
+  if git read-tree -mu HEAD >/dev/null 2>"$sperr"; then
+    rm -f "$sperr"
+  else
+    # 部分克隆（--filter=blob:none）下 read-tree 要按需拉 blob，弱网会瞬时断。
+    # 实测：首次 GnuTLS -110 失败，重试即成功 → 不能一次失败就判定装坏。
+    say "  ⚠ 稀疏检出首次失败，重试一次…"
+    sleep 1
+    if git read-tree -mu HEAD >/dev/null 2>>"$sperr"; then
+      rm -f "$sperr"
+      say "  ✔ 稀疏检出完成（首次失败已重试成功）: ${sets[*]}"
+      return 0
+    fi
+    echo "错误: 应用稀疏检出失败（集合: ${sets[*]}）。原始报错（已脱敏）:" >&2
+    sed -E 's#(x-access-token:)[^@]*@#\1***@#g; s#ghp_[A-Za-z0-9]+#ghp_***#g' "$sperr" \
+      | sed -n '1,6p' | sed 's/^/  /' >&2
+    rm -f "$sperr"
     return 1
   fi
   say "  ✔ 稀疏检出完成: ${sets[*]}"
@@ -198,6 +236,7 @@ PY
 if [ -d "$TARGET/.git" ] && [ -f "$TARGET/MANIFEST.json" ]; then
   say "[幂等] 目标已是 520pro 仓库 → 跳过 clone"
   cd "$TARGET" || { echo "错误: 无法进入 $TARGET。" >&2; exit 1; }
+  scrub_remote   # 旧副本可能残留上次的 token（历史版本没清）
   if [ "$DRY" = 1 ]; then
     say "  [dry-run] git pull --ff-only"
   elif git pull --ff-only >/dev/null 2>&1; then
@@ -242,8 +281,27 @@ else
       rm -f "$ERRF"; rm -rf "$TARGET"; exit 1
     fi
   else
-    if ! git clone --depth 1 --filter=blob:none --sparse "$CLONE_URL" "$TARGET" >/dev/null 2>"$ERRF"; then
-      echo "错误: git clone 失败（网络/凭证/仓库地址）。原始报错（已脱敏）:" >&2
+    # 沙箱/弱网实测：GnuTLS recv error (-110) 是随机断连，同一条命令重跑就成功。
+    # 一次失败不能判定"装坏"，给 3 次机会。
+    ok_clone=0; try=1; cur_url="$CLONE_URL"
+    while [ "$try" -le 3 ]; do
+      rm -rf "$TARGET"
+      if git clone --depth 1 --filter=blob:none --sparse "$cur_url" "$TARGET" >/dev/null 2>"$ERRF"; then
+        ok_clone=1; break
+      fi
+      if [ "$try" -lt 3 ]; then
+        if [ "$try" -eq 1 ] && [ -n "$TOKEN_URL" ]; then
+          say "  ⚠ 匿名克隆失败 → 换 token 再试（第 2 次）"
+          cur_url="$TOKEN_URL"
+        else
+          say "  ⚠ 克隆失败（第 $try/3 次，弱网常见）→ 3s 后重试"
+        fi
+        sleep 3
+      fi
+      try=$((try+1))
+    done
+    if [ "$ok_clone" -ne 1 ]; then
+      echo "错误: git clone 失败（网络/凭证/仓库地址，已重试 3 次）。原始报错（已脱敏）:" >&2
       redact < "$ERRF" | sed -n '1,6p' | sed 's/^/  /' >&2
       rm -f "$ERRF"; rm -rf "$TARGET"; exit 1
     fi
@@ -251,6 +309,7 @@ else
   rm -f "$ERRF"
   say "  ✔ 克隆成功"
   cd "$TARGET" || { echo "错误: 无法进入 $TARGET。" >&2; exit 1; }
+  scrub_remote   # 先清再干活：后面任何一步失败都不会把 token 留在盘上
   apply_sparse || exit 1
 fi
 

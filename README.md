@@ -96,7 +96,7 @@ bash bootstrap.sh <源> lite /tmp/x --dry-run
 | `full`（默认） | 全部（通用层 + 5 技能 + 脚本 + 文档 + 配置模板） | 约 2.8M |
 | `lite` | `通用层/` + `probe-hub` + `tvbox-core`（含 `core.py`）+ 3 脚本 | 约 2.4M，**探源司可跑** |
 
-三条承诺：**幂等**（同命令可重跑）、**零明文 token**（仅内存，用完 `unset`，不写任何文件）、**失败显式**（报错即非 0，不静默降级）。
+三条承诺：**幂等**（同命令可重跑）、**零明文 token**（默认匿名克隆，token 只在匿名失败后兜底、EXIT trap 强制清 `.git/config`）、**失败显式**（报错即非 0，不静默降级）。
 
 > 与 `tvbox-eco` 原版换机司的区别：原版断言绑死 `hooks/pre-push.hook` / `verify/model_handover.py` / `ARCHITECTURE.md`，搬过来必报断言失败。本版按 520pro 结构重写，稀疏集合改从 `MANIFEST.json` 的 `sync_shape` 读（单一真源）。
 

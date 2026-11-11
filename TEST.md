@@ -85,12 +85,14 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | T6.1 | `bash bootstrap.sh <源> lite /tmp/e1 --dry-run` | 打印计划，不落盘 | 结束后 `/tmp/e1` 不存在 |
 | T6.2 | `bash bootstrap.sh <源> lite /tmp/e1` | `换机成功`，断言 6 项全 `✔` | 工作区约 2.4M，含 probe-hub + tvbox-core |
 | T6.3 | **再跑一遍同一命令**（幂等） | 出现 `[幂等] 跳过 clone` → `已拉取最新` → 断言仍全 `✔` | 无重复 clone、无副作用 |
-| T6.4 | `bash bootstrap.sh <源> full /tmp/e2` | 断言 17 项全 `✔` | 含 2 个能力层技能 + 5 个通用层技能 + 3 脚本 + core.py |
+| T6.4 | `bash bootstrap.sh <源> full /tmp/e2` | 断言 15 项全 `✔` | 含 2 个能力层技能 + 5 个通用层技能 + 3 脚本 + core.py |
 | T6.5 | `bash bootstrap.sh <源> lite /tmp/e3 --install` | 装完显示 `✔ 已安装到 $HOME/.codebuddy` | 新会话可见 probe-hub 技能 |
 | T6.6 | 目标目录已存在且非本仓（`mkdir /tmp/zz` 后跑） | `拒绝覆盖` + exit 1 | **不覆盖用户数据** |
 | T6.7 | 源路径不是 git 仓（`bootstrap.sh /etc lite /tmp/x`） | `不是 git 仓库` + exit 1 | 明确报错不静默 |
 
 > **零明文 token 自检**：`grep -c "$GITHUB_TOKEN" ~/.codebuddy -r` 应为 0；`git -C <target> config --get remote.origin.url` 中不应含 `x-access-token`。
+>
+> 2026-11-12 实测修正：旧版把 token 拼进 clone URL，git 会原样写进 `.git/config`，断言失败提前退出时 token 就留在盘上（"零明文"曾不成立）。现改为**默认匿名克隆**，token 仅在匿名失败后兜底，且 EXIT trap 强制还原 origin。换机后必须跑上面第二条命令确认。
 
 ---
 
