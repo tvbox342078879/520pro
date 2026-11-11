@@ -78,7 +78,23 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 
 ---
 
-## 6. 判定汇总（测完填）
+## 6. 换机司（bootstrap.sh）
+
+| 编号 | 动作 | 预期 | 判据 |
+|---|---|---|---|
+| T6.1 | `bash bootstrap.sh <源> lite /tmp/e1 --dry-run` | 打印计划，不落盘 | 结束后 `/tmp/e1` 不存在 |
+| T6.2 | `bash bootstrap.sh <源> lite /tmp/e1` | `换机成功`，断言 6 项全 `✔` | 工作区约 2.4M，含 probe-hub + source-hub |
+| T6.3 | **再跑一遍同一命令**（幂等） | 出现 `[幂等] 跳过 clone` → `已拉取最新` → 断言仍全 `✔` | 无重复 clone、无副作用 |
+| T6.4 | `bash bootstrap.sh <源> full /tmp/e2` | 断言 17 项全 `✔` | 含 5 个技能 + 3 脚本 + core.py |
+| T6.5 | `bash bootstrap.sh <源> lite /tmp/e3 --install` | 装完显示 `✔ 已安装到 $HOME/.codebuddy` | 新会话可见 probe-hub 技能 |
+| T6.6 | 目标目录已存在且非本仓（`mkdir /tmp/zz` 后跑） | `拒绝覆盖` + exit 1 | **不覆盖用户数据** |
+| T6.7 | 源路径不是 git 仓（`bootstrap.sh /etc lite /tmp/x`） | `不是 git 仓库` + exit 1 | 明确报错不静默 |
+
+> **零明文 token 自检**：`grep -c "$GITHUB_TOKEN" ~/.codebuddy -r` 应为 0；`git -C <target> config --get remote.origin.url` 中不应含 `x-access-token`。
+
+---
+
+## 7. 判定汇总（测完填）
 
 | 层 | 测试项 | 真阳性 | 真阴性 | 无法判定 |
 |---|---|---|---|---|
@@ -90,10 +106,13 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | **探源司** | **T3.3 反证不编** | ☐ | ☐ | ☐ |
 | 脚本 | T5.1 冒烟 | ☐ | ☐ | ☐ |
 | 手机 | T5.3 手机触发 | ☐ | ☐ | ☐ |
+| **换机** | **T6.3 幂等重跑** | ☐ | ☐ | ☐ |
+| **换机** | **T6.4 full 断言** | ☐ | ☐ | ☐ |
+| 换机 | T6.6 拒绝覆盖 | ☐ | ☐ | ☐ |
 
 ---
 
-## 7. 常见假阴性排查
+## 8. 常见假阴性排查
 
 - **技能没反应** → 可能装成了项目级（不路由）。改用 `--user-skill` 重装，或确认 `~/.codebuddy/skills/tvbox-config-sync/` 存在。
 - **找不到脚本** → `$SCRIPT_DIR` 没定位对；`verify.sh` 会报。

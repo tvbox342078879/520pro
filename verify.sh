@@ -60,7 +60,7 @@ fi
 
 echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"
-[ -f "$P/CODEBUDDY.md" ] && ok "CODEBUDDY.md" || no "CODEBUDDY.md 缺失（用户级模式可忽略）"
+[ -f "$P/CODEBUDDY.md" ] && ok "CODEBUDDY.md" || opt "CODEBUDDY.md 未装（用户级模式正常）"
 [ -d "$P/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || echo "  · 项目级技能未装（用户级模式正常）"
 for f in collect_repos check_live merge_config; do
   [ -f "$P/scripts/$f.py" ] && ok "scripts/$f.py" || true

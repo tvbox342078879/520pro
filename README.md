@@ -43,6 +43,7 @@
 │   ├── rules/{tvbox-style.md, tvbox.paths.md}
 │   └── master_config.example.json
 ├── install.sh                       四种模式（见下）
+├── bootstrap.sh                     换机司（一键换机/新设备初始化，幂等+零明文 token）
 ├── verify.sh                        安装自检（含探源司 status 冒烟）
 ├── 手机指令.md                      第三通道（手动粘贴）
 ├── TEST.md                         测试清单（含路由实测）
@@ -74,6 +75,30 @@ bash verify.sh
 ```
 
 装完**开新会话**（规则/技能只在会话启动加载），按 `TEST.md` 验证。
+
+### 换机（新设备 / 重装 / 迁移）
+
+```bash
+# 一条命令：克隆 + 稀疏检出 + 断言（可选装完即装到用户级）
+bash bootstrap.sh https://github.com/tvbox342078879/520pro.git full ~/520pro --install
+
+# 探源司最小可跑集（2.4M，只含 probe-hub + source-hub + 脚本）
+bash bootstrap.sh https://github.com/tvbox342078879/520pro.git lite ~/520pro-lite --install
+
+# 先预览（不落盘）
+bash bootstrap.sh <源> lite /tmp/x --dry-run
+
+# 重跑同一命令 = 幂等（跳过 clone，仅 git pull + 重设稀疏）
+```
+
+| shape | 检出内容 | 工作区 |
+|---|---|---|
+| `full`（默认） | 全部（通用层 + 5 技能 + 脚本 + 文档 + 配置模板） | 约 2.8M |
+| `lite` | `通用层/` + `probe-hub` + `tvbox-source-hub`（含 `core.py`）+ 3 脚本 | 约 2.4M，**探源司可跑** |
+
+三条承诺：**幂等**（同命令可重跑）、**零明文 token**（仅内存，用完 `unset`，不写任何文件）、**失败显式**（报错即非 0，不静默降级）。
+
+> 与 `tvbox-eco` 原版换机司的区别：原版断言绑死 `hooks/pre-push.hook` / `verify/model_handover.py` / `ARCHITECTURE.md`，搬过来必报断言失败。本版按 520pro 结构重写，稀疏集合改从 `MANIFEST.json` 的 `sync_shape` 读（单一真源）。
 
 ---
 
