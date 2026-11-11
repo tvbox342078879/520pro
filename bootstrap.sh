@@ -232,13 +232,23 @@ else
     exit 0
   fi
 
+  # 错误脱敏：URL 里可能含 token，回显前统一打码（保留排障信息，不泄凭证）
+  ERRF="$(mktemp)"
+  redact() { sed -E 's#(x-access-token:)[^@]*@#\1***@#g; s#ghp_[A-Za-z0-9]+#ghp_***#g; s#github_pat_[A-Za-z0-9_]+#github_pat_***#g'; }
   if [ "$CLONE_MODE" = local_complete ]; then
-    git clone "$CLONE_URL" "$TARGET" >/dev/null 2>&1 || {
-      echo "错误: 本地克隆失败（检查源路径/权限）。" >&2; rm -rf "$TARGET"; exit 1; }
+    if ! git clone "$CLONE_URL" "$TARGET" >/dev/null 2>"$ERRF"; then
+      echo "错误: 本地克隆失败（检查源路径/权限）。" >&2
+      redact < "$ERRF" | sed -n '1,5p' | sed 's/^/  /' >&2
+      rm -f "$ERRF"; rm -rf "$TARGET"; exit 1
+    fi
   else
-    git clone --depth 1 --filter=blob:none --sparse "$CLONE_URL" "$TARGET" >/dev/null 2>&1 || {
-      echo "错误: git clone 失败（检查网络/凭证/仓库地址）。" >&2; rm -rf "$TARGET"; exit 1; }
+    if ! git clone --depth 1 --filter=blob:none --sparse "$CLONE_URL" "$TARGET" >/dev/null 2>"$ERRF"; then
+      echo "错误: git clone 失败（网络/凭证/仓库地址）。原始报错（已脱敏）:" >&2
+      redact < "$ERRF" | sed -n '1,6p' | sed 's/^/  /' >&2
+      rm -f "$ERRF"; rm -rf "$TARGET"; exit 1
+    fi
   fi
+  rm -f "$ERRF"
   say "  ✔ 克隆成功"
   cd "$TARGET" || { echo "错误: 无法进入 $TARGET。" >&2; exit 1; }
   apply_sparse || exit 1
