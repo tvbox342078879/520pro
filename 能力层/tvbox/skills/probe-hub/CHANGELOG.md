@@ -1,3 +1,9 @@
+## v1.21.0 — 方案 C 收编 + pan 迁出（2026-11-12）
+- 原因：5 技能合 2 入口 + 1 共享库（tvbox-core）；网盘取料 pan 与 TVBox 零耦合，迁至通用层 learn-hub。
+- 动作：scripts/probe.py 10,319 → 9,051 行（删 pan 实现块 L8464–9653、`harvest pan` 子命令、自检㉓/㉓b）；`_sc_pan_pak`→`_sc_pak`；SKILL.md 同步去 pan、description 标注"pan 已于 2026-11-12 迁至 learn-hub"。
+- 判别特征（防新旧混淆）：本版 **无 `harvest pan`**、SKILL.md **含"迁至 learn-hub"字样**、probe.py 共 9,051 行。旧版（私有仓 v1.20.8）为 10,319 行且含 pan——两版同挂 1.20.8 时期曾造成手机端误载旧版，故本版升号。
+- 共享库：core/link/pipeline/blk 收编至 `tvbox-core/scripts/`，`HUB = ~/.codebuddy/skills/tvbox-core/scripts`。
+
 ## v1.20.8 — 三件套版本对齐（治理·M07 闭环）
 - 原因：审计发现 SKILL.md=1.20.8 / flow.json=1.20.4 / CHANGELOG 顶头=1.20.3 三件套版本漂移，违反规则54四化。
 - 动作：flow.json version 由 1.20.4 升 1.20.8；本小节闭合版本头；SKILL.md 维持 1.20.8。

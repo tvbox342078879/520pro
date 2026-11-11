@@ -146,13 +146,14 @@
     "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
     "conditional_paths_injection": "真阴性（不注入，仅示例）",
     "project_level_skill_routing": "真阴性（不进 active 列表）",
-    "user_skill_cross_device_to_new_phone": "真阴性（2026-11-12 手机实测：云沙箱每次会话新建，装好的件随沙箱销毁；平台注册源是账号云端清单 skill_编号 目录，手工放入 ~/.codebuddy 的目录不进清单、不被路由）",
+    "user_skill_cross_device_to_new_phone": "部分真阳性（2026-11-12 手机实测两波）：①路由机制本身可用——账号技能库有注册的技能，新会话说触发词即可加载（02:01 截图「已使用技能 probe-hub」为证）；②但账号库当前注册的是私有仓旧版 v1.20.8（probe.py 10,319 行含 harvest pan），520 新版须在 App 技能管理覆盖导入后才生效；③手工放入 ~/.codebuddy/skills 的目录不被检索，触发靠的是账号库注册",
     "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
     "probe_hub_without_core": "真阴性（缺 tvbox-source-hub 必报 ModuleNotFoundError: No module named 'core'）",
     "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）",
-    "phone_channel_account_command": "真阳性·推荐（每次会话 bootstrap.sh 重装 ~30s + 账号指令写死脚本路径，见 手机指令.md 粘贴区）",
+    "phone_channel_account_command": "真阳性·兜底推荐（开场自检自动重装 ~30s + 命令直达；账号库注册是正路，命令直达是沙箱没注册时的保险）",
     "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
-    "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测）"
+    "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 全部消失）",
+    "version_skew_trap": "真阳性教训：方案 C 改造未升版本号，新旧都叫 v1.20.8，手机端误载旧版（probe.py 9,051 行新版 vs 10,319 行旧版，harvest pan 在 9968 行处可判）。已升 probe-hub 1.21.0 / learn-hub 1.2.0 / tvbox-pipeline 1.0.0"
   },
   "probe_hub": {
     "display_name": "探源司",
