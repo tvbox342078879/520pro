@@ -81,10 +81,25 @@ deploy_generic_user() {
   done
 }
 
+adapt_paths() {  # 把技能里硬编码的 /root/.codebuddy 改成当前 HOME 可解析
+  local dir="$1"
+  [ "$DRY" = 1 ] && return 0
+  [ -d "$dir" ] || return 0
+  command -v python3 >/dev/null 2>&1 || { echo "  · 无 python3，跳过路径适配"; return 0; }
+  [ -f "$ROOT/能力层/tvbox/fix_paths.py" ] || return 0
+  local out
+  out="$(python3 "$ROOT/能力层/tvbox/fix_paths.py" "$dir" 2>/dev/null | tail -1)"
+  [ -n "$out" ] && echo "  · 路径适配：$out"
+}
+
 deploy_tvbox_user() {
   echo
   echo "【TVBox 能力 → $USER_DIR】（★用户级：路由可靠、云端可执行）"
-  cp_bak "$ROOT/能力层/tvbox/skills/tvbox-config-sync" "$USER_DIR/skills/tvbox-config-sync"
+  for d in "$ROOT"/能力层/tvbox/skills/*/; do
+    [ -d "$d" ] || continue
+    cp_bak "$d" "$USER_DIR/skills/$(basename "$d")"
+  done
+  adapt_paths "$USER_DIR/skills"
   for f in "$ROOT"/能力层/tvbox/agents/*.md; do
     [ -e "$f" ] || continue
     cp_bak "$f" "$USER_DIR/agents/$(basename "$f")"
@@ -113,6 +128,7 @@ deploy_capability_project() {
     [ -d "$d" ] || continue
     cp_bak "$d" "$PROJ_DIR/skills/$(basename "$d")"
   done
+  adapt_paths "$PROJ_DIR/skills"
   for f in "$ROOT"/能力层/tvbox/agents/*.md; do
     [ -e "$f" ] || continue
     cp_bak "$f" "$PROJ_DIR/agents/$(basename "$f")"

@@ -32,6 +32,29 @@ for f in collect_repos check_live merge_config; do
 done
 
 echo
+echo "[探源司·四件套（probe-hub + 共享核心）]"
+SK="$U/skills"
+[ -d "$SK/probe-hub" ] && ok "skills/probe-hub（探源司本体）" || no "skills/probe-hub 缺失"
+for s in tvbox-source-hub tvbox-interface tvbox-source-blacklist; do
+  [ -d "$SK/$s" ] && ok "skills/$s" || no "skills/$s 缺失（探源司依赖，缺了必报 ModuleNotFoundError）"
+done
+if [ -d "$SK/tvbox-source-hub/scripts" ]; then
+  ( cd "$SK/tvbox-source-hub/scripts" && python3 -c "import core" 2>/dev/null ) \
+    && ok "共享核心 core.py 可导入" || no "core.py 导入失败"
+fi
+if [ -d "$SK/probe-hub/scripts" ]; then
+  # 只看功能性硬编码（sys.path / 变量赋值），文案与注释里的路径不影响运行
+  hit=$(grep -rEn "sys\.path\.insert\([^)]*'/root/\.codebuddy|^[[:space:]]*[A-Z_]+[[:space:]]*=[[:space:]]*'/root/\.codebuddy" "$SK" --include="*.py" 2>/dev/null | wc -l | tr -d ' ')
+  [ "${hit:-0}" -eq 0 ] && ok "无功能性硬编码 /root/.codebuddy（可跨机器）" || no "仍有 $hit 处功能性硬编码路径"
+  echo "  · 探源司 status 冒烟（约 10s，网络受限时会降级）"
+  out=$( cd "$SK/probe-hub/scripts" && PROBE_HUB_NO_BANNER=1 timeout 60 python3 probe.py monitor status 2>/dev/null || true )
+  case "$out" in
+    *"个目标"*) ok "probe.py monitor status 可跑（监测台正常）" ;;
+    *) echo "  · status 未通过 → 记「无法判定」（多为沙箱网络受限，非必失败）" ;;
+  esac
+fi
+
+echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"
 [ -f "$P/CODEBUDDY.md" ] && ok "CODEBUDDY.md" || no "CODEBUDDY.md 缺失（用户级模式可忽略）"
 [ -d "$P/skills/tvbox-config-sync" ] && ok "skills/tvbox-config-sync" || echo "  · 项目级技能未装（用户级模式正常）"

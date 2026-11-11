@@ -45,17 +45,40 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 
 ---
 
-## 3. 云端脚本可跑（证明"手机也能触发"的前提）
+## 3. 探源司四件套（★ 真正的干活能力）
+
+> 前提：必须四件套齐全。**只装 probe-hub 必报 `ModuleNotFoundError: No module named 'core'`。**
 
 | 编号 | 动作 | 预期 |
 |---|---|---|
-| T3.1 | `bash verify.sh` 的冒烟段 | 显示 `check_live.py 可执行` |
-| T3.2 | 准备 `master_config.json` 后跑链路 | 输出 `存活 N / 失效 M → master_config.new.json` |
-| T3.3 | 手机上说「更新 TVBox 配置」 | 若用户级技能已随账号同步 → 能触发（执行在云端）= 真阳性；不能触发 = **无法判定/真阴性**（记下来） |
+| T3.0 | `ls ~/.codebuddy/skills/` | 能看到 `probe-hub` / `tvbox-source-hub` / `tvbox-interface` / `tvbox-source-blacklist` |
+| T3.1 | `cd ~/.codebuddy/skills/tvbox-source-hub/scripts && python3 -c "import core"` | 无报错 |
+| T3.2 | `python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py monitor status` | 输出 `📡 上游仓库监测台（186 个目标）` 表格 |
+| T3.3 | `python3 .../probe.py monitor check --repo https://github.com/xxx/not-exist-999` | 返回 `❌ 未找到目标`（**若编出内容 = 幻觉**） |
+| T3.4 | 新会话说「用探源司看看 hjdhnx/drpy3 还活着吗」 | 命中 probe-hub 技能并调用 |
+
+**判定要点（四条硬指标，缺一即不可信）**：
+
+1. 有落盘产物（`monitor_targets.json` / `dead_repos.json` mtime 更新）
+2. 每条结论带 http_code 或 API 归因
+3. 三态齐备，「无法判定」没被折叠成「失败」
+4. 反证不倒（假目标不编内容）
+
+> 沙箱内 `monitor check --repo` 单目标常超时无输出 → 记 **无法判定**（443 出站受限），不是能力缺陷。
 
 ---
 
-## 4. 判定汇总（测完填）
+## 5. 配置同步脚本可跑（证明"手机也能触发"的前提）
+
+| 编号 | 动作 | 预期 |
+|---|---|---|
+| T5.1 | `bash verify.sh` 的冒烟段 | 显示 `check_live.py 可执行` |
+| T5.2 | 准备 `master_config.json` 后跑链路 | 输出 `存活 N / 失效 M → master_config.new.json` |
+| T5.3 | 手机上说「更新 TVBox 配置」 | 若用户级技能已随账号同步 → 能触发（执行在云端）= 真阳性；不能触发 = **无法判定/真阴性**（记下来） |
+
+---
+
+## 6. 判定汇总（测完填）
 
 | 层 | 测试项 | 真阳性 | 真阴性 | 无法判定 |
 |---|---|---|---|---|
@@ -63,12 +86,14 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | 规则 | T1.3 语言铁律 | ☐ | ☐ | ☐ |
 | 技能 | T2.1 用户级路由 | ☐ | ☐ | ☐ |
 | 技能 | T2.3 脚本路径适配 | ☐ | ☐ | ☐ |
-| 脚本 | T3.1 冒烟 | ☐ | ☐ | ☐ |
-| 手机 | T3.3 手机触发 | ☐ | ☐ | ☐ |
+| **探源司** | **T3.2 monitor status** | ☐ | ☐ | ☐ |
+| **探源司** | **T3.3 反证不编** | ☐ | ☐ | ☐ |
+| 脚本 | T5.1 冒烟 | ☐ | ☐ | ☐ |
+| 手机 | T5.3 手机触发 | ☐ | ☐ | ☐ |
 
 ---
 
-## 5. 常见假阴性排查
+## 7. 常见假阴性排查
 
 - **技能没反应** → 可能装成了项目级（不路由）。改用 `--user-skill` 重装，或确认 `~/.codebuddy/skills/tvbox-config-sync/` 存在。
 - **找不到脚本** → `$SCRIPT_DIR` 没定位对；`verify.sh` 会报。

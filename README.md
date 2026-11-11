@@ -29,20 +29,28 @@
 │   ├── rules/core-8.md              →  ~/.codebuddy/rules/（8 铁律）
 │   └── skills/{skill-evolution,feature-gate,machine-bootstrap,artifact-store}
 ├── 能力层/tvbox/                    →  用户级 或 项目级（按模式）
-│   ├── skills/tvbox-config-sync/    →  ~/.codebuddy/skills/（★用户级可路由）
+│   ├── skills/
+│   │   ├── tvbox-config-sync/       →  配置同步（搜集→测活→集成）
+│   │   ├── probe-hub/               →  探源司本体（monitor/search/harvest，1.6M）
+│   │   ├── tvbox-source-hub/        →  ★共享核心 core.py + concurrency.py
+│   │   ├── tvbox-interface/         →  测活口径 pipeline.py
+│   │   └── tvbox-source-blacklist/  →  blk.py（拉黑判据）
 │   ├── agents/tvbox-agent.md        →  ~/.codebuddy/agents/
 │   ├── commands/tvbox-sync.md       →  ~/.codebuddy/commands/
 │   ├── scripts/{collect,check,merge}.py → ~/.codebuddy/scripts/
+│   ├── fix_paths.py                 路径适配（/root/.codebuddy → ~/.codebuddy）
 │   ├── CODEBUDDY.md                 （项目级薄壳，兜底用）
 │   ├── rules/{tvbox-style.md, tvbox.paths.md}
 │   └── master_config.example.json
 ├── install.sh                       四种模式（见下）
-├── verify.sh                        安装自检
+├── verify.sh                        安装自检（含探源司 status 冒烟）
 ├── 手机指令.md                      第三通道（手动粘贴）
 ├── TEST.md                         测试清单（含路由实测）
 ├── MANIFEST.json                   机读分层 + 融合映射 + 可靠性
 └── docs/{融合架构.md, 分层落地表.md, 加载机制与可靠性.md}
 ```
+
+> **探源司四件套必须一起装**：`probe-hub` 里 `from core import ...` 依赖 `tvbox-source-hub/scripts/core.py`，单独装必然 `ModuleNotFoundError`。四件套还硬编码过 `/root/.codebuddy`，`fix_paths.py` 已统一改为 `os.path.expanduser('~/.codebuddy')`，换机器/换 HOME 不再失效。
 
 ---
 
@@ -96,14 +104,30 @@ bash verify.sh
 ## 六、素材与边界
 
 - 通用层（core-8 / 4 技能）取自 368817 去 TVBox 化版本，原样保留。
-- 能力层取自 368817 仓根 `.codebuddy/` 存活的 TVBox 件（tvbox-config-sync / tvbox-agent / /tvbox-sync / 3 脚本 / 配置模板）。
-- **旧探源司 / 换机司已随 tvbox-eco 404 丢失**，本仓没有它们；本仓 TVBox = 「配置同步（搜集→测活→集成）」。
+- 配置同步层取自 368817 仓根 `.codebuddy/` 存活的 TVBox 件（tvbox-config-sync / tvbox-agent / /tvbox-sync / 3 脚本 / 配置模板）。
+- **探源司已找回并打包**：`probe-hub` + `tvbox-source-hub` + `tvbox-interface` + `tvbox-source-blacklist` 四件套取自 `tvbox342078879/tvbox-skills-eco`（此前判断"已丢失"有误——`tvbox-eco` 是 private 仓库，raw 取不到才显示 404）。
+- 探源司实测可跑：`monitor status` 输出 186 个监测目标，带存活/活跃度/判定依据；缺 `core.py` 则必崩。
+- **换机司仍未打包**：本仓无 `machine-bootstrap` 之外的换机流程件。
 
 ---
 
 ## 七、口令
 
+**配置同步**
+
 - 更新配置：`/tvbox-sync all` 或「帮我更新 TVBox 配置」
 - 测活：`python3 "$SCRIPT_DIR/check_live.py" sources.json`
 - 集成：`python3 "$SCRIPT_DIR/merge_config.py"`
 - 必改：`collect_repos.py` 顶部 `REPOS`；项目根 `master_config.json`
+
+**探源司（probe-hub）**
+
+```bash
+P="$HOME/.codebuddy/skills/probe-hub/scripts/probe.py"
+python3 "$P" monitor status                     # 监测台（186 目标）
+python3 "$P" monitor check --repo <仓库URL>      # 单仓三态检查
+python3 "$P" search github --topic tvbox         # 搜新仓库
+python3 "$P" harvest scan --repo <仓库URL>       # 采线路
+```
+
+> 触发词：「探源司」「作者仓库」「找源」「监测仓库」「线路失效」，或显式说「用探源司查一下 XX 仓库」。

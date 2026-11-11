@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": ["WorkBuddy 平台运行时", "新生态 v0.1.0", "368817 存活素材"],
   "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
@@ -27,6 +27,11 @@
       "scope": "TVBox（用户级或项目级，按模式）",
       "files": {
         "tvbox/skills/tvbox-config-sync/SKILL.md": { "user_install": "~/.codebuddy/skills/tvbox-config-sync/", "project_install": "<项目>/.codebuddy/skills/", "role": "★用户级可被平台路由", "script_dir_auto": "优先 ~/.codebuddy/scripts，回退 .codebuddy/scripts" },
+        "tvbox/skills/probe-hub/": { "user_install": "~/.codebuddy/skills/probe-hub/", "role": "探源司本体：monitor/search/harvest/forge/shellcrack", "depends_on": ["tvbox-source-hub", "tvbox-interface", "tvbox-source-blacklist"], "entry": "scripts/probe.py", "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'" },
+        "tvbox/skills/tvbox-source-hub/": { "user_install": "~/.codebuddy/skills/tvbox-source-hub/", "role": "★共享核心 core.py(41K) + concurrency.py(14K)，探源司/接口/黑名单共同依赖" },
+        "tvbox/skills/tvbox-interface/": { "user_install": "~/.codebuddy/skills/tvbox-interface/", "role": "测活口径 pipeline.py(51K)（_alive / ALIVE_CODES）" },
+        "tvbox/skills/tvbox-source-blacklist/": { "user_install": "~/.codebuddy/skills/tvbox-source-blacklist/", "role": "blk.py 拉黑判据（probe.py 硬引用）" },
+        "tvbox/fix_paths.py": { "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接" },
         "tvbox/agents/tvbox-agent.md": { "user_install": "~/.codebuddy/agents/", "role": "隔离子代理" },
         "tvbox/commands/tvbox-sync.md": { "user_install": "~/.codebuddy/commands/", "role": "/tvbox-sync 命令" },
         "tvbox/scripts/collect_repos.py": { "user_install": "~/.codebuddy/scripts/", "role": "拉仓库抽源" },
@@ -55,7 +60,24 @@
     "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
     "conditional_paths_injection": "真阴性（不注入，仅示例）",
     "project_level_skill_routing": "真阴性（不进 active 列表）",
-    "user_skill_cross_device_to_new_phone": "无法判定（需实测）"
+    "user_skill_cross_device_to_new_phone": "无法判定（需实测）",
+    "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
+    "probe_hub_without_core": "真阴性（缺 tvbox-source-hub 必报 ModuleNotFoundError: No module named 'core'）",
+    "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）"
+  },
+  "probe_hub": {
+    "display_name": "探源司",
+    "version": "1.20.8",
+    "source": "tvbox342078879/tvbox-skills-eco (master)",
+    "required_set": ["probe-hub", "tvbox-source-hub", "tvbox-interface", "tvbox-source-blacklist"],
+    "entry": "python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py <module> <cmd>",
+    "note": "仓库内无 tvbox CLI 实现，`tvbox probe` 仅为别名壳；真实入口是 probe.py",
+    "modules": {
+      "monitor": ["status", "check", "diff", "forecast", "add", "import", "due", "purge-test"],
+      "search": ["github", "gitee", "gitlab", "rank", "verify"],
+      "harvest": ["scan", "pull", "filter", "export", "dispatch"],
+      "extra": ["forge", "livecheck", "decrypt", "quality", "shellcrack", "self-check"]
+    }
   },
   "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",
   "verify": "bash verify.sh"

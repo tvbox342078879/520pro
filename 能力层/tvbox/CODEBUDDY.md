@@ -17,6 +17,8 @@
 
 ## 二、TVBox 能力 · 触发词即路由（内联兜底）
 
+### 2.1 配置同步（改配置 / 测活 / 集成）
+
 **当用户提到**：`TVBox`、`电视盒子`、`测活`、`直播源`、`站点源`、`配置源`、`线路`、`订阅源`、`更新tvbox配置`、`/tvbox-sync`
 **→ 立即执行三步链路，不要手动逐条 curl、不要手动改 JSON。**
 
@@ -34,18 +36,41 @@ if [ -d "$HOME/.codebuddy/scripts" ]; then SCRIPT_DIR="$HOME/.codebuddy/scripts"
 汇报：`存活 N / 失效 M → master_config.new.json`，**输出精简**。
 > 步骤多时可派 `tvbox-agent` **子代理**执行，隔离日志、不污染主会话。
 
+### 2.2 探源司（上游侦察 / 找源 / 监测作者仓库）
+
+**当用户提到**：`探源司`、`作者仓库`、`上游`、`找源`、`搜源`、`监测仓库`、`仓库还在吗`、`他又更新了什么`、`线路失效`、`换路线`、`扩库容`、`采集线路`、`壳源`、`抠链`
+**→ 用探源司，不要自己写爬虫。**
+
+```bash
+P="$HOME/.codebuddy/skills/probe-hub/scripts/probe.py"
+python3 "$P" monitor status                  # 监测台总览
+python3 "$P" monitor check --repo <URL>       # 单仓三态检查
+python3 "$P" search github --topic tvbox      # 搜新仓库
+python3 "$P" harvest scan --repo <URL>        # 采线路
+```
+
+> ⚠️ 探源司**必须四件套齐全**（probe-hub / tvbox-source-hub / tvbox-interface / tvbox-source-blacklist）。
+> 只装 probe-hub 会报 `ModuleNotFoundError: No module named 'core'`——这时不要改代码硬修，先补齐 `tvbox-source-hub`。
+> 结论必须带三态（通过/失败/无法判定）；超时与网络受限记「无法判定」，不得写成「失败」。
+
 ---
 
 ## 三、能力清单
 
 | 组件 | 用户级路径（--user-skill） | 项目级路径（--capability-only） | 作用 |
 |---|---|---|---|
-| 技能 | `~/.codebuddy/skills/tvbox-config-sync/` | `.codebuddy/skills/tvbox-config-sync/` | 流程编排（用户级可被平台路由） |
+| 配置同步技能 | `~/.codebuddy/skills/tvbox-config-sync/` | `.codebuddy/skills/tvbox-config-sync/` | 流程编排（用户级可被平台路由） |
+| **探源司本体** | `~/.codebuddy/skills/probe-hub/` | 同左（**须用户级**） | 监测/搜索/采集 |
+| **共享核心** | `~/.codebuddy/skills/tvbox-source-hub/` | 缺则探源司必崩 | `core.py` + `concurrency.py` |
+| **测活口径** | `~/.codebuddy/skills/tvbox-interface/` | — | `pipeline.py` |
+| **拉黑判据** | `~/.codebuddy/skills/tvbox-source-blacklist/` | — | `blk.py` |
 | 工人 | `~/.codebuddy/agents/tvbox-agent.md` | `.codebuddy/agents/` | 隔离执行 |
 | 命令 | `~/.codebuddy/commands/tvbox-sync.md` | `.codebuddy/commands/` | `/tvbox-sync` |
 | 脚本 | `~/.codebuddy/scripts/` | `.codebuddy/scripts/` | 收集→测活→集成 |
 | 规则 | （不全局注入） | `.codebuddy/rules/tvbox-style.md` 等 | 项目纪律 |
 | 配置 | `~/.codebuddy/tvbox/master_config.example.json` | `.codebuddy/tvbox/` | 主配置模板 |
+
+> 探源司四件套**只支持用户级**：`probe.py` 用 `os.path.expanduser('~/.codebuddy/skills/...')` 定位共享核心，项目级装法找不到。
 
 ---
 
