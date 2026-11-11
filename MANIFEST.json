@@ -1,0 +1,62 @@
+{
+  "ecosystem": "520pro",
+  "version": "0.1.0",
+  "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
+  "based_on": ["WorkBuddy 平台运行时", "新生态 v0.1.0", "368817 存活素材"],
+  "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
+  "deploy_modes": {
+    "user-skill": "通用层→~/.codebuddy + TVBox→~/.codebuddy（★推荐）",
+    "capability-only": "TVBox→<项目>/.codebuddy（项目隔离）",
+    "generic-only": "只装通用层到 ~/.codebuddy",
+    "all": "通用层→用户级 + 能力层→项目级（默认）"
+  },
+  "layers": {
+    "通用层": {
+      "scope": "用户级·跨项目",
+      "deploy_to": "~/.codebuddy/",
+      "files": {
+        "rules/core-8.md": { "install_to": "~/.codebuddy/rules/core-8.md", "alwaysApply": true, "role": "8 条通用铁律（B-01~B-08 + M1–M7）" },
+        "rules/zh-style.md": { "install_to": "<项目>/.codebuddy/rules/zh-style.md", "alwaysApply": true, "role": "项目级文档/输出纪律契约（项目隔离模式才装）" },
+        "skills/skill-evolution/SKILL.md": { "role": "复发问题固化成技能" },
+        "skills/feature-gate/SKILL.md": { "role": "特性开关+绞杀者切流" },
+        "skills/machine-bootstrap/SKILL.md": { "role": "一键换机/克隆工作副本" },
+        "skills/artifact-store/SKILL.md": { "role": "本地产物轻量化·防手机卡顿" }
+      }
+    },
+    "能力层": {
+      "scope": "TVBox（用户级或项目级，按模式）",
+      "files": {
+        "tvbox/skills/tvbox-config-sync/SKILL.md": { "user_install": "~/.codebuddy/skills/tvbox-config-sync/", "project_install": "<项目>/.codebuddy/skills/", "role": "★用户级可被平台路由", "script_dir_auto": "优先 ~/.codebuddy/scripts，回退 .codebuddy/scripts" },
+        "tvbox/agents/tvbox-agent.md": { "user_install": "~/.codebuddy/agents/", "role": "隔离子代理" },
+        "tvbox/commands/tvbox-sync.md": { "user_install": "~/.codebuddy/commands/", "role": "/tvbox-sync 命令" },
+        "tvbox/scripts/collect_repos.py": { "user_install": "~/.codebuddy/scripts/", "role": "拉仓库抽源" },
+        "tvbox/scripts/check_live.py": { "user_install": "~/.codebuddy/scripts/", "role": "并发测活" },
+        "tvbox/scripts/merge_config.py": { "user_install": "~/.codebuddy/scripts/", "role": "存活源集成" },
+        "tvbox/master_config.example.json": { "user_install": "~/.codebuddy/tvbox/", "role": "主配置模板" },
+        "tvbox/CODEBUDDY.md": { "project_install": "<项目>/.codebuddy/CODEBUDDY.md", "role": "项目级薄壳兜底（用户级模式可不装）" },
+        "tvbox/rules/tvbox-style.md": { "project_install": "<项目>/.codebuddy/rules/", "alwaysApply": true, "role": "TVBox 纪律（项目隔离模式）" },
+        "tvbox/rules/tvbox.paths.md": { "project_install": "<项目>/.codebuddy/rules/", "alwaysApply": false, "paths": ["**/master_config*.json"], "role": "条件规则示例（实测不注入）" }
+      }
+    }
+  },
+  "rule_dual_track": {
+    "hard": "平台「设置→给 WorkBuddy 的指令」（账号级，跨设备强注入）",
+    "soft": "~/.codebuddy/rules/core-8.md（本地兜底）"
+  },
+  "channels": {
+    "1_user_rule": "~/.codebuddy/rules/core-8.md",
+    "2_project_shell": "<项目>/.codebuddy/CODEBUDDY.md（必注入）",
+    "3_user_skill": "~/.codebuddy/skills/tvbox-config-sync（★平台注册可路由）",
+    "4_mobile_manual": "手机 App 设置→指令，粘贴 手机指令.md"
+  },
+  "verified_reliability": {
+    "user_level_skill_routing": "真阳性（本环境 ~/.codebuddy/skills 技能均在 active 列表）",
+    "CODEBUDDY_md_injection": "真阳性（368817：仅 CODEBUDDY.md 被注入）",
+    "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
+    "conditional_paths_injection": "真阴性（不注入，仅示例）",
+    "project_level_skill_routing": "真阴性（不进 active 列表）",
+    "user_skill_cross_device_to_new_phone": "无法判定（需实测）"
+  },
+  "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",
+  "verify": "bash verify.sh"
+}

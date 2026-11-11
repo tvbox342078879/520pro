@@ -1,0 +1,17 @@
+# 用户真实配置与运行产物（不入库）
+master_config.json
+sources.json
+live_result.json
+master_config.new.json
+master_config.bak.json
+
+# 部署覆盖产生的备份
+*.bak.*
+*.bak
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统
+.DS_Store

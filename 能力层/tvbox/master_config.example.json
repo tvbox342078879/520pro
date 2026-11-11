@@ -1,0 +1,26 @@
+{
+  "spider": "",
+  "sites": [
+    {
+      "key": "bili",
+      "name": "哔哩哔哩",
+      "type": 3,
+      "api": "https://api.bilibili.com/x/web-interface/"
+    },
+    {
+      "key": "douyin",
+      "name": "抖音",
+      "type": 3,
+      "api": "https://www.douyin.com/"
+    }
+  ],
+  "lives": [
+    {
+      "name": "测试直播源",
+      "type": 0,
+      "url": "https://example.com/tv.m3u"
+    }
+  ],
+  "parses": [],
+  "rules": []
+}

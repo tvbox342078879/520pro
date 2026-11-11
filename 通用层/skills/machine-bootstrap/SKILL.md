@@ -1,0 +1,40 @@
+---
+name: machine-bootstrap
+description: 在新设备、重装或迁移时，用一条幂等命令从 git 真源重建有界工作副本并校验三通道，全程零明文凭证。适用于换机与环境初始化。
+allowed-tools: Read, Grep, Glob, Bash
+---
+
+# machine-bootstrap · 换机司
+
+> 通用铁律由 `core-8.md` + 薄壳 + `zh-style.md` 三通道全局强制，本技能直接继承、不重复声明（见 SOP 20.9 / M2）。
+
+## 0. 先验环境（触发即自动注入 · 官方 v2.51.0 内联 Shell）
+- 当前目录：!`pwd -P`
+- 仓库状态：!`git log --oneline -1 2>/dev/null || echo "非 git 仓库或尚未初始化"`
+
+## 何时使用
+- 触发词（唯一真源）：换机 / 新设备 / 重装 / 迁移 / 初始化环境 / 一键克隆 / 重建工作副本 / 装机脚本
+- 新设备接入、重装、迁移、协作克隆，或用户要求初始化环境时。
+
+## 工作流
+1. 确认 `BOOTSTRAP_REPO` 已设置；未设置则向用户索取，**不猜测、不写死**。
+2. 执行幂等克隆脚本（**可选件，本脚手架未搬入**）。脚本路径用官方占位符 `${CODEBUDDY_SKILL_DIR}`，避免"顶层 skills/ 与 .codebuddy/skills/ 不一致"导致路径断裂：
+```bash
+export BOOTSTRAP_REPO="<本生态 git 地址>"
+bash "${CODEBUDDY_SKILL_DIR}/scripts/bootstrap.sh" \
+  --repo "$BOOTSTRAP_REPO" \
+  --sparse "code,.codebuddy,docs"
+```
+3. **不提供 `--verify`**：官方 Skills/Memory/Settings 文档均无此能力，`bootstrap.sh` 亦未搬入；三通道就位改用 L2 三态实测确认（`.codebuddy/CODEBUDDY.md` 薄壳、`.codebuddy/rules/`、手机"给 WorkBuddy 的指令"）。不得宣称 `--verify` 通过。
+4. 报告结果按三态：**真阳性 / 真阴性 / 无法判定**；不以"没查到"充当"没有"。
+
+## 职责与边界
+- 只重建**工作副本**，不整库全拉（产物/资料库不进工作副本），不重搭规则与记忆。
+- 幂等：重跑安全。零明文 token：凭据一律走环境变量或参数；脚本以 `grep -R "ghp_"` 自检，命中即中止告警。
+- 不删除远端任何内容，不替用户决定业务内容；破坏性操作需用户确认后执行。
+
+## SOP 对齐
+- 第 16 章：git 永久历史的拉取端。第 19 章：换机后校验三通道。第 16 章安全红线：零明文 token。
+
+## 脚本移植备注
+> 脚本为可选加速件，运行时以本文件契约为准；真实脚本的移植清单统一见 `README.md` 第五节，本文件不重复。
