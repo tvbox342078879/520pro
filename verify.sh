@@ -267,6 +267,41 @@ if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
     || no "基线文件未被跟踪：$miss_base"
 fi
 
+# ★ v0.8.18（工程F-7）：三通道一致性——规则靠「用户级 + 项目薄壳 + 手机指令」叠加生效，
+#   少一条通道就有场景兜不住：手机不读项目薄壳、桌面不读手机指令。
+#   判据只查"通道在不在 + 有没有跟到当前铁律口径"，不查文字是否逐字相同（那会天天红）。
+echo
+echo "[三通道一致性（v0.8.18 起·工程F-7）]"
+if [ -f "$TARGET/手机指令.md" ]; then
+  ok "手机指令.md 在位（硬轨）"
+  grep -q "拦截即停止" "$TARGET/手机指令.md" \
+    && ok "  └ 手机硬轨已跟到 B-10（拦截即停止）" \
+    || no "  └ 手机硬轨缺 B-10（手机端被拦后会硬试）"
+  grep -q "B-01~B-10\|B-01…B-10" "$TARGET/手机指令.md" \
+    && ok "  └ 手机指令引用当前编号范围" \
+    || no "  └ 手机指令的规则编号范围过期（与 core-8 不一致）"
+else
+  no "手机指令.md 缺失（手机通道断：手机端不读项目薄壳）"
+fi
+if [ -f "$TARGET/能力层/tvbox/CODEBUDDY.md" ]; then
+  ok "项目薄壳 CODEBUDDY.md 在位"
+  grep -q "core-8" "$TARGET/能力层/tvbox/CODEBUDDY.md" \
+    && ok "  └ 薄壳指向 core-8（不重复条文，M2）" \
+    || no "  └ 薄壳未指向 core-8（可能在自己抄条文）"
+else
+  no "项目薄壳 CODEBUDDY.md 缺失（项目级通道断）"
+fi
+# ★ v0.8.18（工程F-4）：交接摘要三项 + 版本不过期（B-07 的执行面）
+if [ -f "$TARGET/verify/tests/test_handoff.py" ]; then
+  hout="$(python3 "$TARGET/verify/tests/test_handoff.py" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "交接摘要齐三项且版本不过期（B-07 可核）"
+  else
+    no "交接摘要过期或缺项（接手的人会按旧口径干活）"
+    printf '%s\n' "$hout" | grep '  ✗ ' | head -3 | sed 's/^/     /'
+  fi
+fi
+
 # ★ v0.8.15（工程C）：技能契约机检——结构/头部/描述五组/版本三处/镜像 sha/样本集
 echo
 echo "[技能契约（v0.8.15 起·工程C：技能该长什么样是机器判据）]"
@@ -338,6 +373,23 @@ if [ -f "$TARGET/verify/terminology_check.py" ]; then
 else
   no "verify/terminology_check.py 缺失（M5 口径机检未装）"
 fi
+
+# ★ v0.8.18（工程F）：扩展回归——每个都是一个"拆掉实现就翻红"的小测试
+#   不进上一节的统计口径（它们是行为判据，不是落点判据），失败单独列原因。
+echo
+echo "[扩展回归（v0.8.18 起·工程F）]"
+for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract; do
+  if [ -f "$TARGET/verify/tests/$t.py" ]; then
+    if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
+      ok "$t"
+    else
+      no "$t 失败——详情: python3 verify/tests/$t.py"
+      printf '%s\n' "$tout" | grep '  ✗ ' | head -2 | sed 's/^/     /'
+    fi
+  else
+    no "verify/tests/$t.py 缺失"
+  fi
+done
 
 echo "============================================"
 echo "提示：装完/改完要【开新会话】才加载；手机按 手机指令.md 手动粘规则。"

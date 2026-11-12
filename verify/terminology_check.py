@@ -7,13 +7,15 @@
 「收尾跑 verify/terminology_check.py（C5）」——但 2026-11-12 实查发现**这个脚本根本不存在**，
 属于规则被引用、入口是空的（文档断链）。
 
-本脚本做**能可靠机检的三类**，宁可少判也不误判（误报一多，人就会整体忽略它）：
+本脚本做**能可靠机检的四类**，宁可少判也不误判（误报一多，人就会整体忽略它）：
 
   ① 编号越界：core-8 里 B-01…B-10、M1…M7 必须连续、不重号、不跳号（M4）
   ② 引用断链：文档中明确指向**本仓内**的路径（verify/ 通用层/ 能力层/ docs/ 开头），
      文件不存在即报（M2/M5）
   ③ 规则↔验证器互引（E10）：verify/rule_map.json 与 core-8 双向一致；machine 项的锚点
      必须真实存在（防实现漂移后映射还在假装有效）；manual 项必须写清怎么问，且不计为通过
+  ④ 保留域前缀（F-8）：规则真源里出现的 `X-NN` 编号，前缀必须是 M4 登记的 B / M-R / V，
+     否则就是自造了一个没人定义过的标签
 
 **故意不做的**（做不好会误报，留给人工/其他工具）：
   - 词表语义误用（M3）：需要理解上下文，关键词匹配必然误报
@@ -261,6 +263,39 @@ def check_rule_map(repo):
                        f'{manual} 条人工判据（人工项**不算机检通过**，只保证口径可交接）')
 
 
+def check_reserved_prefix(repo):
+    """T5（F-8）：保留域前缀——规则文件里出现的 `X-NN` 编号，前缀必须已登记。
+
+    M4 声明了命名空间（B-01…B-10 / V-xxx / M-R### / §x / 第 x 章 / 20.x.y / M1…M7）。
+    但"声明"不等于"拦住"：谁都能在规则里新造一个 `C-01`，然后引用它，看着很正规，
+    实际没有任何地方定义它——这就是悬空标签的温床。
+
+    本项只扫**规则真源**（core-8 与 rule_map），不扫业务文档：
+    业务文档里的 `S169`/`P018` 是阶段/提案编号，有自己的体系，硬管必然误报。
+    """
+    paths = [os.path.join(repo, '通用层', 'rules', 'core-8.md'),
+             os.path.join(repo, 'verify', 'rule_map.json')]
+    allowed = {'B', 'M-R', 'V'}          # M4 登记的数字型前缀
+    seen, bad = {}, []
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        rel = os.path.relpath(p, repo).replace('\\', '/')
+        for ln, line in enumerate(read(p).splitlines(), 1):
+            for m in re.finditer(r'\b([A-Z]{1,3}(?:-[A-Z])?)-\d{1,3}\b', line):
+                pre = m.group(1)
+                seen[pre] = seen.get(pre, 0) + 1
+                if pre not in allowed:
+                    bad.append(f'{rel}:{ln} 的 {m.group(0)}')
+    if not seen:
+        rec('T5', '·', '规则文件里未识别到编号前缀——无法判定')
+    elif bad:
+        rec('T5', '✗', f'未登记的编号前缀 {len(bad)} 处（M4 只允许 B/M-R/V）：'
+                       + '；'.join(bad[:5]))
+    else:
+        rec('T5', '✓', f'保留域前缀合规（{"/".join(sorted(seen))}，共 {sum(seen.values())} 处）')
+
+
 def main(argv):
     repo = DEFAULT_REPO
     as_json = False
@@ -278,6 +313,7 @@ def main(argv):
     check_numbering(repo)
     check_links(repo)
     check_rule_map(repo)
+    check_reserved_prefix(repo)
     if as_json:
         print(json.dumps([{'id': c, 'level': l, 'msg': m} for c, l, m in results],
                          ensure_ascii=False, indent=2))
@@ -292,7 +328,7 @@ def main(argv):
         if fails:
             print('✗ 有口径问题（断链→回真源补文件或改指针；跳号→按 M4 补号）')
             return 2
-        print('✓ 口径机检通过（编号连续、引用无断链、规则↔验证器双向一致）')
+        print('✓ 口径机检通过（编号连续、引用无断链、规则↔验证器一致、前缀合规）')
     return 0 if not any(l == '✗' for _, l, _ in results) else 2
 
 

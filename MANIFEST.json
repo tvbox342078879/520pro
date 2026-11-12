@@ -430,7 +430,12 @@
     "实测：verify.sh 首次 51✓ 0✗ 0⚠ 3·（此前 45 处 WARN 全部有去向：22 改 + 23 豁免，无\"没管\"项）；契约 58✓",
     "★工程F-5 测活报告「怎么读这组数据」：livecheck 每条加 elapsed_ms；汇总后固定输出 通过率(分母只算有结论条数)/p95与中位/死因分布 三句人话；样本<5 不报 p95、全无法判定不说 0%；probe-hub v1.26.5 + SKILL §3.11.1 对照表；回归 verify/tests/test_reading_guide.py 7 项，变异(分母含无法判定) 2 项翻红",
     "★工程F-1/F-2 路径政策与细则索引：MANIFEST 新增 path_policy（canonical=references/，docs/=过渡存量，新文档一律 references/）；新增 pipeline docs/manual_索引.md 与 probe-hub docs/外置_索引.md（按\"你会问什么\"排，各 10 条）；SKILL 改为先查索引；verify/tests/test_doc_index.py 机检\"索引集合=目录集合\"（6 项，增删各翻红）；pipeline 1.3.9 / probe-hub 1.26.6",
-    "★工程F-3 每技能故障排查：10 个技能各新增 docs/TROUBLESHOOTING.md（按\"症状→先查什么→怎么办→别做什么\"排，共 57 条（实测 `grep -c \"^## \"` 统计），5-7 条/技能）；新增 verify/tests/test_troubleshoot.py 三态机检（<5 条或含占位判红，缺文件记在册待补不算通过；增/删/占位三种破坏实测翻红）；inspect-hub v1.3.3 自检节接线"
+    "★工程F-3 每技能故障排查：10 个技能各新增 docs/TROUBLESHOOTING.md（按\"症状→先查什么→怎么办→别做什么\"排，共 57 条（实测 `grep -c \"^## \"` 统计），5-7 条/技能）；新增 verify/tests/test_troubleshoot.py 三态机检（<5 条或含占位判红，缺文件记在册待补不算通过；增/删/占位三种破坏实测翻红）；inspect-hub v1.3.3 自检节接线",
+    "★工程F-4 交接摘要：新增 docs/handoff_latest.md（必载三项：当前主线/版本与位置/习惯快照指针）+ verify/tests/test_handoff.py（三项齐全 + 版本==VERSION，过期即红），已挂 verify.sh",
+    "★工程F-6 语言门：verify/tests/test_language.py 窄口径扫 11 份中文文档（连续≥6行无中文且非命令/代码才算残留），埋 8 行英文实测翻红、正常文档 0 误报",
+    "★工程F-7 三通道受检：verify.sh 新增\"手机指令.md 在位且跟到 B-10 / 薄壳指向 core-8 / 交接摘要不过期\"三组判据；反向（删 B-10、改回 B-09）两项翻红",
+    "★工程F-8 保留域写保护：terminology_check 新增 T5——规则真源里的 X-NN 前缀必须在 M4 白名单（B/M-R/V），自造 C-01 实测翻红",
+    "verify.sh 新增「扩展回归」节（5 个行为测试随全量自检跑）；最终 62✓ 0✗ 0⚠ 3·"
   ],
   "path_policy": {
     "canonical": "references/",
