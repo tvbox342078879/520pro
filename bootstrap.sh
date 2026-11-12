@@ -392,7 +392,17 @@ migrate_to_0_8_0() {
   say "  · [0.8.0] 引入版本化迁移机制本身，本版无一次性动作"
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" )
+migrate_to_0_8_1() {
+  say "  · [0.8.1] 修复投递链改名断链：同步 tvbox-core/probe-hub 副本（core.py 投递改指 space-hub，探针同步）"
+  if [ -d "能力层/tvbox/skills/tvbox-core" ]; then
+    run "cp -r 能力层/tvbox/skills/tvbox-core/. \"\$HOME/.codebuddy/skills/tvbox-core/\""
+  fi
+  if [ -d "能力层/tvbox/skills/probe-hub" ]; then
+    run "cp -r 能力层/tvbox/skills/probe-hub/. \"\$HOME/.codebuddy/skills/probe-hub/\""
+  fi
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

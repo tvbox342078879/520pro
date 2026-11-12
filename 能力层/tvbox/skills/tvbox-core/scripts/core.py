@@ -283,7 +283,7 @@ def file_to_janitor(node_id, reason='', quiet=True):
         core.file_to_janitor(nid, '建库失败残留节点')
 
     - 失败不抛异常（返回 False），仅打印告警（quiet=True 时完全静默）。
-    - 收件箱：tvbox-janitor「🗑 待删收件箱」，用户一处按单删。
+    - 收件箱：space-hub（库务司，原清道夫 tvbox-janitor）「🗑 待删收件箱」，用户一处按单删。
 
     **S156 修：入参必须是真 node_id，否则一律拒收并告警。**
     事故：`blk.py` 长期调用 `file_to_janitor(f'源总库·整域拉黑孤儿 host={h}', ...)`
@@ -302,16 +302,28 @@ def file_to_janitor(node_id, reason='', quiet=True):
         print(f'  ❌ 清道夫投递被拒：入参不是云端 node_id → {nid[:70]!r}')
         print('     （node_id 形如 tBlgSL4SPEFMrsyTBTg03c；数据库记录/描述文字请走数据库删除或登记欠账）')
         return False
-    try:
-        JAN = os.path.expanduser('~/.codebuddy/skills/tvbox-janitor/scripts')
-        if JAN not in sys.path:
-            sys.path.insert(0, JAN)
-        import janitor
-        return bool(janitor.auto_file(node_id, reason, quiet=quiet))
-    except Exception as e:
-        if not quiet:
-            print(f'  ⚠️ 清道夫联动失败（{type(e).__name__}）：节点 {node_id} 未投递，请人工删')
-        return False
+    # ★2026-11-12 修（实证）：清道夫已改名 space-hub（库务司），此处仍写死 tvbox-janitor
+    #   → import janitor 必失败 → file_to_janitor 恒返回 False，投递链路静默断裂
+    #   （投递是旁路永不阻断主流程，断了也没人看见——正是最危险的失效形态）。
+    #   现按新名优先、旧名兜底探测（旧机器未升级 bootstrap 前仍装着 tvbox-janitor）。
+    for _d, _m in (('~/.codebuddy/skills/space-hub/scripts', 'space_hub'),
+                   ('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor')):
+        _JAN = os.path.expanduser(_d)
+        if not os.path.isdir(_JAN):
+            continue
+        try:
+            if _JAN not in sys.path:
+                sys.path.insert(0, _JAN)
+            import importlib as _il
+            _jan = _il.import_module(_m)
+            if callable(getattr(_jan, 'auto_file', None)):
+                return bool(_jan.auto_file(node_id, reason, quiet=quiet))
+        except Exception as e:
+            if not quiet:
+                print(f'  ⚠️ 清道夫联动失败（{_m}，{type(e).__name__}）：节点 {node_id} 未投递，请人工删')
+    if not quiet:
+        print('  ⚠️ 清道夫未安装（space-hub/tvbox-janitor 均未找到）：节点未投递，请人工删')
+    return False
 
 
 def register_monitor(risk_face, check_type, desc='', quiet=True):

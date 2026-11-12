@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -291,5 +291,10 @@
     "install.sh cp_bak 机制级修复：备份只留最近一份（此前每次安装堆一个 .bak.$TS 永不清理，实测顶层堆 7 个）",
     "bootstrap 断言补 VERSION 与 inspect-hub/SKILL.md；sync_shape 补 VERSION（稀疏检出集合，缺它断言必失败——实测抓到）",
     "sync_shape 补 secret_scan.py（v0.7.0 引入仓库根但漏登记稀疏清单，--target 自检会因缺扫描器记红——实测抓到）"
+  ],
+  "changelog_0_8_1": [
+    "修复探源司→清道夫投递链改名断链（实查 2026-11-12）：清道夫改名 space-hub 后，core.py file_to_janitor 仍写死 ~/.codebuddy/skills/tvbox-janitor + import janitor → import 必失败恒返回 False，投递从未成功且 quiet 静默（旁路设计下最危险失效形态）。改为 space-hub 优先/tvbox-janitor 兜底双探测",
+    "probe.py _eco_linked_probe 同步：探针仍探旧路径 → space-hub 装着也报「下游未装」；改新名优先旧名兜底。实测三态：假 id 拒收 ✓ / 投递链路走 space_hub（mock 不动云端）✓ / 探针 (True, None) ✓（None=监察司未迁 520，如实报无法判定）",
+    "bootstrap 迁移表 +migrate_to_0.8.1（同步 tvbox-core/probe-hub 副本）；VERSION 0.8.1"
   ]
 }

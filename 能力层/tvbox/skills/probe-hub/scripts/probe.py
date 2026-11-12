@@ -202,7 +202,15 @@ def _eco_linked_probe():
             return True if callable(getattr(m, attr, None)) else False
         except Exception:
             return False
-    return (_probe('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor', 'auto_file'),
+
+    # ★2026-11-12 修：清道夫已改名 space-hub（库务司），探针仍探 tvbox-janitor 旧路径
+    #   → space-hub 装着也报「下游未装·无法判定」，自检永远过不去。新名优先、旧名兜底。
+    _jan = _probe('~/.codebuddy/skills/space-hub/scripts', 'space_hub', 'auto_file')
+    if _jan is None:
+        _jan = _probe('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor', 'auto_file')
+    # ★ 监察司：tvbox-inspect（旧生态）未迁入 520，inspect-hub（巡检司）无 register_monitor
+    #   接口——登记面暂无承接方，探针按「未装=无法判定」如实上报，不折叠成通过也不混入失败。
+    return (_jan,
             _probe('~/.codebuddy/skills/tvbox-inspect/scripts', 'inspect_engine', 'register_monitor'))
 
 
