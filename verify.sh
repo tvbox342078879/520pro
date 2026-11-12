@@ -42,6 +42,21 @@ if [ -f "$U/skills/space-hub/scripts/space_hub.py" ]; then
     ok "  └ 无写死 space id（四层动态解析）"
   fi
   [ -f "$U/skills/space-hub/scripts/classify_rules.json" ] && ok "  └ 归纳登记册在位" || no "  └ 归纳登记册缺失"
+  # v2.4.0 库房自举三件：蓝图在位可解析 / 两个新命令注册 / 出口门面可导入
+  if [ -f "$U/skills/space-hub/scripts/base_blueprint.json" ]; then
+    python3 -c "import json;d=json.load(open('$U/skills/space-hub/scripts/base_blueprint.json'));assert d.get('roots');assert any('生态演化' in r.get('title','') for r in d['roots'])" 2>/dev/null \
+      && ok "  └ 基础蓝图可解析，且含固定分类「🧬 生态演化」" \
+      || no "  └ 基础蓝图损坏或缺「🧬 生态演化」固定分类"
+  else
+    no "  └ 基础蓝图缺失（库房自举不可用）"
+  fi
+  python3 -c "
+import sys; sys.path.insert(0,'$U/skills/space-hub/scripts')
+import space_hub as s
+need=['ensure_library','archive_out','cmd_ensure','cmd_evolve_log','_merge_blueprint','_artifact_rules']
+miss=[n for n in need if not hasattr(s,n)]
+sys.exit(1 if miss else 0)" 2>/dev/null \
+    && ok "  └ 自举/跟随/台账入口齐全" || no "  └ 自举入口缺失（ensure/archive_out/evolve-log）"
 else
   opt "skills/space-hub 未安装（正常，可后补）"
 fi

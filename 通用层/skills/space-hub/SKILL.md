@@ -1,7 +1,7 @@
 ---
-version: "2.3.0"
+version: "2.4.0"
 name: space-hub
-description: "库务司·云端资料库总管（可升级）。清理+归纳+整理+建库+搬运正门，管任意 WorkBuddy 云端空间的节点。能力：①垃圾扫描 scan（废弃标记/空库识别→自动投收件箱，--dry-run 预览）；②待删收件箱 inbox/add（AI 无删除权，只挪不删，用户按单删）；③归纳 classify（根层级散落文档按登记册规则归入目标夹，规则只改 classify_rules.json 零改代码）；④建库 create-db（薄封装 library 建库正本+写后回读）；⑤搬运/改名正门 move/rename（移前双校验+移后回读，全生态唯一通道）；⑥误投回退 restore；⑦分层普查 census；⑧四层空间解析（不写死账号，换账号跑 init 一次即适配）。触发词：清理 / 归纳 / 整理 / 归类 / 收纳 / 建库 / 建个库 / 新建数据库 / 删不掉 / 清一下 / 待删的放哪 / 收件箱 / 库务司 / 搬节点 / 节点搬家 / 改名 / 待删清单 / 冗余节点 / 重复节点 / 库房整理 / 换账号空间 / 空间登记 / 盘点空间 / 空间普查。"
+description: "库务司·云端资料库总管（可升级）。清理+归纳+整理+建库+搬运正门，管任意 WorkBuddy 云端空间的节点。能力：①垃圾扫描 scan（废弃标记/空库识别→自动投收件箱，--dry-run 预览）；②待删收件箱 inbox/add（AI 无删除权，只挪不删，用户按单删）；③归纳 classify（根层级散落文档按登记册规则归入目标夹，规则只改 classify_rules.json 零改代码）；④建库 create-db（薄封装 library 建库正本+写后回读）；⑤搬运/改名正门 move/rename（移前双校验+移后回读，全生态唯一通道）；⑥误投回退 restore；⑦分层普查 census；⑧四层空间解析（不写死账号，换账号跑 init 一次即适配）；⑨★库房自举 ensure（按蓝图收敛：认领已有+补建缺失，新机首次产出即自动建齐）；⑩★产出自动跟随 archive_out＋演化台账 evolve-log（能力层产出自动进资料库并归类）。触发词：清理 / 归纳 / 整理 / 归类 / 收纳 / 建库 / 建个库 / 新建数据库 / 删不掉 / 清一下 / 待删的放哪 / 收件箱 / 库务司 / 搬节点 / 节点搬家 / 改名 / 待删清单 / 冗余节点 / 重复节点 / 库房整理 / 换账号空间 / 空间登记 / 盘点空间 / 空间普查。"
 ---
 
 # space-hub · 库务司（清理 + 归纳 + 整理 + 建库）
@@ -47,12 +47,48 @@ python3 space_hub.py move --node ID --to 父ID     # 节点移动正门（双校
 python3 space_hub.py rename --node ID --title "新名"  # 改名正门（改后回读）
 python3 space_hub.py census [--json]              # 分层普查（归属/缝统计）
 python3 space_hub.py local-rm --path <前缀>|--all # ★销账：本地欠账已人工处置，从清单移除
-python3 space_hub.py archive --file <f> [--category 类] [--keep]  # ★产物落库正门（B-09）：上传📦产物归档夹+写索引+本地清理
-python3 space_hub.py products --scan|--search-box  # ★产物盘点+单文件搜索框（B-09 配套）
+python3 space_hub.py archive --file <f> [--category 类] [--source 来源] [--note 说明] [--keep]  # ★落库正门：按声明归类+写索引+本地清理
+python3 space_hub.py products --scan|--search-box|--retry  # ★盘点/搜索框/待归档补投
+python3 space_hub.py ensure [--dry-run]            # ★库房自举：按蓝图收敛（认领已有+补建缺失），幂等
+python3 space_hub.py evolve-log [--version V] [--summary S] [--evidence E]  # ★演化记账（版本/新增能力/摘要/证据）
+python3 space_hub.py evolve-view [--md]            # ★演化时间线
 ```
 
 > **产物纪律（v2.2.0 · 规则真源 core-8 B-09）**：产出默认不落产物区，除非用户点名。需留档的走 `archive` 正门（上传归档夹+写「📦 产物索引」库五字段记录+本地清理，全步回读）；`products --scan` 盘点、`--search-box` 生成搜索框。交互型面板（必须落盘才能预览）属点名例外。
 > **本地欠账（v2.1.0）**：本地文件系统里"删不决"的残留，其他技能经 `auto_file_local(path, reason)` 记账（不碰云端）；`list` 出单时单独成节（云端项的陈旧剔除会误剔本地路径），用户按单处置后 `local-rm` 销账。
+
+## 2.5 ★ 库房自举与产出跟随（v2.4.0）
+
+**问题**：生态要分发给别人。别人没有我的资产，云端一个库都没有；让他先 init 再 create-db 不现实——
+他根本不知道库务司存在。**正确形态：能力层第一次产出时，库已经在。**
+
+### 自举（ensure）：按蓝图收敛，不是"一次建库"
+
+| 层 | 真源 | 作用 |
+|---|---|---|
+| 基础蓝图 | `base_blueprint.json`（随技能分发） | 声明必有结构：📦 产物归档/<类别>、🧬 生态演化 |
+| 能力分片 | 各技能 `artifacts.json` 的 `blueprint` | 追加自己的根（如 🔍 探源产出、📚 学习资料） |
+| 收敛 | `ensure` | **认领已有（不重建/不删）→ 补建缺失 → 每步回读**，幂等 |
+
+- 空间：四层解析；**仅当账号下零可写空间**才自动 `create-space`；有多个但未登记 → 报错让人选。
+- 已存在同名夹一律认领，绝不重建；空夹（0 子节点）不可信（S179），不删不并。
+- 能力层分片里的 `match/target/category/source` 决定产出落点；没声明的落「📦 产物归档/未归类」并点名提示。
+
+### 产出跟随（archive_out）：能力层出口一行调用
+
+```python
+import space_hub                      # ~/.codebuddy/skills/space-hub/scripts
+ok, info = space_hub.archive_out(report_path, source='探源司·测活', note='12条/✅9 ❌2 ⚠️1')
+```
+
+- **永不抛异常**：失败 → 本地文件保留 + `local_pending(kind=待归档)`，`products --retry` 补投。
+- 落库=上传到声明落点 + 写「📦 产物索引」（名称/类别/日期/来源/说明/落点路径）+ 回读确认。
+- md 走 `doc/create_doc`，其余走 `drive`（实测 drive 拒收 .md）；类别不在 select 选项时降级"其他"并保留真类别。
+
+### 生态演化（evolve-log）
+
+固定分类「🧬 生态演化/版本演化台账」：版本/日期/类型/新增能力/变更摘要/证据。
+`install.sh` 收尾自动记账；新增能力由**已装技能快照差集**得出，同版本+同快照去重。
 
 ## 3. 归纳登记册（classify_rules.json，唯一真源）
 

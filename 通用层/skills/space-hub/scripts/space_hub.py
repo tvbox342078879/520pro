@@ -1256,10 +1256,55 @@ def _ensure_index_db(fid):
     return db_id
 
 
-def _index_add(db_id, name, cat, date, source, note):
-    """写一条索引记录（library 正本 batch_add_database_records）+ 回读容错。"""
-    rec = [{'名称': {'text': name}, '类别': {'text': cat}, '日期': {'text': date},
-            '来源': {'text': source}, '说明': {'text': note}}]
+def _db_schema(db_id):
+    """读库字段结构 {字段名: {'type':..., 'options':[...]}}。None=无法判定。"""
+    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_schema.py',
+                        '--database-id', db_id], capture_output=True, text=True)
+    for ln in reversed((r.stdout or '').strip().splitlines()):
+        ln = ln.strip()
+        if ln.startswith('{'):
+            try:
+                j = json.loads(ln)
+                out = {}
+                for prop in (j.get('properties') or []):
+                    cfg = prop.get('config') or {}
+                    out[prop.get('name')] = {
+                        'type': prop.get('type') or 'text',
+                        'options': [o.get('text') for o in (cfg.get('options') or [])]}
+                return out
+            except Exception:
+                continue
+    return None
+
+
+def _index_add(db_id, name, cat, date, source, note, path=''):
+    """写一条索引记录（library 正本 batch_add_database_records）。
+
+    ★ 按字段真实类型写 oneof（2026-11-12 实测）：select 字段写 {"text":...} 会被
+      **静默丢弃**（记录建了、类别为空，不报错）。所以先读 schema 再决定值形态；
+      类别不在 select 选项里 → 降级"其他"并把真类别写进说明，不丢信息、不整批失败。
+    """
+    schema = _db_schema(db_id) or {}
+
+    def val(field, text):
+        t = (schema.get(field) or {}).get('type', 'text')
+        if t == 'select':
+            opts = (schema.get(field) or {}).get('options') or []
+            if text in opts:
+                return {'select': text}
+            fallback = '其他' if '其他' in opts else (opts[0] if opts else text)
+            return {'select': fallback}
+        if t == 'multi_select':
+            return {'multi_select': [text]}
+        return {'text': text}
+
+    real_note = note
+    opts = (schema.get('类别') or {}).get('options') or []
+    if cat not in opts and (schema.get('类别') or {}).get('type') == 'select':
+        real_note = (f'类别:{cat}｜' + note) if note else f'类别:{cat}'
+    rec = [{'名称': val('名称', name), '类别': val('类别', cat), '日期': {'date': date},
+            '来源': val('来源', source), '说明': val('说明', real_note),
+            '落点路径': val('落点路径', path)}]
     r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
                         '--database-id', db_id, '--records', json.dumps(rec, ensure_ascii=False)],
                        capture_output=True, text=True)
@@ -1270,77 +1315,232 @@ def _index_add(db_id, name, cat, date, source, note):
     return True
 
 
-def cmd_archive(a):
-    """★ 产物落库正门（B-09）：上传「📦 产物归档」夹 + 写索引记录 + 本地清理。
+def _artifact_rules():
+    """汇总所有技能的产出声明（artifacts[].match/target/category/source）。
 
-    流程全走 library 正门（create_folder / upload_drive_file / create_database /
-    batch_add_database_records），每步写后回读；落库成功后本地文件默认删除
-    （产物区不再堆积），--keep 显式保留。"""
-    resolve_space()
-    p = os.path.abspath(os.path.expanduser(a.file))
-    if not os.path.isfile(p):
-        print(f'❌ 文件不存在：{p}'); return 1
+    **这就是"以后加能力自动跟着归类"的实现**：规则不在清道夫里，而在各技能自己的
+    artifacts.json。新增技能 = 新增一个文件，清道夫无需改动；没声明的产出走
+    「未归类」兜底并在归档时提示，不静默乱堆。
+    """
+    rules = []
+    if not os.path.isdir(SKILLS_DIR):
+        return rules
+    for name in sorted(os.listdir(SKILLS_DIR)):
+        fp = os.path.join(SKILLS_DIR, name, 'artifacts.json')
+        if not os.path.isfile(fp):
+            continue
+        try:
+            d = json.load(open(fp, encoding='utf-8'))
+        except Exception:
+            continue
+        for r in (d.get('artifacts') or []):
+            if isinstance(r, dict) and r.get('match'):
+                r = dict(r)
+                r['_from'] = name
+                rules.append(r)
+    return rules
+
+
+def _match_rule(path):
+    """按产出文件名匹配声明规则；无命中返回 None（走兜底，不猜）。"""
+    name = os.path.basename(path)
+    for r in _artifact_rules():
+        if any(m and str(m) in name for m in (r.get('match') or [])):
+            return r
+    return None
+
+
+def _ensure_path(path_str):
+    """按「根/子/孙」路径定位夹，缺的建（每步回读）。返回末级 id，失败 ''。"""
+    cur = ''
+    for seg in [x.strip() for x in str(path_str or '').split('/') if x.strip()]:
+        nid = _find_folder_by_title(cur, seg)
+        if not nid:
+            nid = _create_folder(seg, cur)
+            if not nid:
+                return ''
+        cur = nid
+    return cur
+
+
+def _upload_any(p, parent_id):
+    """按类型选正门上传。返回 (node_id, err_text)；node_id 为空时 err_text 说明原因。
+
+    ★ 实测（2026-11-12）：drive 上传 .md 直接被拒——{"error":"该文件类型不走网盘上传，
+      请使用对应资料库模块"}。归档必须分流：md → doc/create_doc（文档节点），
+      其余（csv/json/png/pdf/zip/txt）→ drive 网盘。**html 走 page 导入**（本轮未接，
+      走网盘会明确报错，不静默当成功）。
+    """
+    ext = os.path.splitext(p)[1].lower()
     name = os.path.basename(p)
-    cat = a.category or _guess_cat(name)
-    fid = _ensure_archive_folder()
-    if not fid:
-        print('❌ 产物归档夹不可用'); return 2
-    # ① 传文件（独立 drive 节点，import-local-file 正门）
+    if ext in ('.md', '.markdown'):
+        r = subprocess.run([sys.executable, f'{LIB}/doc/create_doc.py',
+                            '--title', os.path.splitext(name)[0],
+                            '--space-id', SPACE, '--parent-id', parent_id,
+                            '--content-file', p],
+                           capture_output=True, text=True)
+        out = (r.stdout or '') + (r.stderr or '')
+        for ln in out.splitlines():
+            if ln.startswith('KS_DOC_CREATE'):
+                parts = ln.split('\t')
+                if len(parts) >= 2 and parts[1].strip():
+                    return parts[1].strip(), ''
+        return '', out[:200]
     r = subprocess.run([sys.executable, f'{LIB}/drive/upload_drive_file.py',
-                        p, '--parent-id', fid, '--space-id', SPACE],
+                        p, '--parent-id', parent_id, '--space-id', SPACE],
                        capture_output=True, text=True)
     out = (r.stdout or '') + (r.stderr or '')
-    node_id = ''
     for ln in out.splitlines():
         if 'KS_DRIVE_UPLOAD_OK' in ln or 'KS_IMPORT' in ln:
             payload = ln.split('\t', 1)[1] if '\t' in ln else ln.split(' ', 1)[1]
             try:
                 j = json.loads(payload)
-                node_id = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
+                nid = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
+                if nid:
+                    return nid, ''
             except Exception:
                 pass
-    if not node_id:
-        # 输出可能就是一段 JSON（无 KS 行）
-        try:
-            j = json.loads(out.strip().splitlines()[-1])
-            node_id = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
-        except Exception:
-            pass
-    # 写后回读：归档夹枚举中必须见到该节点。
-    # ★S200 同款：新建节点后服务端目录索引有传播延迟（实测首查即 miss）——
-    #   带间隔重试 3 次（3s/档），再失败才按未落库处理，不静默、不瞎删本地。
+    try:
+        j = json.loads(out.strip().splitlines()[-1])
+        nid = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
+        if nid:
+            return nid, ''
+    except Exception:
+        pass
+    return '', out[:200]
+
+
+def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
+    """归档单个文件：上传「📦 产物归档/<类别>/」+ 写索引 + 本地处置。
+
+    返回 (ok, info)：ok=True → info=node_id；ok=False → info=失败原因。
+    **回读确认是唯一判据**（S169/S200）：API 说成功不算，父夹枚举里见到才算。
+    """
+    say = (lambda *x: None) if quiet else print
+    if not os.path.isfile(p):
+        return False, '文件不存在'
+    name = os.path.basename(p)
+    # ★ 先看能力层的产出声明：命中就用它指定的落点/类别/来源（"归类整理"的真身）。
+    rule = _match_rule(p) or {}
+    cat = category or rule.get('category') or _guess_cat(name)
+    source = source or rule.get('source') or '（未注明）'
+    note = note or ''
+    if rule and not category and rule.get('_from'):
+        pass  # 命中声明：来源已由 rule.source 提供
+    fid = _ensure_archive_folder()
+    if not fid:
+        return False, '产物归档夹不可用'
+    target = (rule.get('target') or '').strip()
+    if target:
+        cfid = _ensure_path(target)
+        if not cfid:
+            return False, f'落点「{target}」不可用'
+    else:
+        # 未声明：落「📦 产物归档/未归类」（蓝图保证存在），并在日志里点名是谁没声明
+        cfid = _ensure_path(f'{ARCHIVE_TITLE}/未归类')
+        if not cfid:
+            return False, '未归类夹不可用'
+        if not quiet:
+            print(f'  ⚠️ 产出未声明 artifacts.json（{rule.get("_from") or "来源未知"}）'
+                  f'→ 已落「{ARCHIVE_TITLE}/未归类」，可在该技能加声明自动归类')
+    node_id, uerr = _upload_any(p, cfid)
+    out = uerr or ''
+    # 写后回读：新建节点服务端目录索引有传播延迟（S200 实测首查即 miss）→ 3 次重试
     kids_ids = set()
     for _i in range(3):
-        kids_ids = {n.get('id') for n in _kids(fid)}
+        kids_ids = {n.get('id') for n in _kids(cfid)}
         if node_id and node_id in kids_ids:
             break
         time.sleep(3)
     if not node_id or node_id not in kids_ids:
-        print(f'❌ 上传失败或回读不符（按未落库处理，本地文件保留）：{out[:200]}')
-        return 2
-    print(f'  ✅ 文件已落库并回读确认：{name}（{node_id}）')
+        return False, f'上传失败或回读不符：{out[:180]}'
+    say(f'  ✅ 文件已落库并回读确认：{name}（{node_id}）')
     # ② 索引记录
     db_id = _ensure_index_db(fid)
     st = load_state()
+    landing = (target or f'{ARCHIVE_TITLE}/未归类')
     entry = {'name': name, 'cat': cat, 'node_id': node_id, 'db': db_id,
-             'date': time.strftime('%Y-%m-%d'), 'source': a.source or '（未注明）',
-             'note': a.category and '' or ''}
+             'space': SPACE, 'date': time.strftime('%Y-%m-%d'),
+             'source': source, 'note': note,
+             'path': f'{landing}/{name}'}
     if db_id:
         entry['indexed'] = _index_add(db_id, name, cat, entry['date'],
-                                      entry['source'], a.source and '' or '')
-    # ③ 登记历史（搜索框数据源）+ ④ 本地处置
+                                      entry['source'], entry['note'], entry['path'])
     st.setdefault('archive_log', []).append(entry)
     save_state(st)
-    if a.keep:
-        print('  📎 --keep：本地文件保留')
+    # ③ 本地处置：落库成功才清理；失败路径根本走不到这里
+    if keep:
+        say('  📎 --keep：本地文件保留')
     else:
         try:
             os.remove(p)
-            print(f'  🧹 本地已清理（产物区不再堆积）：{p}')
+            say(f'  🧹 本地已清理：{p}')
         except Exception as e:
-            print(f'  ⚠️ 本地清理失败（{type(e).__name__}）——文件已落库，可手动删：{p}')
-    print(f'{{已存至 {SPACE_TITLE_OR_FALLBACK()}/{ARCHIVE_TITLE}/{name}}}')
+            say(f'  ⚠️ 本地清理失败（{type(e).__name__}）——文件已落库，可手动删：{p}')
+    return True, node_id
+
+
+def cmd_archive(a):
+    """★ 产物落库正门（B-09）：上传「📦 产物归档/<类别>/」+ 写索引 + 本地清理。"""
+    resolve_space()
+    p = os.path.abspath(os.path.expanduser(a.file))
+    if not os.path.isfile(p):
+        print(f'❌ 文件不存在：{p}'); return 1
+    ok, info = _archive_file(p, a.category, a.source, a.note, a.keep)
+    if not ok:
+        print(f'❌ 归档失败：{info}（本地文件保留）'); return 2
+    rule = _match_rule(p) or {}
+    landing = (rule.get('target') or f'{ARCHIVE_TITLE}/未归类')
+    print(f'{{已存至 {SPACE_TITLE_OR_FALLBACK()}/{landing}/{os.path.basename(p)}}}')
     return 0
+
+
+def _pending_artifact(path, reason):
+    """待归档产物记账：与本地欠账同一账本，kind 区分（list 出单时分开看）。"""
+    try:
+        st = load_state()
+        pend = st.setdefault('local_pending', [])
+        for x in pend:
+            if x.get('path') == path:
+                x['reason'], x['kind'] = reason, '待归档'
+                save_state(st)
+                return
+        pend.append({'path': path, 'reason': reason, 'kind': '待归档',
+                     'added': time.strftime('%Y-%m-%d %H:%M')})
+        save_state(st)
+    except Exception:
+        pass
+
+
+def archive_out(path, source='', category='', note='', keep=False, quiet=False):
+    """★ 能力层出口门面（v2.4.0）：先自举库房，再归档。**永不抛异常**。
+
+    为什么不让能力层自己判断库在不在：测活/学习资料的作者不该知道库务司存在。
+    调用方一行 `space_hub.archive_out(report, source='探源司·测活', note='…')`，
+    库里就多一条可检索的记录——这就是"能力层产出在资料库有体现"。
+
+    失败语义（三态）：False + info 说清原因，本地文件保留并记 pending；
+    绝不把"没落库"说成"已归档"。
+    """
+    try:
+        p = os.path.abspath(os.path.expanduser(str(path or '')))
+        if not p or not os.path.isfile(p):
+            return False, '文件不存在'
+        # 每天首次归档做一次全量收敛（自愈：夹被误删也能补回）；当天后续跳过，
+        # 避免每条产出都跑一遍枚举+建库检查（实测每次 3–5s，批量产出时很可观）。
+        st = load_state()
+        if (st.get('blueprint') or {}).get('ensured_at', '')[:10] != time.strftime('%Y-%m-%d'):
+            ensure_library(quiet=True)
+        ok, info = _archive_file(p, category, source, note, keep, quiet=quiet)
+        if not ok:
+            _pending_artifact(p, f'归档失败：{info}')
+        return ok, info
+    except SystemExit as e:
+        _pending_artifact(str(path), f'库房自举失败（退出码 {e.code}）')
+        return False, f'库房自举失败（退出码 {e.code}）'
+    except Exception as e:
+        _pending_artifact(str(path), f'{type(e).__name__}: {str(e)[:60]}')
+        return False, f'{type(e).__name__}: {str(e)[:80]}'
 
 
 def SPACE_TITLE_OR_FALLBACK():
@@ -1355,18 +1555,29 @@ def SPACE_TITLE_OR_FALLBACK():
 
 
 def _products_index():
-    """汇总产物索引：已落库（archive_log）+ 本地产物区现存（OUT_DIR 顶层文件）。"""
+    """汇总产物索引：已落库（archive_log）+ 待归档（pending）+ 本地可识别产物。
+
+    ★ 本地部分只收「能被 artifacts.json 声明识别」的文件——早先扫 OUT_DIR 全盘，
+      把 50+ 个无关 md 都算成"产物"，盘点结果没法看（实测）。识别不了的本来就不该
+      叫产物；真要收，让它的技能补一条声明。
+    """
     st = load_state()
     rows = [{'name': x.get('name', ''), 'cat': x.get('cat', ''), 'date': x.get('date', ''),
              'source': x.get('source', ''), 'where': '已落库',
              'id': x.get('node_id', '')} for x in (st.get('archive_log') or [])]
+    for x in (st.get('local_pending') or []):
+        if x.get('kind') == '待归档':
+            rows.append({'name': os.path.basename(x.get('path', '')), 'cat': '待归档',
+                         'date': (x.get('added') or '')[:10],
+                         'source': x.get('reason', '')[:40], 'where': '待归档',
+                         'id': x.get('path', '')})
     for fn in sorted(os.listdir(OUT_DIR)):
         p = os.path.join(OUT_DIR, fn)
-        if os.path.isfile(p):
+        if os.path.isfile(p) and _match_rule(p):
             sz = os.path.getsize(p)
             rows.append({'name': fn, 'cat': _guess_cat(fn), 'date': time.strftime(
-                '%Y-%m-%d', time.localtime(os.path.getmtime(p))), 'source': '本地产物区',
-                'where': f'本地 {sz}B', 'id': ''})
+                '%Y-%m-%d', time.localtime(os.path.getmtime(p))), 'source': '本地·可识别待归档',
+                'where': f'本地 {sz}B', 'id': p})
     return rows
 
 
@@ -1382,6 +1593,26 @@ def cmd_products(a):
         for x in rows:
             print(f'  · [{x["cat"]}] {x["name"][:44]:44} {x["date"]}  {x["where"]}  {x["source"][:20]}')
         return 0
+    if getattr(a, 'retry', False):
+        pend = [x for x in (load_state().get('local_pending') or [])
+                if x.get('kind') == '待归档']
+        if not pend:
+            print('✅ 无待归档产物'); return 0
+        done = 0
+        for x in pend:
+            pth = x.get('path', '')
+            if not os.path.isfile(pth):
+                print(f'  ⚠️ 文件已不在：{pth}'); continue
+            o, info = archive_out(pth, quiet=True)
+            print(('  ✅ 补投成功：' if o else '  ❌ 仍失败：') + f'{os.path.basename(pth)}（{info}）')
+            done += 1 if o else 0
+        if done:
+            st = load_state()
+            st['local_pending'] = [x for x in (st.get('local_pending') or [])
+                                   if not (x.get('kind') == '待归档' and not os.path.isfile(x.get('path', '')))]
+            save_state(st)
+        print(f'补投完成：成功 {done} / {len(pend)}')
+        return 0 if done == len(pend) else 2
     if a.search_box:
         payload = json.dumps(rows, ensure_ascii=False)
         html = _SEARCH_BOX_TPL.replace('__PAYLOAD__', payload).replace(
@@ -1709,6 +1940,497 @@ def cmd_create_db(a):
     return 0
 
 
+# ══════════════════ 库房自举（v2.4.0）：按蓝图收敛，不是"一次建库" ══════════════════
+# 为什么要它（分发场景）：别人拿到生态时，云端什么都没有。让他先跑 init、再 create-db
+# 是不现实的——他根本不知道库务司存在。正确形态是：**能力层第一次产出时，库已经在**。
+# 于是把"该有什么"写成蓝图（base_blueprint.json + 各技能 artifacts.json 的 blueprint 分片），
+# ensure 做 diff：认领已有的（绝不重建）、补建缺的（绝不删）、每步回读。
+BASE_BLUEPRINT = os.path.join(HERE, 'base_blueprint.json')
+SKILLS_DIR = os.path.expanduser('~/.codebuddy/skills')
+# 索引库字段类型：日期用 date，其余一律 text。
+# ★ 为什么"类别"不再用 select：add_database_field 只能加列、**不能改 select 选项**，
+#   新能力带来的新类别（视频/压缩包/代码）会直接写不进去——库结构成了扩展瓶颈，
+#   而"以后加能力自动跟随"正是本机制存在的理由。text + artifacts.json 软约束才留得出路。
+def _field_cfg(name):
+    return {'date': {}} if name == '日期' else {'text': ''}
+
+
+def _skill_shards():
+    """扫所有已装技能的 artifacts.json，返回 [(路径, blueprint 分片)]。
+
+    扫描而非中心表：**加技能即跟随**。新技能只要带 artifacts.json 就自动纳入，
+    清道夫零改动；没带也不影响安装（产出落「未归类」并在归档时提示）。
+    """
+    out = []
+    if not os.path.isdir(SKILLS_DIR):
+        return out
+    for name in sorted(os.listdir(SKILLS_DIR)):
+        p = os.path.join(SKILLS_DIR, name, 'artifacts.json')
+        if not os.path.isfile(p):
+            continue
+        try:
+            d = json.load(open(p, encoding='utf-8'))
+        except Exception as e:
+            # 三态：分片损坏 ≠ 分片不存在。跳过但必须让人看见。
+            print(f'  ⚠️ 分片损坏已跳过：{p}（{type(e).__name__}）')
+            continue
+        bp = (d or {}).get('blueprint')
+        if isinstance(bp, dict):
+            out.append((p, bp))
+    return out
+
+
+def _merge_blueprint():
+    """base 蓝图 + 全部技能分片 → 合并后的总蓝图（同名根合并子夹，冲突显式报错）。
+
+    冲突不静默：两个技能给同一根声明了不同索引库 → 停，先统一。
+    静默取其一会让"库里有东西但没人知道属于谁"——比报错难查得多。
+    """
+    if not os.path.exists(BASE_BLUEPRINT):
+        print(f'❌ 基础蓝图不存在：{BASE_BLUEPRINT}——库房自举无法进行')
+        raise SystemExit(2)
+    try:
+        bp = json.load(open(BASE_BLUEPRINT, encoding='utf-8'))
+    except Exception as e:
+        print(f'❌ 基础蓝图损坏（{type(e).__name__}）——禁止当空蓝图（M-R60）')
+        raise SystemExit(2)
+    shards = _skill_shards()
+    roots, order = {}, []
+
+    def _take(r, src):
+        t = (r.get('title') or '').strip()
+        if not t:
+            return
+        if t not in roots:
+            roots[t] = {'title': t, 'children': [], 'index_db': None,
+                        'declared_by': [src], 'doc': r.get('doc', '')}
+            order.append(t)
+        elif src not in roots[t]['declared_by']:
+            roots[t]['declared_by'].append(src)
+        for c in (r.get('children') or []):
+            if c not in roots[t]['children']:
+                roots[t]['children'].append(c)
+        db = r.get('index_db')
+        if isinstance(db, dict) and db.get('title'):
+            old = roots[t]['index_db']
+            if old and old.get('title') != db.get('title'):
+                print(f'❌ 蓝图冲突：根「{t}」的索引库被多处声明为不同标题 '
+                      f'（{old.get("title")} vs {db.get("title")}，来源 {roots[t]["declared_by"]}）'
+                      f'——先统一分片再跑')
+                raise SystemExit(2)
+            roots[t]['index_db'] = db
+
+    for r in (bp.get('roots') or []):
+        _take(r, 'base_blueprint.json')
+    for p, shard in shards:
+        for r in (shard.get('roots') or []):
+            _take(r, p)
+    bp['roots'] = [roots[t] for t in order]
+    bp['_shard_count'] = len(shards)
+    return bp
+
+
+def _writable_spaces():
+    return [s for s in _list_spaces() if s.get('role') in ('owner', 'admin')]
+
+
+def ensure_space(title):
+    """解析可写空间；**仅当账号下一个可写空间都没有**时才自动建。
+
+    边界（很重要）：账号里已有可写空间但没登记 → 报错让人选。
+    绝不能因为别人装了生态就往他账号里乱建空间——那是替他做决定。
+    """
+    global SPACE, PARENT
+    st = load_state()
+    cand = (os.environ.get('SPACE_HUB_SPACE_ID', '') or st.get('space_id', '')).strip()
+    writable = _writable_spaces()
+    if cand and any(s.get('spaceId') == cand for s in writable):
+        SPACE = PARENT = cand
+        return cand, 'state 登记'
+    if len(writable) == 1:
+        SPACE = PARENT = writable[0]['spaceId']
+        st['space_id'], st['space_title'] = SPACE, writable[0].get('title') or title
+        save_state(st)
+        return SPACE, '唯一可写空间'
+    if not writable:
+        r = subprocess.run([sys.executable, f'{LIB}/space_api.py',
+                            'space.workspace.create-space', '--title', title],
+                           capture_output=True, text=True)
+        out = (r.stdout or '') + (r.stderr or '')
+        sid = ''
+        for ln in out.splitlines():
+            ln = ln.strip()
+            if ln.startswith('{'):
+                try:
+                    j = json.loads(ln)
+                    sid = ((j.get('data') or {}).get('space') or {}).get('spaceId', '')
+                except Exception:
+                    continue
+        if not sid:
+            print(f'❌ 自动建空间失败：{out[:200]}')
+            print('   → 也可手动建一个空间后跑 init --space-id <ID>')
+            raise SystemExit(2)
+        SPACE = PARENT = sid
+        st['space_id'], st['space_title'] = sid, title
+        save_state(st)
+        print(f'  + 已自动建空间「{title}」（{sid}）——新机首次落地即可用')
+        return sid, '自动新建'
+    print(f'❌ 当前账号有 {len(writable)} 个可写空间但未登记，不替你选：')
+    for s in writable:
+        print(f'   · {s["spaceId"]}  {(s.get("title") or "(无标题)")[:30]}')
+    print('   → python3 space_hub.py init --space-id <ID>')
+    raise SystemExit(2)
+
+
+def _db_fields(db_id):
+    """读库字段名列表。返回 None = 无法判定（读失败），空列表 = 真的没有字段。"""
+    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_schema.py',
+                        '--database-id', db_id], capture_output=True, text=True)
+    s = (r.stdout or '').strip()
+    for ln in reversed(s.splitlines()):
+        ln = ln.strip()
+        if ln.startswith('{'):
+            try:
+                j = json.loads(ln)
+                return [p.get('name') for p in (j.get('properties') or [])]
+            except Exception:
+                continue
+    return None
+
+
+def _ensure_db_fields(db_id, fields, quiet=False):
+    """已有的库补缺列（幂等）。只加不删、不改类型——不碰用户已有数据。"""
+    say = (lambda *x: None) if quiet else print
+    have = _db_fields(db_id)
+    if have is None:
+        say(f'  ⚠️ 字段无法判定（schema 读取失败），跳过补列：{db_id}')
+        return
+    for f in fields:
+        if f in have:
+            continue
+        r = subprocess.run([sys.executable, f'{LIB}/database/add_database_field.py',
+                            '--database-id', db_id,
+                            '--property', json.dumps({'name': f, 'config': _field_cfg(f)},
+                                                     ensure_ascii=False)],
+                           capture_output=True, text=True)
+        out = ((r.stdout or '') + (r.stderr or '')).lower()
+        say(f'  + 补列「{f}」' + ('⚠️ 失败：' + out[:120] if 'error' in out else '✅'))
+
+
+def _ensure_root(r, dry, quiet=False):
+    """收敛一个根：认领或新建根夹 → 子夹 → 索引库。返回 (根 id, 新建数, 认领数)。"""
+    say = (lambda *x: None) if quiet else print
+    title = r['title']
+    created = claimed = 0
+    rid = _find_folder_by_title('', title)
+    if rid:
+        claimed += 1
+        say(f'  · 认领根「{title}」')
+    elif dry:
+        say(f'  + 将建根「{title}」及 {len(r.get("children") or [])} 个子夹'
+            f'{"、1 个索引库" if r.get("index_db") else ""}')
+        return '', 1 + len(r.get('children') or []) + (1 if r.get('index_db') else 0), 0
+    else:
+        rid = _create_folder(title, '')
+        if not rid:
+            raise SystemExit(2)
+        created += 1
+        say(f'  + 新建根「{title}」')
+
+    for c in (r.get('children') or []):
+        cid = _find_folder_by_title(rid, c)
+        if cid:
+            claimed += 1
+        elif dry:
+            say(f'  + 将建子夹 {title}/{c}')
+            created += 1
+        else:
+            cid = _create_folder(c, rid)
+            if not cid:
+                raise SystemExit(2)
+            created += 1
+            say(f'  + 新建子夹 {title}/{c}')
+
+    db = r.get('index_db')
+    if db:
+        dbid = ''
+        for n in _kids(rid):
+            if n.get('kind') == 'database' and (n.get('title') or '').strip() == db['title']:
+                dbid = n.get('id')
+                break
+        if dbid:
+            claimed += 1
+            say(f'  · 认领库「{db["title"]}」')
+            if not dry:
+                _ensure_db_fields(dbid, db.get('fields') or [], quiet=quiet)
+        elif dry:
+            say(f'  + 将建库「{db["title"]}」')
+            created += 1
+        else:
+            props = [{'name': f, 'config': _field_cfg(f)} for f in (db.get('fields') or [])]
+            dbid, err = _create_db_api({'title': db['title'], 'space_id': SPACE,
+                                        'parent_id': rid, 'properties': props})
+            if not dbid:
+                print(f'❌ 建库失败「{db["title"]}」：{err}')
+                raise SystemExit(2)
+            created += 1
+            say(f'  + 新建库「{db["title"]}」')
+    return rid, created, claimed
+
+
+def ensure_library(dry=False, quiet=False, space_title=None):
+    """★ 库房自举：把当前空间收敛到蓝图形态。幂等，可反复跑。
+
+    返回 dict：{'space': id, 'created': n, 'claimed': n, 'roots': {标题: id}}。
+    失败（蓝图损坏/建夹建库失败/空间解析不了）→ 抛 SystemExit(2)，**不留半套还报成功**。
+    """
+    bp = _merge_blueprint()
+    sid, how = ensure_space(space_title or bp.get('space_title') or '我的资料库')
+    if not quiet:
+        print(f'空间：{sid}（{how}）｜蓝图 v{bp.get("blueprint_version")}'
+              f'｜分片 {bp.get("_shard_count")} 份｜根 {len(bp["roots"])}')
+    created = claimed = 0
+    root_ids = {}
+    for r in bp['roots']:
+        rid, c, k = _ensure_root(r, dry, quiet=quiet)
+        root_ids[r['title']] = rid
+        created += c
+        claimed += k
+    if not dry:
+        st = load_state()
+        st['blueprint'] = {'version': bp.get('blueprint_version'), 'roots': root_ids,
+                           'ensured_at': time.strftime('%Y-%m-%d %H:%M')}
+        save_state(st)
+    if not quiet:
+        print(f'{"（预览）" if dry else ""}收敛完成：新建 {created} ｜ 认领 {claimed}')
+    return {'space': sid, 'created': created, 'claimed': claimed, 'roots': root_ids}
+
+
+def cmd_ensure(a):
+    try:
+        ensure_library(dry=a.dry_run, space_title=a.space_title)
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 2
+    return 0
+
+
+# ══════════════════ 生态演化台账（v2.4.0）══════════════════
+# 固定分类「🧬 生态演化」在 base_blueprint.json 里声明，新机首次 ensure 即带。
+# 这里只负责"往里写一条"：哪一版、哪天、增加了什么、证据在哪——可逐版追溯。
+# 数据源全部是可实证的：VERSION / MANIFEST.changelog_<ver> / 已装技能快照。
+EVOLVE_ROOT = '🧬 生态演化'
+EVOLVE_DB = '版本演化台账'
+
+
+def _repo_version(explicit=''):
+    """版本号：显式 > 部署标记（install.sh 写入）> 当前目录 VERSION > 仓库 VERSION。"""
+    if explicit:
+        return explicit.strip()
+    for p in (os.path.expanduser('~/.codebuddy/.520_state/version'),
+              os.path.join(os.getcwd(), 'VERSION'),
+              os.path.join(HERE, '..', '..', '..', '..', 'VERSION')):
+        try:
+            v = open(p, encoding='utf-8').read().strip()
+            if v:
+                return v
+        except Exception:
+            continue
+    return ''
+
+
+def _skills_snapshot():
+    """已装技能快照 {技能目录名: 版本}。版本读 SKILL.md frontmatter。
+
+    为什么要快照而不是只看 VERSION：VERSION 只说明"生态整体到哪一版"，
+    回答不了"这版增加了哪些能力"。快照做差集才是用户真正问的那句"增加了啥"。
+    """
+    snap = {}
+    if not os.path.isdir(SKILLS_DIR):
+        return snap
+    for n in sorted(os.listdir(SKILLS_DIR)):
+        p = os.path.join(SKILLS_DIR, n, 'SKILL.md')
+        v = ''
+        if os.path.isfile(p):
+            try:
+                head = open(p, encoding='utf-8', errors='ignore').read(800)
+                m = re.search(r'^version:\s*"?([^"\n]+)"?', head, re.M)
+                v = m.group(1).strip() if m else ''
+            except Exception:
+                v = ''
+        snap[n] = v or '未知'
+    return snap
+
+
+def _snap_hash(snap):
+    raw = json.dumps(snap, ensure_ascii=False, sort_keys=True)
+    import hashlib
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:12]
+
+
+def _manifest_changelog(ver, manifest=''):
+    """从 MANIFEST.json 取 changelog_<ver 下划线化>，取不到返回 ''。
+
+    注意：MANIFEST 里只到某几版有键（实测 0.8.10 无键）——取不到就如实留空，
+    绝不用"暂无更新说明"这种听起来像结论的空话填。
+    """
+    cands = [manifest] if manifest else []
+    cands += [os.path.join(os.getcwd(), 'MANIFEST.json'),
+              os.path.join(HERE, '..', '..', '..', '..', 'MANIFEST.json')]
+    key = 'changelog_' + (ver or '').replace('.', '_')
+    for p in cands:
+        try:
+            d = json.load(open(p, encoding='utf-8'))
+        except Exception:
+            continue
+        v = d.get(key)
+        if isinstance(v, list):
+            return '；'.join(str(x) for x in v)[:900]
+        if isinstance(v, str):
+            return v[:900]
+    return ''
+
+
+def _root_id(title):
+    st = load_state()
+    rid = ((st.get('blueprint') or {}).get('roots') or {}).get(title, '')
+    if rid and _find_folder_by_title('', title) == rid:
+        return rid
+    return _find_folder_by_title('', title)
+
+
+def _cloud_versions(db_id):
+    """云端台账已有版本集合。None = 读不到（无法判定，不折叠为空集）。"""
+    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_content.py',
+                        '--database-id', db_id], capture_output=True, text=True)
+    for ln in reversed((r.stdout or '').strip().splitlines()):
+        ln = ln.strip()
+        if not ln.startswith('{'):
+            continue
+        try:
+            j = json.loads(ln)
+            csv = j.get('content') or ''
+            lines = [x for x in csv.splitlines() if x.strip()]
+            if not lines:
+                return set()
+            out = set()
+            for row in lines[1:]:
+                v = row.split(',')[0].strip().strip('"')
+                if v:
+                    out.add(v)
+            return out
+        except Exception:
+            continue
+    return None
+
+
+def cmd_evolve_log(a):
+    """写一条演化记录。同版本 + 同技能快照不重复写（反复安装不算演化）。"""
+    ensure_library(quiet=True)          # 固定分类必须先在：这是"新机落地即带"的落实点
+    rid = _root_id(EVOLVE_ROOT)
+    if not rid:
+        print(f'❌ 演化根「{EVOLVE_ROOT}」不存在且自举未建成——先跑 ensure 看过错原因')
+        return 2
+    dbid = ''
+    for n in _kids(rid):
+        if n.get('kind') == 'database' and (n.get('title') or '').strip() == EVOLVE_DB:
+            dbid = n.get('id')
+            break
+    if not dbid:
+        print(f'❌ 台账库「{EVOLVE_DB}」不存在——先跑 ensure')
+        return 2
+
+    ver = _repo_version(a.version)
+    if not ver:
+        print('❌ 版本号无法判定（无 --version、无部署标记、无 VERSION 文件）——拒绝写空版本记录')
+        return 2
+    # ★ 去重以**云端台账**为准，不能只看本地 state：换机/重装后 state 是空的，
+    #   只看本地会把同一版本重复记成"首次落地"（实测踩到：两份 state 各记一条 0.8.10）。
+    cloud_vers = _cloud_versions(dbid)
+    if cloud_vers is None:
+        print('  ⚠️ 云端台账读取失败（无法判定是否已记）——本次按新记录写入')
+    elif ver in cloud_vers:
+        print(f'ℹ️ {ver} 已在云端台账（{dbid}），不重复记')
+        return 0
+    snap = _skills_snapshot()
+    h = _snap_hash(snap)
+    st = load_state()
+    last = st.get('evolve_last') or {}
+    logs = st.setdefault('evolve_log', [])
+    # 去重：版本 + 快照都没变 → 这不算一次演化
+    if any(x.get('version') == ver and x.get('hash') == h for x in logs):
+        print(f'ℹ️ {ver}（快照 {h}）已在台账，重复安装不重复记')
+        return 0
+
+    prev = (last.get('skills') or {})
+    added = [k for k in snap if k not in prev]
+    removed = [k for k in prev if k not in snap]
+    changed = [f'{k} {prev[k]}→{snap[k]}' for k in snap
+               if k in prev and prev[k] != snap[k]]
+    if not prev:
+        kind = '首次落地'
+        delta = f'首装 {len(snap)} 个技能'
+    else:
+        kind = a.type or '升级'
+        parts = []
+        if added:
+            parts.append('新增 ' + '、'.join(added))
+        if removed:
+            parts.append('移除 ' + '、'.join(removed))
+        if changed:
+            parts.append('升级 ' + '、'.join(changed))
+        delta = '；'.join(parts) or '技能面未变'
+
+    summary = a.summary or _manifest_changelog(ver, a.manifest)
+    if not summary:
+        summary = '（本版无登记摘要，可 `evolve-log --summary` 补一条）'
+    evidence = a.evidence or f'VERSION={ver} · 技能快照 {h} · 技能 {len(snap)} 个'
+    date = time.strftime('%Y-%m-%d')
+
+    rec = [{'版本': {'text': ver}, '日期': {'date': date}, '类型': {'text': kind},
+            '新增能力': {'text': delta}, '变更摘要': {'text': summary},
+            '证据': {'text': evidence}}]
+    r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
+                        '--database-id', dbid, '--records', json.dumps(rec, ensure_ascii=False)],
+                       capture_output=True, text=True)
+    out = (r.stdout or '') + (r.stderr or '')
+    if '"error"' in out.lower() or '"code":' in out and '"code":0' not in out.replace(' ', ''):
+        print(f'❌ 台账写入失败：{out[:240]}')
+        return 2
+    logs.append({'version': ver, 'hash': h, 'date': date, 'kind': kind,
+                 'delta': delta, 'db': dbid})
+    st['evolve_last'] = {'version': ver, 'hash': h, 'skills': snap,
+                         'at': time.strftime('%Y-%m-%d %H:%M')}
+    save_state(st)
+    print(f'✅ 演化已记账：{ver}｜{kind}｜{delta}')
+    print(f'   → {EVOLVE_ROOT}/{EVOLVE_DB}（{dbid}）')
+    return 0
+
+
+def cmd_evolve_view(a):
+    """打印演化时间线（本地账 + 云端台账对照）。--md 生成文档落演化根。"""
+    st = load_state()
+    logs = st.get('evolve_log') or []
+    if not logs:
+        print('ℹ️ 本地无演化记录（还没跑过 evolve-log）')
+        return 0
+    print(f'🧬 生态演化（{len(logs)} 条，来自本地账）')
+    for x in logs:
+        print(f'  · {x.get("date","")}  {x.get("version",""):8}  [{x.get("kind","")}]  {x.get("delta","")}')
+    if getattr(a, 'md', False):
+        rid = _root_id(EVOLVE_ROOT)
+        if not rid:
+            print('❌ 演化根不存在，无法落盘'); return 2
+        md = ['# 🧬 生态演化台账', '',
+              f'生成时间：{time.strftime("%Y-%m-%d %H:%M")}', '',
+              '| 日期 | 版本 | 类型 | 增加了什么 |', '|---|---|---|---|']
+        for x in logs:
+            md.append(f'| {x.get("date","")} | {x.get("version","")} | {x.get("kind","")} | {x.get("delta","")} |')
+        p = os.path.join(OUT_DIR, f'生态演化_{time.strftime("%Y%m%d")}.md')
+        open(p, 'w', encoding='utf-8').write('\n'.join(md) + '\n')
+        print(f'📄 已生成：{p}（可用 archive --file 落库）')
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='space_hub.py')
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -1763,20 +2485,36 @@ def main(argv=None):
     ar.add_argument('--file', required=True, help='本地产物文件路径')
     ar.add_argument('--category', default='', help='类别（缺省按扩展名猜：面板/文档/清单/数据/图片）')
     ar.add_argument('--source', default='', help='来源说明（哪个技能/任务产出）')
+    ar.add_argument('--note', default='', help='说明（批次/条数/结论等，进索引"说明"列）')
     ar.add_argument('--keep', action='store_true', help='保留本地文件（默认落库成功后删除本地）')
     pr = sub.add_parser('products', help='★产物盘点+搜索框（B-09 配套）')
     pr.add_argument('--scan', action='store_true', help='盘点已落库+本地产物区现存（只打印不落盘）')
     pr.add_argument('--search-box', action='store_true', dest='search_box',
                     help='生成单文件 HTML 搜索框（点名交付物）')
+    pr.add_argument('--retry', action='store_true',
+                    help='★补偿通道：把 pending 里的待归档产物重新提交归档（断网/失败后补齐）')
+    en = sub.add_parser('ensure', help='★库房自举：按蓝图收敛（认领已有 + 补建缺失 + 回读），幂等')
+    en.add_argument('--dry-run', action='store_true', help='只打印将建什么，不写云端')
+    en.add_argument('--space-title', default='', help='蓝图缺省空间标题（仅自动建空间时用）')
+    eg = sub.add_parser('evolve-log', help='★演化记账：写一条版本演化记录（版本/日期/类型/新增能力/摘要/证据）')
+    eg.add_argument('--version', default='', help='版本号（缺省读部署标记/VERSION）')
+    eg.add_argument('--type', default='', help='类型（缺省按有无上次快照判：首次落地/升级）')
+    eg.add_argument('--summary', default='', help='变更摘要（缺省从 MANIFEST.changelog_<ver> 取）')
+    eg.add_argument('--evidence', default='', help='证据（提交号/文件/链接）')
+    eg.add_argument('--manifest', default='', help='MANIFEST.json 路径（缺省自动找）')
+    ev = sub.add_parser('evolve-view', help='★演化时间线（本地账汇总；--md 另出文档）')
+    ev.add_argument('--md', action='store_true', help='生成 md 到产物区（可再用 archive 落库）')
     a = ap.parse_args(argv)
-    if a.cmd not in ('init', 'local-rm', 'products'):
-        resolve_space(quiet=True)   # 除 init / local-rm / products（纯本地账，不依赖云端）外，先过四层空间解析
+    # ensure / evolve-* 自己处理空间（ensure 会在"零可写空间"时自动建），不能预跑解析
+    if a.cmd not in ('init', 'local-rm', 'products', 'ensure', 'evolve-log', 'evolve-view'):
+        resolve_space(quiet=True)   # 除纯本地账与自举类命令外，先过四层空间解析
     return {'init': cmd_init, 'classify': cmd_classify, 'create-db': cmd_create_db,
             'inbox': cmd_inbox, 'add': cmd_add, 'scan': cmd_scan,
             'list': cmd_list, 'render': cmd_render, 'census': cmd_census,
             'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename,
             'local-rm': cmd_local_rm, 'archive': cmd_archive,
-            'products': cmd_products}[a.cmd](a)
+            'products': cmd_products, 'ensure': cmd_ensure,
+            'evolve-log': cmd_evolve_log, 'evolve-view': cmd_evolve_view}[a.cmd](a)
 
 
 def dispatch(argv=None):

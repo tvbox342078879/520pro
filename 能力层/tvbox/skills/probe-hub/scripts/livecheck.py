@@ -1115,7 +1115,44 @@ def cmd_batch(a):
                        'livecheck_' + os.path.basename(a.batch))
     json.dump(res, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
     print(f'💾 结果落盘：{out}')
+    _archive_livecheck(out, res)
     return 0
+
+
+def _archive_livecheck(path, res):
+    """测活报告交给库务司归档：有就落、没装就跳过、失败不阻断测活结论。
+
+    ★ 2026-11-12 接缝：「能力层产出在资料库有体现」落在这里。调用方只管测活，
+      归档失败只告警——**测活结果本身绝不能因为云端问题被改写**（旁路铁律）。
+      索引说明写清"几条/活几条/死因分布"，到资料库一眼知道测的是哪批。
+    """
+    try:
+        d = os.path.expanduser('~/.codebuddy/skills/space-hub/scripts')
+        if not os.path.isdir(d):
+            print('  ℹ️ 未装库务司（space-hub），测活报告未自动归档（本地已存）')
+            return
+        if d not in sys.path:
+            sys.path.insert(0, d)
+        import space_hub
+        ok = [r for r in res if r.get('verdict') == '通过']
+        ng = [r for r in res if r.get('verdict') == '失败']
+        un = [r for r in res if r.get('verdict') == '无法判定']
+        causes = {}
+        for r in res:
+            c = r.get('death_cause') or ''
+            if c:
+                causes[c] = causes.get(c, 0) + 1
+        note = f'{len(res)}条/✅{len(ok)} ❌{len(ng)} ⚠️{len(un)}'
+        if causes:
+            note += ' 死因:' + json.dumps(causes, ensure_ascii=False)
+        okk, info = space_hub.archive_out(path, source='探源司·测活',
+                                          category='清单', note=note, keep=True)
+        if okk:
+            print(f'  📦 已进资料库（{info}）——索引可按来源「探源司·测活」检索')
+        else:
+            print(f'  ⚠️ 归档未完成（{info}），本地已保留：{path}')
+    except Exception as e:
+        print(f'  ⚠️ 归档门面异常（{type(e).__name__}: {str(e)[:60]}），测活结果不受影响')
 
 
 def main():

@@ -1,0 +1,23 @@
+{
+  "_doc": "探源司产出声明（能力层→资料库的接入口）。库务司扫描 ~/.codebuddy/skills/*/artifacts.json 自动纳入：本文件声明『产出什么、归到哪个夹、索引来源写什么、蓝图要哪些夹』。加能力只需加本文件，清道夫零改动。",
+  "artifacts": [
+    {
+      "name": "测活报告",
+      "match": ["livecheck_"],
+      "category": "清单",
+      "target": "🔍 探源产出/测活报告",
+      "source": "探源司·测活",
+      "note_from": "result_summary",
+      "doc": "livecheck --batch 落盘的 JSON；索引说明写『N条/✅x/❌y/⚠️z/死因分布』，回答『这版测了哪批、结果如何』。"
+    }
+  ],
+  "blueprint": {
+    "roots": [
+      {
+        "title": "🔍 探源产出",
+        "doc": "探源司的一切可追溯产出：测活报告（结论）、源数据（候选/去重结果）。",
+        "children": ["测活报告", "源数据"]
+      }
+    ]
+  }
+}

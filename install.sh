@@ -279,6 +279,14 @@ if [ "$DRY" = 0 ]; then
     cp "$ROOT/VERSION" "$HOME/.codebuddy/.520_state/version"
     echo " · 部署版本: $(cat "$HOME/.codebuddy/.520_state/version")"
   fi
+  # 演化记账（v0.8.11）：把"这一版装了什么"写进云端「🧬 生态演化」台账，可逐版追溯。
+  # 失败只告警不中断安装——没网/没授权/没空间都不该让装到一半失败。
+  # 首次安装会顺手把整套资料库结构建出来（新机一落地就带），这也是"自动跟随建库"的落地点。
+  if [ -f "$USER_DIR/skills/space-hub/scripts/space_hub.py" ]; then
+    python3 "$USER_DIR/skills/space-hub/scripts/space_hub.py" evolve-log \
+      --version "$(cat "$ROOT/VERSION" 2>/dev/null)" \
+      --manifest "$ROOT/MANIFEST.json" 2>&1 | sed 's/^/   /' || true
+  fi
 fi
 
 echo
