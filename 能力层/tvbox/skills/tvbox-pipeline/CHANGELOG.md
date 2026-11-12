@@ -1,3 +1,7 @@
+## v1.3.9 — 细则索引（工程F-2，2026-11-12）
+- 新增 `docs/manual_索引.md`：10 篇 manual 按"你会问什么"排（编号/章节/症状/文件），不再靠编号猜
+- SKILL 改为"先查索引"；条目数=文件数由 `verify/tests/test_doc_index.py` 盯（少一条多一条都红）
+
 ## v1.3.8 — 触发样本集 + 文档断链修复（2026-11-12）
 - 新增 `references/trigger-samples.md`：T9/N7/B4；N 组把「找源/修源/写源」三类全部划回 probe-hub
 - 修文档断链：`scripts/pipeline.py` 实际在 `tvbox-core/scripts/pipeline.py`（SOP §1.3 两处引用同步改正）

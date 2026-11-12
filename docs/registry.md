@@ -31,6 +31,8 @@
 | 技能契约（结构/版本/描述/样本） | `verify/skill_contracts.json` | 加技能只加一行，`verify/skill_contract_check.py` 逐条读它判定 |
 | 技能版本号（对外） | 各技能 `SKILL.md` 的 front matter `version` | 须与 `CHANGELOG.md` 首条、`MANIFEST.json` 登记、contracts 四处一致（C4） |
 | 技能变更记录 | 各技能 `CHANGELOG.md` 首条 `## vX.Y.Z` | 历史档案，不参与引用断链检查 |
+| 外置文档索引 | `能力层/tvbox/skills/tvbox-pipeline/docs/manual_索引.md`、`能力层/tvbox/skills/probe-hub/docs/外置_索引.md` | 条目集合必须等于目录集合（`verify/tests/test_doc_index.py`） |
+| 路径政策（canonical） | `MANIFEST.json` 的 `path_policy` | 新文档一律 `references/`；`docs/` 为过渡存量 |
 | 技能触发样本 | 各技能 `references/trigger-samples.md` | T/N/B 三组；C6 机检数量 + "第一动作/归属"完整性 |
 
 ## 四、运行时登记册（随使用增长，不入 git 或按需提交）
