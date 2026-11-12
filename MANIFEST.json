@@ -39,7 +39,7 @@
         },
         "skills/machine-bootstrap/SKILL.md": {
           "role": "一键换机/克隆工作副本",
-          "version": "1.0.1"
+          "version": "1.0.2"
         },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",

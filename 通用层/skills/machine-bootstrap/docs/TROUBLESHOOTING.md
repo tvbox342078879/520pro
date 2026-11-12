@@ -32,3 +32,15 @@
 - **先查**：`--user-skill` 装 `~/.codebuddy/`；`--capability-only` 装 `<项目>/.codebuddy/`。看 `MANIFEST.json` 的 `deploy_modes`。
 - **怎么办**：按目标 SCOPE 重装；重装前旧目录会打快照（`~/.codebuddy/.520_state/deploy_snapshot.tar.gz`），可回滚。
 - **别做**：不要两个模式混装——同一技能两份副本必然漂移（verify 会红）。
+
+## 6. `git push` 卡住十几分钟、一个字都不输出
+
+- **先查**：别急着重试。另开一条**只读**命令确认远端到底动没动：
+  `gh api repos/<owner>/<repo>/commits/main --jq .sha` 对比本地 `git rev-parse HEAD`。
+  远端 sha 没变 = 真没推上去；变了 = push 其实成功、只是进程没退出。
+- **怎么办**：`GIT_HTTP_VERSION=HTTP/1.1 git push -v origin main`。
+  2026-11-12 实测：HTTP/2 下 push 挂 13 分钟零输出，切 HTTP/1.1 后 3 秒完成
+  （`POST git-receive-pack (35321 bytes)` → `8418cd4..f59bdf0`）。仓库只有 9MB、待推 1 个 commit，
+  所以不是体积问题，是协议层握手挂起。
+- **别做**：不要在 `gh api` 显示远端 sha 没变之前就 `git push --force`——
+  万一那头其实已经收到了，force 会把别人的提交覆盖掉。也**别**在同一个卡住的进程上反复敲回车。
