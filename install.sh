@@ -162,6 +162,24 @@ check_no_nested() {  # 防 cp 语义回归：技能目录里不允许再出现�
   return 0
 }
 
+# ★ v0.8.15（工程C）：技能契约校验（结构/头部/描述五组/版本三处/镜像 sha）。
+# 为什么必须在安装器里跑：镜像闸只比「源 ↔ 装副本」，装完不校验就等于把
+# "装漏一个文件 / 装成旧版"留给下次巡检才发现（2026-11-12 实际发生过）。
+# 只读、只告警不中断：契约失败说明分发件有问题，但不该让用户装到一半卡住。
+check_contract() {
+  [ -f "$ROOT/verify/skill_contract_check.py" ] || { echo " · 无 verify/skill_contract_check.py（lite 形状），跳过契约自检"; return 0; }
+  local extra="" coco nok
+  [ -d "$USER_DIR/skills" ] && extra="--require-mirror"
+  if coco="$(python3 "$ROOT/verify/skill_contract_check.py" --repo "$ROOT" --install "$USER_DIR/skills" $extra 2>&1)"; then
+    nok="$(printf '%s\n' "$coco" | grep -c '  ✓ \[' || true)"
+    echo " · 自检：技能契约通过（$nok 项，$([ -n "$extra" ] && echo '镜像 sha 一致' || echo '镜像未校验：本机未装')）"
+  else
+    echo " ⚠ 自检：技能契约有失败项（分发件可能缺件/旧版）——详情："
+    printf '%s\n' "$coco" | grep '  ✗ \[' | head -8 | sed 's/^/     /'
+    echo "    修完重跑：python3 $ROOT/verify/skill_contract_check.py"
+  fi
+}
+
 deploy_generic_user() {
   echo
   echo "【通用层 → $USER_DIR】（跨项目，平台注册可路由）"
@@ -267,6 +285,9 @@ case "$SCOPE" in
     deploy_generic_user
     deploy_capability_project ;;
 esac
+
+# 自检①：技能契约（只读；dry-run 也跑——接线本身要能被验证）
+check_contract
 
 # 安装后自检：技能目录里不许出现嵌套同名副本（cp -r 语义回归的硬信号）
 if [ "$DRY" = 0 ]; then

@@ -1,0 +1,116 @@
+{
+  "_schema": "技能契约登记表 v1 —— 唯一真源（M1）。加技能只加一行，不改检查器（同 classify_rules.json 的做法）。",
+  "_judge_ref": "verify/skill_contract_check.py 逐条读本表判定；本表不写判据代码，只写事实。",
+  "_fields": {
+    "kind": "skill=有 SKILL.md 被平台注册路由；lib=无 SKILL.md 的共享库（被 import，不注册）",
+    "version": "对外版本号；须与 SKILL.md 的 front matter version（lib 取 manifest.json）、CHANGELOG 首条三方一致",
+    "required_files": "缺任一件即结构 FAIL（只登记缺了技能就废的文件，不追求全量清单）",
+    "entry": "正门脚本相对路径；须存在，且 description 正门锚点检查以它为准",
+    "trigger_samples": "T/N/B 触发样本集路径；不存在记 WARN（工程D 补齐），存在但缺分组记 FAIL"
+  },
+  "runtime_files": [
+    "findings_history.json",
+    "monitors.json",
+    "space_hub_state.json",
+    "monitor_targets.json",
+    "monitor_domains.json",
+    "monitor_pubsources.json",
+    "dead_repos.json",
+    "shellcrack_cands.json",
+    "index.json"
+  ],
+  "_runtime_note": "运行时态文件：随使用增长、多数不入 git。镜像比对时豁免（源与装副本内容必然不同，不是「没同步」）。与 install.sh 的 RUNTIME_FILES 同源，verify.sh 有一条判据核对两处清单一致（M5 防漂移）。",
+  "skills": {
+    "artifact-store": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/artifact-store",
+      "version": "1.0.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md"],
+      "entry": "",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "feature-gate": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/feature-gate",
+      "version": "1.0.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md"],
+      "entry": "",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "machine-bootstrap": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/machine-bootstrap",
+      "version": "1.0.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md"],
+      "entry": "",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "skill-evolution": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/skill-evolution",
+      "version": "1.0.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md"],
+      "entry": "",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "inspect-hub": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/inspect-hub",
+      "version": "1.3.1",
+      "required_files": ["SKILL.md", "CHANGELOG.md", "scripts/inspect_hub.py", "scripts/inspect_registry.json", "scripts/dashboard_template.html"],
+      "entry": "scripts/inspect_hub.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "learn-hub": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/learn-hub",
+      "version": "1.4.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md", "scripts/learn.py", "scripts/pan.py", "scripts/flow.json", "library/tree.json"],
+      "entry": "scripts/learn.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "space-hub": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/space-hub",
+      "version": "2.6.0",
+      "required_files": ["SKILL.md", "CHANGELOG.md", "scripts/space_hub.py", "scripts/classify_rules.json"],
+      "entry": "scripts/space_hub.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "probe-hub": {
+      "kind": "skill",
+      "layer": "能力层",
+      "path": "能力层/tvbox/skills/probe-hub",
+      "version": "1.26.3",
+      "required_files": ["SKILL.md", "CHANGELOG.md", "artifacts.json", "scripts/probe.py", "scripts/livecheck.py"],
+      "entry": "scripts/probe.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "tvbox-pipeline": {
+      "kind": "skill",
+      "layer": "能力层",
+      "path": "能力层/tvbox/skills/tvbox-pipeline",
+      "version": "1.3.7",
+      "required_files": ["SKILL.md", "CHANGELOG.md"],
+      "entry": "",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "tvbox-core": {
+      "kind": "lib",
+      "layer": "能力层",
+      "path": "能力层/tvbox/skills/tvbox-core",
+      "version": "1.0.66",
+      "required_files": ["README.md", "manifest.json", "scripts/core.py"],
+      "entry": "scripts/core.py",
+      "trigger_samples": "",
+      "_note": "故意无 SKILL.md：纯 TVBox 数据域共享库，平台不注册、不路由、不进上下文（见 README 首段）。故不走 description 五组契约。"
+    }
+  }
+}

@@ -260,5 +260,47 @@ if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
     || no "基线文件未被跟踪：$miss_base"
 fi
 
+# ★ v0.8.15（工程C）：技能契约机检——结构/头部/描述五组/版本三处/镜像 sha/样本集
+echo
+echo "[技能契约（v0.8.15 起·工程C：技能该长什么样是机器判据）]"
+if [ -f "$TARGET/verify/skill_contract_check.py" ]; then
+  # --require-mirror 只在"本机确实装了技能"时启用：装了就必须一致（红）；
+  # 空机未装则退回「无法判定」，不让"没装"冒充"通过"，也不误伤只跑仓检的场景。
+  mirror_arg=""
+  [ -d "$HOME/.codebuddy/skills" ] && mirror_arg="--require-mirror"
+  cout="$(python3 "$TARGET/verify/skill_contract_check.py" --repo "$TARGET" $mirror_arg 2>&1)"
+  cstat=$?
+  cok=$(printf '%s\n' "$cout" | grep -c '  ✓ \[' || true)
+  cno=$(printf '%s\n' "$cout" | grep -c '  ✗ \[' || true)
+  cwarn=$(printf '%s\n' "$cout" | grep -c '  ⚠ \[' || true)
+  if [ "$cstat" -eq 0 ]; then
+    ok "技能契约 $cok 项通过（$cwarn 项 WARN 不阻断）"
+  else
+    no "技能契约 $cno 项失败（$cok 项通过）——详情: python3 verify/skill_contract_check.py"
+    printf '%s\n' "$cout" | grep '  ✗ \[' | head -6 | sed 's/^/     /'
+  fi
+else
+  no "verify/skill_contract_check.py 缺失（技能契约机检未装）"
+fi
+
+# ★ v0.8.15（工程C·M5）：运行时豁免清单两处同源——contracts.json 与 install.sh 不得漂移
+if [ -f "$TARGET/verify/skill_contracts.json" ] && [ -f "$TARGET/install.sh" ]; then
+  if python3 - "$TARGET" <<'PYEOF'
+import json, re, sys
+t = open(sys.argv[1] + '/install.sh', encoding='utf-8').read()
+m = re.search(r'^RUNTIME_FILES="([^"]*)"', t, re.M)
+if not m:
+    sys.exit(1)                      # install.sh 里找不到清单 = 契约无从对账
+inst = set(m.group(1).split())
+reg = set(json.load(open(sys.argv[1] + '/verify/skill_contracts.json', encoding='utf-8'))['runtime_files'])
+sys.exit(0 if not (inst - reg) else 1)
+PYEOF
+  then
+    ok "运行时豁免清单两处同源（contracts.json ⊇ install.sh RUNTIME_FILES）"
+  else
+    no "运行时豁免清单漂移（install.sh 有而 contracts.json 无——镜像闸会误报）"
+  fi
+fi
+
 echo "============================================"
 echo "提示：装完/改完要【开新会话】才加载；手机按 手机指令.md 手动粘规则。"
