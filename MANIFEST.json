@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.13",
+  "version": "0.8.14",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -377,5 +377,11 @@
     "★--force 审计留痕：add/adopt 的 --force 必须配 --reason（校验在一切云端调用之前），绕行动作写进 state audit 节（上限 50 条）",
     "修复：快照文件名同秒相撞（加 pid+序号唯一化，实测 T4 用例发现）",
     "实测：正向 11/11（隔离环境）；反向变异 V1-V5 全翻红；verify.sh 48✓0✗ 零回归"
+  ],
+  "changelog_0_8_14": [
+    "★工程B 发布卫生闸（secret_scan.py 扩展）：B1 九类密钥形态（私钥块/AKIA/ASIA/xox/AIza/sk-/ghp_/github_pat_）；B2 个人绝对路径动态扫描（换机断链根治，文档实抓 38 处）；B3 本地 endpoint 模式（6 处）；B4 WARN/FAIL 分级（卫生问题⚠不阻断，--strict 升级为红）；B5 模板真值检查（.example.json 出现真实节点 id 即 FAIL）",
+    "★B6 基线文件跟踪判据（verify.sh）：MANIFEST/VERSION/secret_scan/verify/install+全部 SKILL.md 必须被 git 跟踪，漏跟踪即红",
+    "★B7 回执模板加「发布前自检命令」节（用户手也能跑的 rg/grep 清单）",
+    "实测：正反向 7 项全过（AKIA/模板id/路径/endpoint/strict/基线 各翻红证实）；verify.sh 49✓0✗1⚠"
   ]
 }

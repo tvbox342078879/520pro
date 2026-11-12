@@ -10,6 +10,8 @@ P="$TARGET/.codebuddy"
 ok(){ printf "  \033[32m✓\033[0m %s\n" "$1"; }
 no(){ printf "  \033[31m✗\033[0m %s\n" "$1"; }
 opt(){ printf "  \033[33m·\033[0m %s\n" "$1"; }
+# ★ v0.8.14（B4·WARN 分级）：卫生问题用黄叹号，与"绿✓通过/红✗失败"三态区分——不折叠
+warn(){ printf "  \033[33m⚠\033[0m %s\n" "$1"; }
 
 echo "================ 520pro 自检 ================"
 echo "HOME=$U   TARGET=$TARGET"
@@ -232,10 +234,30 @@ fi
 echo
 echo "[密钥安全（v0.7.0 起·core-8 规则 5 零明文凭证）]"
 if [ -f "$TARGET/secret_scan.py" ]; then
-  python3 "$TARGET/secret_scan.py" "$TARGET" && ok "secret_scan 无明文密钥（含 .git/config 复查）" \
+  scan_out=$(python3 "$TARGET/secret_scan.py" "$TARGET" 2>&1); scan_rc=$?
+  echo "$scan_out"
+  [ "$scan_rc" -eq 0 ] && ok "secret_scan 无明文密钥（含 .git/config 复查）" \
     || no "secret_scan 发现疑似明文密钥（见上方清单，立即处置）"
+  # ★ v0.8.14（工程B·B4）：WARN 级卫生问题单列计数——不阻断，但必须可见
+  warn_n=$(printf '%s\n' "$scan_out" | sed -n 's/^\[WARN\] \([0-9]*\) 处.*/\1/p' | head -1)
+  if [ -n "${warn_n:-}" ] && [ "$warn_n" -gt 0 ]; then
+    warn "发布面卫生 ${warn_n} 处 WARN（个人路径/本地endpoint，不阻断；--strict 可升级为红）"
+  fi
 else
   no "secret_scan.py 缺失（零明文凭证防线未装）"
+fi
+
+# ★ v0.8.14（工程B·B6）：公开基线文件必须被 git 跟踪——漏跟踪=分发件缺件
+if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
+  miss_base=""
+  for f in MANIFEST.json VERSION secret_scan.py verify.sh install.sh; do
+    git -C "$TARGET" ls-files --error-unmatch "$f" >/dev/null 2>&1 || miss_base="$miss_base $f"
+  done
+  while IFS= read -r sk; do
+    git -C "$TARGET" ls-files --error-unmatch "$sk" >/dev/null 2>&1 || miss_base="$miss_base $sk"
+  done < <(cd "$TARGET" && ls 通用层/skills/*/SKILL.md 能力层/tvbox/skills/*/SKILL.md 2>/dev/null)
+  [ -z "$miss_base" ] && ok "公开基线文件全部被 git 跟踪（分发件齐全）" \
+    || no "基线文件未被跟踪：$miss_base"
 fi
 
 echo "============================================"
