@@ -168,9 +168,11 @@ check_no_nested() {  # 防 cp 语义回归：技能目录里不允许再出现�
 # 只读、只告警不中断：契约失败说明分发件有问题，但不该让用户装到一半卡住。
 check_contract() {
   [ -f "$ROOT/verify/skill_contract_check.py" ] || { echo " · 无 verify/skill_contract_check.py（lite 形状），跳过契约自检"; return 0; }
-  local extra="" coco nok
-  [ -d "$USER_DIR/skills" ] && extra="--require-mirror"
-  if coco="$(python3 "$ROOT/verify/skill_contract_check.py" --repo "$ROOT" --install "$USER_DIR/skills" $extra 2>&1)"; then
+  local extra="" coco nok idir="$USER_DIR/skills"
+  # capability 模式装到项目级：镜像闸必须比 PROJ_DIR，否则永远"未装"从而静默跳过
+  [ "$SCOPE" = "capability" ] && idir="$PROJ_DIR/skills"
+  [ -d "$idir" ] && extra="--require-mirror"
+  if coco="$(python3 "$ROOT/verify/skill_contract_check.py" --repo "$ROOT" --install "$idir" $extra 2>&1)"; then
     nok="$(printf '%s\n' "$coco" | grep -c '  ✓ \[' || true)"
     echo " · 自检：技能契约通过（$nok 项，$([ -n "$extra" ] && echo '镜像 sha 一致' || echo '镜像未校验：本机未装')）"
   else

@@ -401,6 +401,7 @@
     "★修 tvbox-core manifest 1.0.54→1.0.66（与 CHANGELOG 首条对齐）",
     "★三态防假绿：安装副本整体不存在时默认记「无法判定」（不折算通过），verify.sh/装后自检用 --require-mirror 硬闸；MANIFEST 解析失败记红不记「未登记」",
     "★接线：verify.sh 新增 2 条判据（技能契约机检 + 运行时豁免清单两处同源 M5）；install.sh 加 check_contract（装完即校验，dry-run 也跑，只告警不中断）",
-    "实测：变异测试 8/8 翻红（C1 缺件/C2 坏版本/C3 删负边界/C4 改 contracts 版本/C4 MANIFEST 过期/C4 MANIFEST 坏 JSON/C5 改字节不同步/C6 只有 T 组）；三态用例（未装目录）不折算通过；正反向闭环后 49✓0✗9⚠2·，verify.sh 51✓0✗"
+    "实测：变异测试 8/8 翻红（C1 缺件/C2 坏版本/C3 删负边界/C4 改 contracts 版本/C4 MANIFEST 过期/C4 MANIFEST 坏 JSON/C5 改字节不同步/C6 只有 T 组）；三态用例（未装目录）不折算通过；正反向闭环后 49✓0✗9⚠2·，verify.sh 51✓0✗",
+    "修复：install.sh 契约自检在 --capability-only 模式下仍比用户级目录（能力层装在项目级时永远「未装」→静默跳过镜像闸）；改为按 SCOPE 选 USER_DIR/PROJ_DIR"
   ]
 }
