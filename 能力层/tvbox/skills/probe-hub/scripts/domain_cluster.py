@@ -16,10 +16,14 @@ sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts'))
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/library'))
 
-from core import SRC_DBS, rows_of  # noqa
+from core import SRC_DBS, rows_of_t  # noqa
 
-db_id = '8JBrhSwsJ3pnPYtoGLo9XV'   # DB_PROD（core.SRC_DBS[0][1]）
-rows = rows_of(db_id)
+# 坐标取自 core（勿写死，旧注释里的 SRC_DBS[0][1] 也是错的——[0] 是线路源库，成品源库按名取）
+db_id = dict(SRC_DBS)['成品源库']   # DB_PROD
+ok, rows = rows_of_t(db_id)
+if not ok:
+    print(f'✗ 无法判定：成品源库读取失败（{db_id}）——不是「没有源」，是读不到；先核库坐标')
+    raise SystemExit(2)
 print('读库成功，条数:', len(rows))
 
 

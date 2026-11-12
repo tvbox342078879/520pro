@@ -1,3 +1,27 @@
+## v1.26.2 — 库坐标接回单真源 + 两脚本三态塌陷修复（2026-11-12）
+
+并回旧仓能力时漏掉的一处机制：旧仓用 `config/asset_ids.py` 读 `config/assets_blocklist.json`
+做「库 id 单真源」，迁移时这套没跟过来，于是 `deliver.py` 与 `domain_cluster.py` 退回写死
+`DB_PROD = '8JBrhSwsJ3pnPYtoGLo9XV'`。520 侧真源是 `tvbox-core.SRC_DBS`（`probe.py` 早就这么取），
+两处行为因此分叉：库重建后 probe 照常工作、投递静默读空，没人看得出来。
+
+- 两个脚本改为 `dict(SRC_DBS)['成品源库']`；删掉 `domain_cluster.py` 里那句错注释
+  （原写 `core.SRC_DBS[0][1]`——`[0]` 是线路源库，成品源库只能按名取）。
+- **三态**：`rows_of` 失败返回 `[]`（兼容旧签名），两处都拿它当「空库」——读失败与真·空库
+  给同一句话，没法归因。改用 `rows_of_t`：读失败 `✗ 无法判定 … 不是「没有源」，是读不到`、rc=2；
+  真·空库 `⚠️ 真·空库（读取成功，0 条）`、rc=0。
+- **退出码**：`deliver.py` 的 `__main__` 原来 `run(a)` 丢返回值，于是打印了无法判定却仍 rc=0
+  ——话说对了、码没说，脚本串联会把失败当成功。改 `raise SystemExit(run(a))`。
+
+实测三分支：读失败 rc=2 / 真空库 rc=0 / 有货正常投递（测活失败那条被健康闸剔除）。
+
+> **顺带查实（未修，待决策）**：`SRC_DBS` 两个坐标与探源司四个册子
+> （`hGwE41OpJDOR8CW0sLUwRx` 失信host、`aCSvley568A0aW3sggzJwA` 上游、
+> `khHl458xi8qK15lVaYfbvU` 候选、`E5I6T2UXIS7CB5r0AkimRl` 采集）逐个直调库务司，
+> 全部 `code=12607 permission denied`；而 space-hub 自建索引库同通道读取正常。
+> 即：**通道没问题，是这批 TVBox 库在当前空间里不存在**（当前空间仅 5 个 database，
+> 无一是 TVBox 库）。库坐标需要重建或改指，属数据域决策，未擅自改。
+
 ## v1.26.1 — `_aes_fallback.py` 从孤儿转为可调用模块 + 两份 AES 实现对账（2026-11-12）
 
 `scripts/_aes_fallback.py` 此前是**孤儿**：文件健康（NIST 向量通过），但全仓 0 处 `import`、

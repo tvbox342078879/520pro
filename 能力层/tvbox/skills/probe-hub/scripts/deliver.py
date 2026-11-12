@@ -18,9 +18,12 @@ import json
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts'))
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/library'))
-from core import rows_of  # noqa
+from core import SRC_DBS, rows_of_t  # noqa
 
-DB_PROD = '8JBrhSwsJ3pnPYtoGLo9XV'
+# 库坐标单真源在 tvbox-core.SRC_DBS，本文件不得写死 id。
+# 硬编码的真实成本：库重建/迁移后这里静默读空或报错，而 probe.py 走 core 照常工作，
+# 两处行为分叉且没人看得出来（旧仓用 config/asset_ids.py 做这件事，520 侧真源是 core）。
+DB_PROD = dict(SRC_DBS)['成品源库']   # 成品源库：真实测活通过 + 已 quality 打分
 
 TYPE_ALIAS = {
     '影视': '影视', '电影': '影视', '追剧': '影视', '剧': '影视',
@@ -60,10 +63,16 @@ def run(a):
     cat = TYPE_ALIAS.get(ttype, ttype)
     as_json = getattr(a, 'json', False)
 
-    rows = rows_of(DB_PROD)
+    ok, rows = rows_of_t(DB_PROD)
+    if not ok:
+        # 读失败 ≠ 空库（M-R60 三态）：旧写法把两者都当「读取为空」，于是库 id 失效
+        # （permission denied）和「库里确实没货」给出同一句话，根本没法归因。
+        print(f'✗ 无法判定：成品源库读取失败（{DB_PROD}）——不是「没有源」，是读不到。'
+              f'多为库坐标失效或云端通道不可达，先核 id 再谈投递。')
+        return 2
     if not rows:
-        print('⚠️ 成品源库读取为空，无法投递（疑似云端通道暂不可达）')
-        return
+        print('⚠️ 成品源库为真·空库（读取成功，0 条）——先跑采集入库')
+        return 0
 
     cands = []
     for r in rows:
@@ -120,4 +129,6 @@ if __name__ == '__main__':
     a.top = 3
     a.type = '影视'
     a.json = False
-    run(a)
+    # 必须把 run 的返回值变成退出码：否则「库读不到」打印了无法判定却仍 rc=0，
+    # 上层调用/脚本串联会把失败当成功（三态塌陷的第二种形态：话说对了但码没说）。
+    raise SystemExit(run(a))

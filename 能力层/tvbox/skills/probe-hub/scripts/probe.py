@@ -9031,7 +9031,12 @@ def dispatch(argv=None):
         cmd_limits(a)
         return
     if a.mod == 'livecheck':
-        cmd_livecheck(a)
+        # 早退分支同样要传退出码：DISPATCH 分支有「rc 非 0 就 sys.exit」的约定，
+        # 但这里直接调函数后 return，cmd_livecheck 的 return 1 被吞掉——
+        # 坏源判了失败、屏幕上写着失败，脚本却 rc=0，串联时当成功继续跑。
+        rc = cmd_livecheck(a)
+        if isinstance(rc, int) and rc != 0:
+            sys.exit(rc)
         return
     if a.mod == 'pak':                    # S171 单文件资源容器（无子命令，直接执行）
         cmd_comb_pak(a)
@@ -9040,7 +9045,9 @@ def dispatch(argv=None):
     if a.mod == 'deliver':                # 大集成消费优选投递（一期）
         sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts'))
         from deliver import run as _deliver_run
-        _deliver_run(a)
+        rc = _deliver_run(a)              # 读不到库要传 rc=2，不能打印完无法判定还当成功
+        if isinstance(rc, int) and rc != 0:
+            sys.exit(rc)
         return
 
     fn = DISPATCH.get((a.mod, getattr(a, 'cmd', None)))

@@ -1,6 +1,6 @@
 {
  "name": "probe-hub-flow",
- "version": "1.26.1",
+ "version": "1.26.2",
  "created": "2026-10-16",
  "source": "规则54四化落地（SKILL.md §1-§7 的机器可读版）；生态第7成员「探源司」立项：上游侦察三模块 monitor/search/harvest",
  "route_decision": {

@@ -1,6 +1,6 @@
 {
  "ecosystem": "520pro",
- "version": "0.8.9",
+ "version": "0.8.10",
  "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
  "based_on": [
   "WorkBuddy 平台运行时",
@@ -194,11 +194,12 @@
   "probe_hub_repair_checkup": "真阳性（不可达域名报 无法判定/未定·网络/先复验，三态未塌陷）",
   "probe_hub_hls_clean": "真阳性（--selftest 6 判定样本 + 4 净化场景全过，61 域名载入）",
   "probe_hub_forge_gate": "真阳性（样例源正确判 size 门禁 FAIL 且 rc=1）",
-  "probe_hub_aes_fallback": "真阳性（NIST 向量通过；--crosscheck 对账 SBOX+明文；变异：改 SBOX 或去填充均翻红）"
+  "probe_hub_aes_fallback": "真阳性（NIST 向量通过；--crosscheck 对账 SBOX+明文；变异：改 SBOX 或去填充均翻红）",
+  "probe_hub_db_coord": "真阳性（deliver/domain_cluster 坐标取自 core.SRC_DBS；三态：读失败 rc=2 / 真空库 rc=0 / 有货正常投递）"
  },
  "probe_hub": {
   "display_name": "探源司",
-  "version": "1.26.1",
+  "version": "1.26.2",
   "source": "tvbox342078879/tvbox-skills-eco (master)",
   "required_set": [
    "probe-hub",
