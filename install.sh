@@ -37,6 +37,7 @@ usage() {
 部署后:
   1) 开【新会话】（规则/技能只在会话启动时加载）
   2) 手机端另按 手机指令.md 手动粘贴（规则文本无法自动同步）
+  3) 回滚：安装前的整目录快照在 ~/.codebuddy/.520_state/skills_snapshot.tar.gz（只留最近一份）
 EOF
 }
 
@@ -60,6 +61,34 @@ PROJ_DIR="$TARGET/.codebuddy"
 # 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/登记册。
 RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json"
 
+# 回滚快照：安装前整目录压一次，只留最近一份（v0.8.6）。
+# 替代此前每个目标各留一份 .bak.<TS> —— 2026-11-12 实测 10 份目录合计 13MB，
+# 其中重复内容占大半；整目录压缩后 3.2MB，且回滚点唯一、不会越装越多。
+SNAP_FILE="$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz"
+
+snapshot_once() {
+  if [ "$DRY" = 1 ]; then
+    echo "  [dry-run] 快照 -> $SNAP_FILE（仅一份，覆盖旧快照）"
+    return 0
+  fi
+  local items=() p
+  for p in skills rules agents commands scripts tvbox; do
+    if [ -e "$HOME/.codebuddy/$p" ]; then items+=("$p"); fi
+  done
+  if [ ${#items[@]} -eq 0 ]; then return 0; fi
+  mkdir -p "$(dirname "$SNAP_FILE")"
+  if tar -czf "$SNAP_FILE.tmp" -C "$HOME/.codebuddy" \
+       --exclude='*.bak.*' --exclude='__pycache__' "${items[@]}" 2>/dev/null; then
+    mv "$SNAP_FILE.tmp" "$SNAP_FILE"
+    # 清历史逐目标 .bak.<TS>（v0.8.5 及更早产物），已被整目录快照取代
+    find "$HOME/.codebuddy/skills" -maxdepth 1 -type d -name '*.bak.*' -exec rm -rf {} + 2>/dev/null || true
+    echo "  (安装前快照: $SNAP_FILE  $(du -h "$SNAP_FILE" | cut -f1)，只留这一份)"
+  else
+    rm -f "$SNAP_FILE.tmp"
+    echo "  ⚠ 快照失败（不阻断安装；回滚真源在仓库 git）"
+  fi
+}
+
 cp_bak() {  # cp_bak <src> <dst>
   local src="$1" dst="$2"
   if [ "$DRY" = 1 ]; then
@@ -70,18 +99,7 @@ cp_bak() {  # cp_bak <src> <dst>
     ""|"/"|"$HOME") echo "  ✗ 拒绝操作危险路径: '$dst'"; return 1 ;;
   esac
   mkdir -p "$(dirname "$dst")"
-  if [ -e "$dst" ]; then
-    cp -r "$dst" "$dst.bak.$TS" 2>/dev/null || true
-    # 只留最近一份备份（v0.8.0 机制级修复：此前每次安装堆一个 .bak.$TS 永不清理，
-    # 2026-11-12 实测顶层堆了 7 个；正本真源在仓库 git，旧备份无保留价值）
-    local old
-    for old in "$dst".bak.*; do
-      [ -e "$old" ] || continue
-      [ "$old" = "$dst.bak.$TS" ] && continue
-      rm -rf "$old" 2>/dev/null || true
-    done
-    echo "  (备份旧件: $dst.bak.$TS)"
-  fi
+  # 逐目标 .bak 已废弃（v0.8.6）：备份统一由 snapshot_once 在安装前做一份整目录快照
   # 覆盖安装：先删目标再拷。此前直接 `cp -r src dst` 且 dst 已存在时，
   # cp 会把源拷成 dst/basename —— 2026-11-12 实测生成
   # ~/.codebuddy/skills/tvbox-core/tvbox-core 全量副本（1.1M），
@@ -209,6 +227,9 @@ echo "════════════════════════�
 echo " 520pro 部署   mode=$SCOPE   target=$TARGET   dry=$DRY"
 echo " 源: $ROOT"
 echo "════════════════════════════════════════════════════"
+echo
+echo "【安装前快照】（回滚点唯一，覆盖旧快照）"
+snapshot_once
 
 case "$SCOPE" in
   generic)
@@ -237,6 +258,12 @@ if [ "$DRY" = 0 ]; then
     exit 1
   fi
   echo " · 自检：技能目录无嵌套副本"
+  # 记录部署版本：bootstrap 迁移器与巡检对账都读这里；不写会让下次 bootstrap 重放迁移
+  if [ -f "$ROOT/VERSION" ]; then
+    mkdir -p "$HOME/.codebuddy/.520_state"
+    cp "$ROOT/VERSION" "$HOME/.codebuddy/.520_state/version"
+    echo " · 部署版本: $(cat "$HOME/.codebuddy/.520_state/version")"
+  fi
 fi
 
 echo

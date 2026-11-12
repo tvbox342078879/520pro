@@ -1,6 +1,6 @@
 {
  "ecosystem": "520pro",
- "version": "0.8.5",
+ "version": "0.8.6",
  "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
  "based_on": [
   "WorkBuddy 平台运行时",
