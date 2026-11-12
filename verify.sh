@@ -7,11 +7,18 @@ TARGET="$(pwd)"
 U="$HOME/.codebuddy"
 P="$TARGET/.codebuddy"
 
-ok(){ printf "  \033[32m✓\033[0m %s\n" "$1"; }
-no(){ printf "  \033[31m✗\033[0m %s\n" "$1"; }
-opt(){ printf "  \033[33m·\033[0m %s\n" "$1"; }
+# ★ v0.8.17（工程E 施工时发现）：非 tty 自动关闭颜色。
+#   原实现无条件上色，导致 `bash verify.sh | grep -c '  ✓'` 恒为 0——
+#   想统计"过了几条"的人得到 0，会误判成"一条都没过"（工程C 的同款假绿，当时只修了 python 脚本，漏了这里）。
+C_OK=""; C_NO=""; C_WARN=""; C_DIM=""
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  C_OK=$'\033[32m'; C_NO=$'\033[31m'; C_WARN=$'\033[33m'; C_DIM=$'\033[0m'
+fi
+ok(){ printf "  %s✓%s %s\n" "$C_OK" "$C_DIM" "$1"; }
+no(){ printf "  %s✗%s %s\n" "$C_NO" "$C_DIM" "$1"; }
+opt(){ printf "  %s·%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
 # ★ v0.8.14（B4·WARN 分级）：卫生问题用黄叹号，与"绿✓通过/红✗失败"三态区分——不折叠
-warn(){ printf "  \033[33m⚠\033[0m %s\n" "$1"; }
+warn(){ printf "  %s⚠%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
 
 echo "================ 520pro 自检 ================"
 echo "HOME=$U   TARGET=$TARGET"
@@ -307,7 +314,7 @@ PYEOF
   fi
 fi
 
-# ★ v0.8.16（工程D）：口径机检——M4 编号连续（九条须带 B-01…B-09 且与序号对齐）+ M2/M5 引用断链
+# ★ v0.8.16（工程D）：口径机检——M4 编号连续（十条须带 B-01…B-10 且与序号对齐）+ M2/M5 引用断链
 # 为什么要有：core-8 的 M5 自己写着"断链/词表误用/编号越界/复制条款四类须全绿"，
 # 但在此之前这四类**没有任何机检入口**（M1 声称的 docs/registry.md 与 verify/terminology_check.py
 # 两个落点当时都不存在）——规则说要查，实际没人查。
