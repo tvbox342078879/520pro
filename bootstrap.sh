@@ -451,11 +451,16 @@ migrate_to_0_8_5() {
 }
 
 migrate_to_0_8_6() {
-  say "  · [0.8.6] 备份改为整目录单份快照（.520_state/skills_snapshot.tar.gz）：清历史 skills/*.bak.* 目录"
+  say "  · [0.8.6] 备份改为整目录单份快照（.520_state/，v0.8.7 起改名 deploy_snapshot.tar.gz）：清历史 skills/*.bak.* 目录"
   run "find \"\$HOME/.codebuddy/skills\" -maxdepth 1 -type d -name '*.bak.*' -exec rm -rf {} + 2>/dev/null || true"
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" )
+migrate_to_0_8_7() {
+  say "  · [0.8.7] 部署快照改名 deploy_snapshot.tar.gz（与 tvbox snapshot 数据快照区分）：迁移旧文件名"
+  run "if [ ! -f \"\$HOME/.codebuddy/.520_state/deploy_snapshot.tar.gz\" ]; then mv \"\$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz\" \"\$HOME/.codebuddy/.520_state/deploy_snapshot.tar.gz\" 2>/dev/null || true; else rm -f \"\$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz\"; fi"
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

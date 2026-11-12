@@ -37,7 +37,7 @@ usage() {
 部署后:
   1) 开【新会话】（规则/技能只在会话启动时加载）
   2) 手机端另按 手机指令.md 手动粘贴（规则文本无法自动同步）
-  3) 回滚：安装前的整目录快照在 ~/.codebuddy/.520_state/skills_snapshot.tar.gz（只留最近一份）
+  3) 回滚：安装前的整目录快照在 ~/.codebuddy/.520_state/deploy_snapshot.tar.gz（只留最近一份）
 EOF
 }
 
@@ -64,14 +64,26 @@ RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json"
 # 回滚快照：安装前整目录压一次，只留最近一份（v0.8.6）。
 # 替代此前每个目标各留一份 .bak.<TS> —— 2026-11-12 实测 10 份目录合计 13MB，
 # 其中重复内容占大半；整目录压缩后 3.2MB，且回滚点唯一、不会越装越多。
-SNAP_FILE="$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz"
+SNAP_FILE="$HOME/.codebuddy/.520_state/deploy_snapshot.tar.gz"
+SNAP_OLD="$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz"  # v0.8.6 及更早的旧名，升级时自动迁移
 
-snapshot_once() {
+deploy_snapshot() {
   if [ "$DRY" = 1 ]; then
     echo "  [dry-run] 快照 -> $SNAP_FILE（仅一份，覆盖旧快照）"
     return 0
   fi
   local items=() p
+  # 旧名迁移（v0.8.7）：skills_snapshot → deploy_snapshot，与 `tvbox snapshot`（数据快照）区分开。
+  # 新旧同时存在时只留新的，避免又出现"两个版本"。
+  if [ -f "$SNAP_OLD" ]; then
+    if [ ! -f "$SNAP_FILE" ]; then
+      mv "$SNAP_OLD" "$SNAP_FILE"
+      echo "  · 旧快照改名: skills_snapshot.tar.gz → deploy_snapshot.tar.gz"
+    else
+      rm -f "$SNAP_OLD"
+      echo "  · 已清旧名快照（新名已存在）"
+    fi
+  fi
   for p in skills rules agents commands scripts tvbox; do
     if [ -e "$HOME/.codebuddy/$p" ]; then items+=("$p"); fi
   done
@@ -99,7 +111,7 @@ cp_bak() {  # cp_bak <src> <dst>
     ""|"/"|"$HOME") echo "  ✗ 拒绝操作危险路径: '$dst'"; return 1 ;;
   esac
   mkdir -p "$(dirname "$dst")"
-  # 逐目标 .bak 已废弃（v0.8.6）：备份统一由 snapshot_once 在安装前做一份整目录快照
+  # 逐目标 .bak 已废弃（v0.8.6）：备份统一由 deploy_snapshot 在安装前做一份整目录快照（与 tvbox snapshot 数据快照无关）
   # 覆盖安装：先删目标再拷。此前直接 `cp -r src dst` 且 dst 已存在时，
   # cp 会把源拷成 dst/basename —— 2026-11-12 实测生成
   # ~/.codebuddy/skills/tvbox-core/tvbox-core 全量副本（1.1M），
@@ -229,7 +241,7 @@ echo " 源: $ROOT"
 echo "════════════════════════════════════════════════════"
 echo
 echo "【安装前快照】（回滚点唯一，覆盖旧快照）"
-snapshot_once
+deploy_snapshot
 
 case "$SCOPE" in
   generic)
