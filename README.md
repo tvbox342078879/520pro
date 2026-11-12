@@ -36,7 +36,7 @@
 │   ├── agents/tvbox-agent.md        →  ~/.codebuddy/agents/
 │   ├── commands/tvbox-sync.md       →  ~/.codebuddy/commands/
 │   ├── scripts/{collect,check,merge}.py → ~/.codebuddy/scripts/
-│   ├── fix_paths.py                 路径适配（/root/.codebuddy → ~/.codebuddy）
+│   ├── fix_paths.py                 路径适配（HOME 绝对路径 → ~/.codebuddy）
 │   ├── CODEBUDDY.md                 （项目级薄壳，兜底用）
 │   ├── rules/{tvbox-style.md, tvbox.paths.md}
 │   └── master_config.example.json

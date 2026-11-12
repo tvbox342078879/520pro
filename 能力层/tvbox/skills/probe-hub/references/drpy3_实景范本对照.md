@@ -355,7 +355,7 @@ VOD_SERVERS=金蝉@https://zy.jinchancaiji.com,789@https://www.caiji.cyou,听风
 VOD_RETURN_MODE=fastest           # fastest=只返回最快站点，all=全返回
 OTHER_SERVER=https://api.danmu.icu
 DANMU_LIMIT=0                     # 0 = 不限条数
-DANMU_PUSH_URL=http://127.0.0.1:9978/action?do=refresh&type=danmaku&path=
+DANMU_PUSH_URL=http://127.0.0.1:<壳端口>/action?do=refresh&type=danmaku&path=   # 壳默认 9978
 DANMU_OUTPUT_FORMAT=json
 ```
 
@@ -409,7 +409,7 @@ DANMU_OUTPUT_FORMAT=json
 - ~~`_lib.cctv.worker.new.js`（4289 行）只看了存在性和文件头，**未逐行读**~~（S196 已补读，见 §8）。
 - ~~`央视频d3.js` / `七星猫短剧d3.js` / `喜福短剧d3.js` 三份未细读~~（S196 已补读，见 §8）。
 - danmu-api 包**未实际启动**~~，路由表由源码注释与 `apis/` 文件名推断~~——S196 已实机跑通，
-  另见 `~/.codebuddy/skills/probe-hub/docs/外置_danmu-api实机部署验证.md`（技能内冗余副本，原 `/workspace/1021/` 临时目录随沙箱漂移、随时可能失效）。
+  另见 `~/.codebuddy/skills/probe-hub/docs/外置_danmu-api实机部署验证.md`（技能内冗余副本；原始临时目录随沙箱漂移已失效）。
 
 ---
 

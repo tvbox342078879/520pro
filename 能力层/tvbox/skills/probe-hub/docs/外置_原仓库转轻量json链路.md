@@ -25,7 +25,7 @@
 > **执行载体**：`scripts/mount_judge.py`（挂载判定器，纯函数可 import；`judge_site(site, base, spider)`）；
 > `harvest lightjson --base <主机>` 已接入——**传了 `--base` 才对本地相对地址活体探测+转绝对，不传则维持原剔除（向后兼容）**；
 > csp 判定会自动用**包级 spider 字段**（`--pkg` 整包的 `spider` 键）判 jar 同名类，spider 本身相对→绝对也会转（已验证转换走 `check_preserve(verified=)` 窄口径豁免，防篡改基线不动）。
-> 正本依据：《做json决策依据_挂载决定论与相对转绝对.md》（原 `/workspace/` 位置已归档：`/root/uploads/历史产物归档_20261023_1014至1020会话.tar.gz` 内 `依据_1018_做json决策依据_挂载决定论与相对转绝对.md`）。
+> 正本依据：《做json决策依据_挂载决定论与相对转绝对.md》（原位置已归档：2026-10-23 会话归档包内 `依据_1018_做json决策依据_挂载决定论与相对转绝对.md`）。
 
 ### 分叉点（挂载决定论·S113/S113b）
 

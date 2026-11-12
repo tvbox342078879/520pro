@@ -614,7 +614,7 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 
 | 脚本 | 来源 | 用途 | 失效/遗留原因 |
 |---|---|---|---|
-| `retry_lives_parses.py` | S117 | 复测直播 parse 出流 | 硬编码已失效路径 `/workspace/原仓库库/cluntop_box原文_1018.json` |
+| `retry_lives_parses.py` | S117 | 复测直播 parse 出流 | 硬编码已失效路径（旧工作区内的原仓库快照 json） |
 | `rebuild_b1018_s116.py` | S116 重建 | 以作者原配置为基线分层重建 | 同上硬编码 + 硬编码本次会话 artifact 路径（换会话即失效） |
 | `rebuild_from_origin.py` | — | 以作者原配置为唯一基线重建 | 同上 |
 | `probe_parse_inject.py` | S173 | parse 档注入回归测试 | 无 `__main__` 守卫，专项回归用，非运行入口 |

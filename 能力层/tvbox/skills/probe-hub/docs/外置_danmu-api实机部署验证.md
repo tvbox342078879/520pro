@@ -149,8 +149,8 @@ cp config/.env.example config/.env
 DANMU_API_PORT=9321 TOKEN=你的token node danmu_api/server.js
 
 # 5. 验证
-curl "http://127.0.0.1:9321/你的token/api/v2/search/anime?keyword=斗罗"
-curl "http://127.0.0.1:9321/你的token/api/v2/comment/<episodeId>?withRelated=true&format=json"
+curl "http://127.0.0.1:<danmu端口>/你的token/api/v2/search/anime?keyword=斗罗"   # danmu-api 默认 9321
+curl "http://127.0.0.1:<danmu端口>/你的token/api/v2/comment/<episodeId>?withRelated=true&format=json"
 ```
 
 **注意端口**：主服务 9321（默认）+ 附带代理 **5321**，两个都要放行。

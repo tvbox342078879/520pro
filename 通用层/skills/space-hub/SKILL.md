@@ -39,7 +39,7 @@ python3 space_hub.py init --list|--space-id <ID>|--title "<标题>"  # 空间登
 python3 space_hub.py inbox                        # 建/确认收件箱（幂等）
 python3 space_hub.py add --node ID [--reason R]   # 单节点投收件箱（移前记原位，可 restore）
 python3 space_hub.py scan [--dry-run] [--dedup N] # 全局扫垃圾，命中即投；dry-run 仅预览
-python3 space_hub.py list [--no-verify]           # 生成待删清单 md+csv（/workspace/待删清单_日期）
+python3 space_hub.py list [--no-verify]           # 生成待删清单 md+csv（<工作区>/待删清单_日期）
 python3 space_hub.py classify [--dry-run] [--yes] # ★归纳：根层级散落文档按登记册归入目标夹
 python3 space_hub.py create-db --schema-file <f.json> --yes  # ★建库（薄封装+写后回读）
 python3 space_hub.py restore --node ID [--target 父ID]  # 误投回退（一键移回原位）

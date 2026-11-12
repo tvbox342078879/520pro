@@ -64,6 +64,26 @@ RELEASE_PATTERNS = [
     re.compile(r'(?i)\b(?:secret|apikey|api_key|access_key|private_key)\s*[:=]\s*["\']?[A-Za-z0-9_\-\.]{16,}'),
 ]
 RELEASE_ALLOW = re.compile(r'(?i)(your[_-]?token|xxx+|placeholder|<[^>]{2,20}>|\*\*\*|REDACTED|CHANGEME)')
+# ★ 卫生项豁免（2026-11-12·工程F·A 口径，M7 有意例外）
+#   历史档案里的个人路径/本地端口是"当时的现场记录"，改成中性词会让历史失真（就查不到
+#   "那次是在哪台机器的哪个目录下测的"）。故这些**只按文件名模式豁免**，必须写理由；
+#   活文档（SKILL.md / README / docs / 现行手册）不在此列——它们必须改文本，不许豁免。
+#   判据：能被新文档命中的模式越窄越好；宽到"所有 md"就等于关掉了这条闸。
+HYGIENE_EXEMPT = (
+    ('CHANGELOG.md', '历史档案：记录当时的路径/端口，改了就失真'),
+    ('legacy_', '历史代码快照：保留原样供对照，不参与分发运行'),
+    ('references/S', '阶段经验档案（S 编号）：当时的现场记录'),
+)
+
+
+def hygiene_exempt(rel):
+    """命中返回豁免理由，否则 None。只认文件名/路径后缀，不做内容判断。"""
+    for pat, reason in HYGIENE_EXEMPT:
+        if rel.endswith(pat) or pat in rel:
+            return reason
+    return None
+
+
 SKIP_DIRS = ('.git', 'node_modules', '__pycache__')
 SCAN_EXT = ('.py', '.sh', '.json', '.md', '.yml', '.yaml', '.toml', '.env', '.txt', '.cfg', '.ini')
 
@@ -180,6 +200,7 @@ def main():
     found = []
     exempted = []
     warns = []                        # ★ B2/B3：WARN 级（发布面卫生，不阻断）
+    exempted_hygiene = []             # ★ 工程F：历史档案里的同类命中（豁免但可见）
     for p in candidate_files(root):
         if not p.endswith(SCAN_EXT):
             continue
@@ -189,6 +210,7 @@ def main():
         except Exception:
             continue
         is_md = rel.endswith(('.md', '.txt'))
+        hy_ex = hygiene_exempt(rel)
         is_tpl = rel.endswith('.example.json')
         for ln, line in enumerate(lines, 1):
             if is_self_sample_line(rel, line):
@@ -215,11 +237,12 @@ def main():
                     found.append((f"{rel}:{ln}", f'疑似真实节点id {mask(m.group(0))}'))
             # ★ B2/B3：文档里的个人路径与本地 endpoint → WARN（换机断链/发布面泄露）
             if is_md:
+                bucket = exempted_hygiene if hy_ex else warns
                 for m in PERSONAL_PATH_RE.finditer(line):
-                    warns.append(('个人绝对路径', f"{rel}:{ln}", m.group(1) + '/…'))
+                    bucket.append(('个人绝对路径', f"{rel}:{ln}", m.group(1) + '/…'))
                     break
                 for m in ENDPOINT_RE.finditer(line):
-                    warns.append(('本地endpoint', f"{rel}:{ln}", m.group(0)[:40]))
+                    bucket.append(('本地endpoint', f"{rel}:{ln}", m.group(0)[:40]))
                     break
     scan_gitconfig(root, found)
     if exempted:
@@ -240,6 +263,12 @@ def main():
         if strict:
             print("✗ --strict：WARN 视同 FAIL")
             sys.exit(2)
+    if exempted_hygiene:
+        by = {}
+        for kind, loc, _ in exempted_hygiene:
+            by[loc.rsplit(':', 1)[0]] = by.get(loc.rsplit(':', 1)[0], 0) + 1
+        print(f"[豁免] 卫生项 {len(exempted_hygiene)} 处／{len(by)} 个历史档案"
+              f"（M7 登记，理由见 secret_scan.py HYGIENE_EXEMPT；活文档不豁免）")
     print(f"✓ 未发现明文密钥 [{profile}]（含 .git/config 复查）")
     sys.exit(0)
 

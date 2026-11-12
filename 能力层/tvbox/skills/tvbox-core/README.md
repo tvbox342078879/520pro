@@ -468,7 +468,7 @@ python3 $SID/database/query_database_record.py --database-id pNwZ9uBOTz6FzRuvu8n
 ## 9. 铁律坐标（M-R / U-R / P-R · S108）
 
 > 本节声明**本技能守护哪些铁律**——机器可读版在 `scripts/flow.json` 的 `iron_rules`。
-> 三册边界见《生态1015_TVBox生态全局规则.md》第十一节（原 /workspace/ 位置已归档：`/root/uploads/历史产物归档_20261023_1014至1020会话.tar.gz`）。
+> 三册边界见《生态1015_TVBox生态全局规则.md》第十一节（原位置已归档：2026-10-23 会话归档包，存于用户上传目录）。
 
 | 族 | 条目 | 本技能如何落地 |
 |---|---|---|

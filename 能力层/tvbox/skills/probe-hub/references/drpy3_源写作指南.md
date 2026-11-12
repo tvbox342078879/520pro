@@ -235,7 +235,7 @@ return [200, 'text/plain', 'ok', { 'Cache-Control': 'no' }, false]; // 五元组
 return [404, 'text/plain', 'Not Found'];           // 缺省兜底
 ```
 
-壳子侧路由（DsPlayer）：`http://127.0.0.1:9978/api/<siteKey>/?do=drpy3&...` → 进源 proxy 钩子。适合图片防盗链中转、分段解密等。
+壳子侧路由（DsPlayer）：`http://127.0.0.1:<壳端口>/api/<siteKey>/?do=drpy3&...`（TVBox 壳默认 9978） → 进源 proxy 钩子。适合图片防盗链中转、分段解密等。
 
 ### 6.9 action — `async action(ctx, action, value)` → 字符串
 
@@ -645,7 +645,7 @@ return {
 
 ```js
 async proxy(ctx, params) {
-  // 壳子路由: http://127.0.0.1:9978/api/<siteKey>/?do=drpy3&do2=...
+  // 壳子路由: http://127.0.0.1:<壳端口>/api/<siteKey>/?do=drpy3&do2=...（默认 9978）
   if (params.do2 === 'img') {
     const res = await ctx.req(params.url, {buffer: 1});   // Uint8Array
     return [200, 'image/png', res.content];
