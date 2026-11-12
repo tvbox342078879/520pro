@@ -113,6 +113,25 @@ fi
 [ -f "$SK/probe-hub/scripts/hls_clean.py" ] && ok "hls_clean.py 广告治理引擎（61 域名黑名单）" || no "hls_clean.py 缺失（广告判定退化）"
 [ -f "$SK/probe-hub/scripts/forge_gate.py" ] && ok "forge_gate.py 写源四门禁" || no "forge_gate.py 缺失（forge gate 不可用）"
 [ -d "$SK/probe-hub/forgekit" ] && ok "forgekit 模板库（forge hook 用）" || no "forgekit 缺失（forge hook 不可用）"
+# AES 兜底（S224）：模块形态供 import、内联片段供 forge hook。两份算法核必须同源，
+# 所以不只查在不在，还要跑 NIST 向量 + 与 forgekit 对账——漂移了要立刻红。
+if [ -f "$SK/probe-hub/scripts/_aes_fallback.py" ]; then
+  ok "_aes_fallback.py AES 兜底模块在位"
+  out=$( cd "$SK/probe-hub/scripts" && timeout 60 python3 _aes_fallback.py 2>&1 ) || true
+  case "$out" in
+    *"NIST 向量: ✅"*) ok "  └ NIST 向量自检通过" ;;
+    *) no "  └ NIST 向量自检未过" ;;
+  esac
+  out=$( cd "$SK/probe-hub/scripts" && timeout 60 python3 _aes_fallback.py --crosscheck 2>&1 )
+  rc=$?
+  case "$rc:$out" in
+    0:*)            ok "  └ 与 forgekit 片段对账一致（SBOX + 同密文）" ;;
+    2:*)            echo "  · 对账无法判定（forgekit 未就近找到，多为副本不完整）" ;;
+    *)              no "  └ 与 forgekit 片段已漂移（两份 AES 实现不一致，改一份漏一份）" ;;
+  esac
+else
+  no "_aes_fallback.py 缺失（羊壳无 Crypto 时无兜底，源会在 import 阶段整挂）"
+fi
 
 echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"

@@ -56,6 +56,8 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | T3.2 | `python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py monitor status` | 输出 `📡 上游仓库监测台（186 个目标）` 表格 |
 | T3.3 | `python3 .../probe.py monitor check --repo https://github.com/xxx/not-exist-999` | 返回 `❌ 未找到目标`（**若编出内容 = 幻觉**） |
 | T3.4 | 新会话说「用探源司看看 hjdhnx/drpy3 还活着吗」 | 命中 probe-hub 技能并调用 |
+| T3.5a | `python3 ~/.codebuddy/skills/probe-hub/scripts/_aes_fallback.py --crosscheck` | `SBOX 一致: ✅` + `同密文解密一致: ✅`，rc=0；单独拷走该文件再跑应报「无法判定」rc=2 |
+| T3.5b | `python3 ~/.codebuddy/skills/probe-hub/scripts/_aes_fallback.py --decrypt <密文> --key <32hex> --iv <32hex>` | 解出明文；key 给 4 字节应显式报「必须是 16 字节」rc=2，错 key 应 rc=1 且**不输出乱码** |
 | T3.5 | `python3 ~/.codebuddy/skills/probe-hub/scripts/hls_clean.py --selftest` | `✓ 全部通过（6 条判定样本 + 4 个净化场景）`，黑名单载入 61 条 |
 | T3.6 | `python3 ~/.codebuddy/skills/probe-hub/verify/gate_r221_death_taxonomy.py` | `✓ M-R221 分型闸门通过（5 项）`，rc=0 |
 | T3.7 | `python3 ~/.codebuddy/skills/probe-hub/verify/gate_r222_repair_contract.py` | `✓ M-R222 契约闸门通过（6 项）`，rc=0 |
@@ -112,6 +114,7 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | 技能 | T2.3 脚本路径适配 | ☐ | ☐ | ☐ |
 | **探源司** | **T3.2 monitor status** | ☐ | ☐ | ☐ |
 | **探源司** | **T3.3 反证不编** | ☐ | ☐ | ☐ |
+| **探源司** | **T3.5a AES 对账** | ☐ | ☐ | ☐ |
 | **探源司** | **T3.6 R221 闸门** | ☐ | ☐ | ☐ |
 | **探源司** | **T3.8 死因三态** | ☐ | ☐ | ☐ |
 | **探源司** | **T3.10 删除即翻红** | ☐ | ☐ | ☐ |

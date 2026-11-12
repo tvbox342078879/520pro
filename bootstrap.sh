@@ -468,7 +468,12 @@ migrate_to_0_8_8() {
   fi
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" "0.8.8" )
+migrate_to_0_8_9() {
+  say "  · [0.8.9] 探源司 1.26.1：_aes_fallback 补命令行入口与对账，清旧 pyc"
+  run "rm -rf \"\$HOME/.codebuddy/skills/probe-hub/scripts/__pycache__\" 2>/dev/null; true"
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" "0.8.8" "0.8.9" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

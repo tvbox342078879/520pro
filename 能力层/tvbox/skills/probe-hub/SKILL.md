@@ -1,7 +1,7 @@
 ---
 name: probe-hub
-description: "探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测作者仓库动态（存活/内容变更/新增文件/活跃度）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12；写源四门禁 `gate`（能播放/稳定兜底/内容齐全/精简体积，S223）、模板库内联 `hook`（flags/线路分组/封面/AES兜底打进单文件，S225），见 §3.12.2。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定；`livecheck` 单条/批量输出带死因分型（S221）。★修源 `repair`：死因七型→五路由（换域/接口改道/小补/整站重写/复验），checkup/route/drafts/apply/repair/recon/rewrite 七动作，**没验过不许说修好**，见 §3.17。★广告治理 `hls_clean`：61 域名黑名单 + Allow→Block→启发式三段判定，`quality` 的广告判定已委托它（S225），见 §3.11。★破甲 `decrypt`。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 / 探源司 / 真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / DmaxPro908 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳 / 修源 / 源失效了怎么修 / 这个源为什么挂了 / 死因 / 死因分型 / 广告分片 / 广告太多 / HLS 净化 / 写源四门禁 / 模板内联。"
-version: "1.26.0"
+description: "探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测作者仓库动态（存活/内容变更/新增文件/活跃度）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12；写源四门禁 `gate`（能播放/稳定兜底/内容齐全/精简体积，S223）、模板库内联 `hook`（flags/线路分组/封面/AES兜底打进单文件，S225），见 §3.12.2。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定；`livecheck` 单条/批量输出带死因分型（S221）。★修源 `repair`：死因七型→五路由（换域/接口改道/小补/整站重写/复验），checkup/route/drafts/apply/repair/recon/rewrite 七动作，**没验过不许说修好**，见 §3.17。★广告治理 `hls_clean`：61 域名黑名单 + Allow→Block→启发式三段判定，`quality` 的广告判定已委托它（S225），见 §3.11。★破甲 `decrypt`。★AES 兜底 `scripts/_aes_fallback.py`：羊壳无 pycryptodome 时的纯 Python 解密路径，可 import 可命令行（`--decrypt`），`--crosscheck` 与 forgekit 内联片段对账防漂移，见 §3.12.3。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 / 探源司 / 真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / DmaxPro908 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳 / 修源 / 源失效了怎么修 / 这个源为什么挂了 / 死因 / 死因分型 / 广告分片 / 广告太多 / HLS 净化 / 写源四门禁 / 模板内联。"
+version: "1.26.1"
 ---
 
 > **🗣 语言铁律（M-R110 · 全模型适用）**：本技能所有输出——正文、思考过程、进度播报、
@@ -366,6 +366,7 @@ tvbox probe harvest promote --in <候选.json>
 | `scripts/quality.py` | 单条：拉主清单 → 读 RESOLUTION → 拉首分片测耗时与速率 → 扫广告特征 → 合成质量分 |
 | `scripts/quality_batch.py` | 接两库：读库 → 取播放地址 → 8 并发评测 → 回填 6 字段 |
 | `scripts/hls_clean.py` | ★广告治理引擎（S225）：61 域名黑名单 + Allow→Block→启发式三段判定 + m3u8 净化（删广告分片 / 序列号重排 / 时长保护） |
+| `scripts/_aes_fallback.py` | ★纯 Python AES-128-CBC 兜底（S224）：羊壳无 pycryptodome 时唯一的解密路径。**模块形态**，写源时 `from _aes_fallback import decrypt_bytes`；也可命令行救急 `--decrypt 密文 --key <hex> --iv <hex>`；`--crosscheck` 与 forgekit 内联片段对账 |
 
 **回填字段**（两库同名）：`最高画质`/`首片耗时`/`下载速率`/`广告判定`/`质量分`/`质量证据`。
 **评分 v3**：画质是门槛、速度只加减分。三条硬限制与四解析坑见正本——**它们都会让「好源被判死」**。
@@ -419,6 +420,35 @@ tvbox probe forge hook <源.py> [--only pic,aes] [--dry-run] [--gate]  # 模板�
 - `hook` 调 `forgekit/builder.py`，把提取四件套（播放标志 / 线路分组 / 封面 / AES 兜底）内联进单文件源。
   默认就地改写并留 `.bak`；`--out` 另存不动原件；`--dry-run` 只算不写；`--gate` 注入后顺带过门禁。
   并非每个源都需要：接口直返 `vod_play_url` 的纯 CMS 源内联只会白占体积，所以做成**显式按需注入**。
+
+### 3.12.3 ★ AES 兜底的两种形态（别用错，也别只改一份）
+
+生态第一大坑：羊壳没有 pycryptodome，顶层 `from Crypto.Cipher import AES` 会让**整个源在 import 阶段挂掉**
+——症状是「源加载失败」而不是「解密失败」，用户根本没法归因。所以必须 try/except 降级。降级代码有**两种形态**，
+用途不同，不能互换：
+
+| 形态 | 位置 | 什么时候用 | 接口 |
+|---|---|---|---|
+| **模块** | `scripts/_aes_fallback.py` | 人写源时 `import`；命令行救急 | `aes_cbc_decrypt()` 只解密 / `decrypt_bytes()` 解密+去填充 / `unpad()` |
+| **内联片段** | `forgekit/_template_src.py` | `forge hook --only aes` 拼进单文件源 | `_aes_cbc_decrypt()` 解密后**内联严格校验** PKCS#7 |
+
+**为什么不能只留一份**：`forge hook` 的产物必须**自包含**（丢进羊壳就能跑，不许再 import 外部模块），
+所以只能内联源码文本；而人写源时内联一份 177 行 AES 是噪音，import 更干净。这是形态差异，不是重复实现。
+
+**但算法核必须同源**——两份的 SBOX 与 key 扩展一旦漂移，就是"改一份漏一份、静默错"。所以有闸门：
+
+```bash
+python3 scripts/_aes_fallback.py              # NIST AES-128-CBC 向量自检
+python3 scripts/_aes_fallback.py --crosscheck # 与 forgekit 片段对账（SBOX + 同密文结果）
+python3 scripts/_aes_fallback.py --decrypt payload.bin --key <32hex> --iv <32hex> [--out f]
+```
+
+`--crosscheck` 找不到 `forgekit/`（模块被单独拷走）时按三态报「无法判定」rc=2，**不报通过**。
+两条都已进 `verify.sh`。
+
+**硬约束**：只支持 AES-128（16 字节 key），长度不对必须显式抛错；只做解密不做加密；
+**>100KB 必须走 pycryptodome**——纯 Python 解 457KB 要 12~18 秒，超出壳端图片加载窗口，
+表现为「大图不显示、小图正常」，会被误判成源坏了。
 
 ## 3.13 ★ 静默缺陷六例（S169/S170/S171/S172）
 
