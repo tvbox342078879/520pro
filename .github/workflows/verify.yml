@@ -1,0 +1,45 @@
+name: verify
+
+# ★ H3（v0.8.20 工程H）：远端闸。
+#   为什么加：本地判据全靠"我主动跑"，模型不跑就没人知道；CI 在远端执行，
+#   模型碰不到、绕不过，是唯一"无法用嘴糊弄"的判据点。
+#   为什么先装机：verify.sh 检查的是「安装副本 + 仓库」，干净 runner 上没有
+#   ~/.codebuddy，直接跑会整片红（恒红等于没有 CI）。所以先装进临时 HOME，
+#   顺带把"新机装得上、装完能自检"这件事本身也验了。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 装机 + 自检 + 密钥扫描
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 装到临时 HOME（模拟新机，不污染 runner）
+        run: |
+          export HOME="$RUNNER_TEMP/cihome"
+          mkdir -p "$HOME"
+          bash install.sh --user-skill
+          echo "HOME=$HOME" >> "$GITHUB_ENV"
+
+      - name: 自检（失败即红，退出码 2）
+        run: bash verify.sh --target "$GITHUB_WORKSPACE"
+
+      - name: 判据自证（防止判据恒真/静默失效）
+        run: bash verify.sh --selftest --target "$GITHUB_WORKSPACE"
+
+      - name: 密钥与卫生扫描（strict）
+        run: python3 secret_scan.py --strict
