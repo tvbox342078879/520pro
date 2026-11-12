@@ -12,7 +12,7 @@
 | 8.15 做JSON标准流程SOP | `docs/外置_做JSON标准流程SOP.md`（权威源 `scripts/sop_makejson.json`）|
 | 8.10 端到端十一步（机器可读）| `scripts/flow.json` |
 | 8.13 底包细分类 | 《标准1015_底包细分类体系.md》（已归档：`/root/uploads/历史产物归档_20261023_1014至1020会话.tar.gz`） |
-| 8.17 规则 54 四化 | 总册 + `scripts/rules_registry.json` |
+| 8.17 规则 54 四化 | 总册（`rules_registry.json` 属旧生态 artefact，520pro 未随迁；本仓口径真源见 `docs/registry.md`）|
 
 > 技能不是孤岛。本体系把分散的技能连成**可自升级的技能生态**：统一登记、互相发现、联动触发。
 

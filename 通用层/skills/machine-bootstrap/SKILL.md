@@ -1,6 +1,6 @@
 ---
 name: machine-bootstrap
-version: "1.0.0"
+version: "1.0.1"
 description: 在新设备、重装或迁移时，用一条幂等命令从 git 真源重建有界工作副本并校验三通道，全程零明文凭证。适用于换机与环境初始化。 能力：①幂等克隆（从 git 真源重建有界工作副本，sparse 只取必需目录）；②三通道校验（薄壳 / 规则目录 / 手机指令，按三态报告）；③零明文凭证（凭据只走环境变量或参数，脚本自检 ghp_ 命中即中止）；④换机后首次对账（版本号 + 演化台账）。不要用于：整库全拉（产物/资料库不进工作副本）；不要用于重搭规则与记忆（那属规则真源与记忆治理）；不要用于删除远端任何内容。
 allowed-tools: Read, Grep, Glob, Bash
 ---
@@ -21,15 +21,16 @@ allowed-tools: Read, Grep, Glob, Bash
 - 新设备接入、重装、迁移、协作克隆，或用户要求初始化环境时。
 
 ## 工作流
-1. 确认 `BOOTSTRAP_REPO` 已设置；未设置则向用户索取，**不猜测、不写死**。
-2. 执行幂等克隆脚本（**可选件，本脚手架未搬入**）。脚本路径用官方占位符 `${CODEBUDDY_SKILL_DIR}`，避免"顶层 skills/ 与 .codebuddy/skills/ 不一致"导致路径断裂：
+1. 确认源地址；用户没给就**开口问，不猜测、不写死**。
+2. 执行换机司脚本。**脚本在仓库根 `bootstrap.sh`，不在本技能目录内**（技能目录只发说明书；手机/无仓库场景按 `手机指令.md` 的 `curl` 一行拉取）；参数是**位置参数**，无 `--repo/--sparse`：
 ```bash
-export BOOTSTRAP_REPO="<本生态 git 地址>"
-bash "${CODEBUDDY_SKILL_DIR}/scripts/bootstrap.sh" \
-  --repo "$BOOTSTRAP_REPO" \
-  --sparse "code,.codebuddy,docs"
+bash bootstrap.sh "<本生态 git 地址>" full ~/520pro --install
+#   位置1=源  位置2=shape(full|lite)  位置3=目标目录
+#   --dry-run 只打印不落盘；--install 换机后自动装技能
 ```
-3. **不提供 `--verify`**：官方 Skills/Memory/Settings 文档均无此能力，`bootstrap.sh` 亦未搬入；三通道就位改用 L2 三态实测确认（`.codebuddy/CODEBUDDY.md` 薄壳、`.codebuddy/rules/`、手机"给 WorkBuddy 的指令"）。不得宣称 `--verify` 通过。
+3. **不提供 `--verify`**：官方 Skills/Memory/Settings 文档均无此能力，脚本也没有该开关——三通道是否到位改用 L2 三态实测确认（`.codebuddy/CODEBUDDY.md` 薄壳、`.codebuddy/rules/`、手机"给 WorkBuddy 的指令"）。不得宣称 `--verify` 通过。
+
+> 2026-11-12 修正（工程D 施工时实查）：原文写"可选件、本脚手架未搬入"且给了 `${CODEBUDDY_SKILL_DIR}/scripts/bootstrap.sh --repo --sparse`——脚本实际早在仓库根，且无这两个参数。照原文跑必然失败，属文档断链，已改正。
 4. 报告结果按三态：**真阳性 / 真阴性 / 无法判定**；不以"没查到"充当"没有"。
 
 ## 职责与边界

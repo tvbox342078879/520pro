@@ -1,5 +1,9 @@
 # inspect-hub CHANGELOG
 
+## v1.3.2 — 触发样本集 + 文档断链修复（2026-11-12）
+- 新增 `references/trigger-samples.md`：T8/N6/B4；B01 固化「检查器跑不起来 ≠ 没问题」记「无法判定」标灰
+- N 组划清与 probe-hub（盯外部）/ skill_contract_check（确定性判据）的边界
+
 ## v1.3.1 — target 自解析 + 版本号对齐（2026-11-12）
 
 - **仓库根自解析**：`--target` 缺省不再硬取 `'.'`，改为从 cwd 逐级向上找含 `MANIFEST.json`

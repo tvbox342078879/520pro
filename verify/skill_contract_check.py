@@ -109,11 +109,15 @@ def changelog_version(path):
     return None
 
 
-def walk_files(base, skip_names):
-    """列相对路径（跳过缓存/临时/运行时态）。"""
+def walk_files(base, skip_names, skip_dirs=()):
+    """列相对路径（跳过缓存/临时/运行时态）。
+
+    skip_dirs 来自 contracts.json 的 runtime_dirs（不硬编码在脚本里，保持单一真源）：
+    运行时目录随使用增长，源仓与装副本必然不同，参与比对只会产生假阳。
+    """
     out = []
     for root, dirs, files in os.walk(base):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and d not in skip_dirs]
         for f in files:
             if os.path.splitext(f)[1] in SKIP_EXT or f in skip_names or '.bak' in f:
                 continue
@@ -233,7 +237,7 @@ def check_version(name, spec, base, repo):
 
 
 # ────────────────────────── C5 镜像一致 ──────────────────────────
-def check_mirror(name, spec, base, install_root, runtime, required=False):
+def check_mirror(name, spec, base, install_root, runtime, required=False, skip_dirs=()):
     dst = os.path.join(install_root, name)
     if not os.path.isdir(dst):
         if required:
@@ -242,8 +246,8 @@ def check_mirror(name, spec, base, install_root, runtime, required=False):
         else:
             rec('C5', name, '·', f'安装副本不存在（{dst}）——无法判定，不折算通过')
         return
-    src_files = walk_files(base, runtime)
-    dst_files = walk_files(dst, runtime)
+    src_files = walk_files(base, runtime, skip_dirs)
+    dst_files = walk_files(dst, runtime, skip_dirs)
     diffs, missing, extra = [], [], []
     for rel in src_files:
         dp = os.path.join(dst, rel)
@@ -286,8 +290,27 @@ def check_samples(name, spec, base):
     short = [f'{g}{got[g]}/{SAMPLE_MIN[g]}' for g in ('T', 'N', 'B') if got[g] < SAMPLE_MIN[g]]
     if short:
         rec('C6', name, '✗', f'样本分组不足 {" ".join(short)}（阈值 T≥8 N≥6 B≥3）')
-    else:
-        rec('C6', name, '✓', f'样本齐备 T{got["T"]}/N{got["N"]}/B{got["B"]}')
+        return
+    # ★ 只数条数是不够的：T 组样本若只写 prompt 不写「预期第一动作」，
+    #   就只能证明"该触发"，证明不了"触发后做对"——那正是这类样本集的核心价值。
+    #   N 组同理，必须写「应归谁」，否则"不该触发"没有落点。
+    blocks = re.split(r'(?m)^#{2,4}\s*(T\d+|N\d+)', txt)
+    miss_t, miss_n = [], []
+    for i in range(1, len(blocks) - 1, 2):
+        sid, body = blocks[i], blocks[i + 1]
+        if sid.startswith('T') and '预期第一动作' not in body:
+            miss_t.append(sid)
+        if sid.startswith('N') and '应归谁' not in body:
+            miss_n.append(sid)
+    if miss_t or miss_n:
+        detail = []
+        if miss_t:
+            detail.append(f'T 组缺「预期第一动作」：{", ".join(miss_t)}')
+        if miss_n:
+            detail.append(f'N 组缺「应归谁」：{", ".join(miss_n)}')
+        rec('C6', name, '✗', '；'.join(detail) + '（只写 prompt 的样本证明不了触发后做对）')
+        return
+    rec('C6', name, '✓', f'样本齐备 T{got["T"]}/N{got["N"]}/B{got["B"]}（T 均带第一动作、N 均带归属）')
 
 
 # ────────────────────────── 主流程 ──────────────────────────
@@ -339,7 +362,8 @@ def main(argv):
         else:
             rec('C3', name, '·', 'lib 类：不注册路由，desc 五组契约不适用')
         check_version(name, spec, base, repo)
-        check_mirror(name, spec, base, install, runtime, require_mirror)
+        check_mirror(name, spec, base, install, runtime, require_mirror,
+                     tuple(reg.get('runtime_dirs') or ()))
         check_samples(name, spec, base)
         print()
 

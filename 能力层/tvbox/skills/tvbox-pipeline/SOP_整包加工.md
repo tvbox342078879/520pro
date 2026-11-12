@@ -70,13 +70,14 @@ version: "1.1.0"
 - 若含中文域名 → **转 punycode**（`xn--`）再写入（§4.2c 规范一）
 - 若绝对地址含中文路径 → 必须保持原样不编码（§4.2c 规范二）
 
-## 1.3 可执行骨架（`scripts/pipeline.py`，S068 建档）
+## 1.3 可执行骨架（`tvbox-core/scripts/pipeline.py`，S068 建档）
 
 > 本技能从"纯文档 SOP"升为**"文档 + 脚本"双轨**：把 §2/§3/§4/§5 里**最机械、最易错**的五步固化为可复跑命令。
 > **文档仍是 SSOT**（脚本口径严格跟随 §0-§10；冲突以文档为准），脚本只是"把文档的手工动作自动化"。
 
 ```bash
-python3 scripts/pipeline.py <命令>
+TVBOX_CORE="${TVBOX_CORE:-$HOME/.codebuddy/skills/tvbox-core}"
+python3 "$TVBOX_CORE/scripts/pipeline.py" <命令>
 ```
 
 | 命令 | 对应章节 | 作用 |

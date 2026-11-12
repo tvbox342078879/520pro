@@ -1,5 +1,9 @@
 # space-hub · 库务司 CHANGELOG
 
+## v2.6.1 — 触发样本集 + 文档断链修复（2026-11-12）
+- 新增 `references/trigger-samples.md`：T10/N6/B5，T 组均带「预期第一动作」、N 组均带「应归谁」。B01 直接采用 2026-11-12 真实案例（01·数据源总库 名字带库但内容已移空，该不该 force 删）
+- 样本强调三条现场教训：先 init 解析空间、AI 无删除权只投收件箱、unknown 不折叠成 fresh
+
 ## v2.6.0 — 数据保全四件套：快照/原子写/轮换/自愈 + 迁移锁 + force 审计（2026-11-12）
 
 机制借鉴 Memory Palace（snapshot.py / write_lane / DB_MIGRATION_LOCK），逐条对应本日三次现场事故。

@@ -1,3 +1,7 @@
+## v1.3.8 — 触发样本集 + 文档断链修复（2026-11-12）
+- 新增 `references/trigger-samples.md`：T9/N7/B4；N 组把「找源/修源/写源」三类全部划回 probe-hub
+- 修文档断链：`scripts/pipeline.py` 实际在 `tvbox-core/scripts/pipeline.py`（SOP §1.3 两处引用同步改正）
+
 ## 2026-10-25 v1.3.7
 - 由 skill-evolution upgrade 自动提升（1.3.6 → 1.3.7）
 - 依据 M-R111 提案：跨技能学习：借鉴 [T-J] 高危schema变更先在测试库演练（跨技能学习：字段级 schema 变更（枚举增删/改类型/重建字段）前 场景可借鉴）

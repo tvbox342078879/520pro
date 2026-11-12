@@ -288,18 +288,48 @@ if [ -f "$TARGET/verify/skill_contracts.json" ] && [ -f "$TARGET/install.sh" ]; 
   if python3 - "$TARGET" <<'PYEOF'
 import json, re, sys
 t = open(sys.argv[1] + '/install.sh', encoding='utf-8').read()
-m = re.search(r'^RUNTIME_FILES="([^"]*)"', t, re.M)
-if not m:
+reg = json.load(open(sys.argv[1] + '/verify/skill_contracts.json', encoding='utf-8'))
+mf = re.search(r'^RUNTIME_FILES="([^"]*)"', t, re.M)
+md = re.search(r'^RUNTIME_DIRS="([^"]*)"', t, re.M)
+if not mf:
     sys.exit(1)                      # install.sh 里找不到清单 = 契约无从对账
-inst = set(m.group(1).split())
-reg = set(json.load(open(sys.argv[1] + '/verify/skill_contracts.json', encoding='utf-8'))['runtime_files'])
-sys.exit(0 if not (inst - reg) else 1)
+inst_f = set(mf.group(1).split())
+reg_f = set(reg['runtime_files'])
+inst_d = set(md.group(1).split()) if md else set()
+reg_d = set(reg.get('runtime_dirs') or [])
+bad = (inst_f - reg_f) or (inst_d - reg_d) or (reg_d - inst_d)
+sys.exit(0 if not bad else 1)
 PYEOF
   then
-    ok "运行时豁免清单两处同源（contracts.json ⊇ install.sh RUNTIME_FILES）"
+    ok "运行时豁免清单两处同源（文件 + 目录，contracts.json ↔ install.sh）"
   else
-    no "运行时豁免清单漂移（install.sh 有而 contracts.json 无——镜像闸会误报）"
+    no "运行时豁免清单漂移（文件或目录，install.sh ↔ contracts.json 不一致——镜像闸会误报）"
   fi
+fi
+
+# ★ v0.8.16（工程D）：口径机检——M4 编号连续（九条须带 B-01…B-09 且与序号对齐）+ M2/M5 引用断链
+# 为什么要有：core-8 的 M5 自己写着"断链/词表误用/编号越界/复制条款四类须全绿"，
+# 但在此之前这四类**没有任何机检入口**（M1 声称的 docs/registry.md 与 verify/terminology_check.py
+# 两个落点当时都不存在）——规则说要查，实际没人查。
+echo
+echo "[口径机检（v0.8.16 起·工程D：M4 编号 / M5 引用断链）]"
+if [ -f "$TARGET/verify/terminology_check.py" ]; then
+  tout="$(python3 "$TARGET/verify/terminology_check.py" --repo "$TARGET" 2>&1)"
+  tstat=$?
+  tok=$(printf '%s\n' "$tout" | grep -c '  ✓ \[' || true)
+  tno=$(printf '%s\n' "$tout" | grep -c '  ✗ \[' || true)
+  tskip=$(printf '%s\n' "$tout" | grep -c '  · \[' || true)
+  if [ "$tno" -gt 0 ] || [ "$tstat" -ne 0 ]; then
+    no "口径机检 $tno 项失败——详情: python3 verify/terminology_check.py"
+    printf '%s\n' "$tout" | grep '  ✗ \[' | head -4 | sed 's/^/     /'
+  elif [ "$tskip" -gt 0 ]; then
+    # 有项判不了就不算通过（三态：无法判定 ≠ 通过）
+    warn "口径机检 $tok 项通过，另有 $tskip 项无法判定（缺真源文件，不算通过）"
+  else
+    ok "口径机检通过（$tok 项全绿：编号连续 + 引用无断链）"
+  fi
+else
+  no "verify/terminology_check.py 缺失（M5 口径机检未装）"
 fi
 
 echo "============================================"

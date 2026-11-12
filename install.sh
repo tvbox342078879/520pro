@@ -62,6 +62,11 @@ PROJ_DIR="$TARGET/.codebuddy"
 # 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/监测目标/候选。
 RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json monitor_targets.json monitor_domains.json monitor_pubsources.json dead_repos.json shellcrack_cands.json"
 
+# 运行时**目录**：整目录随使用增长，同样属本机私产，不随分发包走。
+# space-hub 的 scripts/snapshots/ 是 state 写前快照（工程A 的"改坏了能回滚"保证），
+# 只保文件不保目录 → 安装时整目录被 cp 进去（2026-11-12 实测 C5 镜像闸报"装副本多余"抓出）。
+RUNTIME_DIRS="snapshots"
+
 # 回滚快照：安装前整目录压一次，只留最近一份（v0.8.6）。
 # 替代此前每个目标各留一份 .bak.<TS> —— 2026-11-12 实测 10 份目录合计 13MB，
 # 其中重复内容占大半；整目录压缩后 3.2MB，且回滚点唯一、不会越装越多。
@@ -117,12 +122,19 @@ cp_bak() {  # cp_bak <src> <dst>
   # cp 会把源拷成 dst/basename —— 2026-11-12 实测生成
   # ~/.codebuddy/skills/tvbox-core/tvbox-core 全量副本（1.1M），
   # 技能目录里出现"第二份实现"，改哪份生效都说不清。
-  local tmpdir="" f
+  local tmpdir="" f d
   if [ -d "$dst/scripts" ]; then
     for f in $RUNTIME_FILES; do
       [ -e "$dst/scripts/$f" ] || continue
       [ -n "$tmpdir" ] || tmpdir="$(mktemp -d)"
       cp -a "$dst/scripts/$f" "$tmpdir/$f"
+    done
+    # ★ v0.8.16（工程D 修）：运行时**目录**同样要保现场（快照目录有几十份历史态，
+    #   丢了就失去"改坏了能回滚"的保证）。只保文件不保目录，是工程A 的遗漏。
+    for d in $RUNTIME_DIRS; do
+      [ -d "$dst/scripts/$d" ] || continue
+      [ -n "$tmpdir" ] || tmpdir="$(mktemp -d)"
+      cp -a "$dst/scripts/$d" "$tmpdir/$d"
     done
   fi
   if [ -e "$dst" ]; then rm -rf "$dst"; fi
@@ -135,6 +147,11 @@ cp_bak() {  # cp_bak <src> <dst>
     for f in $RUNTIME_FILES; do
       [ -e "$dst/scripts/$f" ] && rm -f "$dst/scripts/$f"
     done
+    # 运行时目录同理：本机快照不许随分发包走（2026-11-12 实测：space-hub 的 snapshots/
+    # 被整目录拷进安装副本，C5 镜像闸报"装副本多余"抓出——分发包里带着别人的历史状态）
+    for d in $RUNTIME_DIRS; do
+      [ -d "$dst/scripts/$d" ] && rm -rf "$dst/scripts/$d"
+    done
   fi
   if [ -n "$tmpdir" ]; then
     mkdir -p "$dst/scripts"
@@ -144,6 +161,11 @@ cp_bak() {  # cp_bak <src> <dst>
       # 现场优先：仓库工作区里可能残留一份过期的运行时文件，装完不能反把现场盖掉
       cp -a "$tmpdir/$f" "$dst/scripts/$f"
       kept="$kept $f"
+    done
+    for d in $RUNTIME_DIRS; do
+      [ -d "$tmpdir/$d" ] || continue
+      cp -a "$tmpdir/$d" "$dst/scripts/$d"
+      kept="$kept $d/"
     done
     rm -rf "$tmpdir"
     echo "  · 已保留运行时数据（${kept:-无}）"
