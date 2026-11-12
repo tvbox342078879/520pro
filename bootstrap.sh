@@ -324,10 +324,11 @@ check() { if [ -e "$1" ]; then say "  ✔ $1"; else echo "  ✘ 缺失 $1" >&2; 
 check "MANIFEST.json"
 check "install.sh"
 check "verify.sh"
+check "VERSION"
 
 if [ "$SHAPE" = full ]; then
   check "通用层/rules/core-8.md"
-  for s in artifact-store feature-gate machine-bootstrap skill-evolution learn-hub; do
+  for s in artifact-store feature-gate machine-bootstrap skill-evolution learn-hub space-hub inspect-hub; do
     check "通用层/skills/$s/SKILL.md"
   done
   for s in probe-hub tvbox-pipeline; do
@@ -352,6 +353,68 @@ if [ "$DO_INSTALL" = 1 ] && [ "$ok" -eq 1 ]; then
   else
     echo "  ✘ 安装失败" >&2; ok=0
   fi
+fi
+
+# ────────────────────── 版本化迁移（借 tvbox-eco upgrade.sh 思想，v0.8.0 起）──────────────────────
+# 铁律: ① 本地已部署版本记在 ~/.codebuddy/.520_state/version，与仓库 VERSION 对账
+#       ② 逐条应用 DEPLOYED → TARGET 之间的 migrate_to_<ver>（一次性动作，全部幂等）
+#       ③ 已是最新 → 跳过全部迁移；VERSION 不可读 → 明说无法判定，不瞎迁
+#       ④ 新版本发布时在此追加 migrate_to_<ver> 函数并登记进 MIGRATIONS 列表
+STATE_DIR="$HOME/.codebuddy/.520_state"
+DEPLOYED_VER="$(cat "$STATE_DIR/version" 2>/dev/null || echo "0.0.0")"
+TARGET_VER="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || cat VERSION 2>/dev/null || echo "")"
+
+v_ge() {  # $1 >= $2 ?
+  [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1)" = "$2" ]
+}
+
+migrate_to_0_6_0() {
+  say "  · [0.6.0] 清理 tvbox-janitor 半成品（已被库务司 space-hub 取代）"
+  run "rm -rf \"\$HOME/.codebuddy/skills/tvbox-janitor\""
+}
+
+migrate_to_0_7_0() {
+  say "  · [0.7.0] 清理 skills 顶层 .bak.* 历史备份 + 补装巡检司副本"
+  run "rm -rf \"\$HOME\"/.codebuddy/skills/*.bak.*"
+  if [ -d "通用层/skills/inspect-hub" ]; then
+    run "cp -r 通用层/skills/inspect-hub \"\$HOME/.codebuddy/skills/\""
+  fi
+}
+
+migrate_to_0_7_1() {
+  say "  · [0.7.1] 同步巡检司 v1.1.0 副本（adversarial + 带过执法）"
+  if [ -d "通用层/skills/inspect-hub" ]; then
+    run "cp -r 通用层/skills/inspect-hub/. \"\$HOME/.codebuddy/skills/inspect-hub/\""
+  fi
+}
+
+migrate_to_0_8_0() {
+  say "  · [0.8.0] 引入版本化迁移机制本身，本版无一次性动作"
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" )
+
+say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
+if [ -z "$TARGET_VER" ]; then
+  say "  ⚠ 仓库 VERSION 不可读 → 无法判定迁移区间，跳过迁移（不瞎迁）"
+elif v_ge "$DEPLOYED_VER" "$TARGET_VER"; then
+  say "  ✔ 已是最新（v$DEPLOYED_VER），幂等跳过全部迁移"
+else
+  applied=0
+  for v in "${MIGRATIONS[@]}"; do
+    if v_ge "$TARGET_VER" "$v" && ! v_ge "$DEPLOYED_VER" "$v"; then
+      "migrate_to_$(echo "$v" | tr '.' '_')"
+      applied=1
+    fi
+  done
+  if [ "$DRY" = 1 ]; then
+    say "  [dry-run] mkdir -p $STATE_DIR && 写入 version=$TARGET_VER"
+  else
+    mkdir -p "$STATE_DIR"
+    printf '%s\n' "$TARGET_VER" > "$STATE_DIR/version"
+    say "  ✔ 迁移完成，已部署标记更新为 v$TARGET_VER"
+  fi
+  [ "$applied" -eq 0 ] && say "  ⚠ 无迁移被应用（目标版本未高于已部署？标记可能超前）"
 fi
 
 say "=========================================="

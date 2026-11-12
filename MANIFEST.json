@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -241,6 +241,8 @@
       "MANIFEST.json",
       "install.sh",
       "verify.sh",
+      "VERSION",
+      "secret_scan.py",
       "README.md",
       "TEST.md",
       "手机指令.md",
@@ -252,6 +254,8 @@
       "MANIFEST.json",
       "install.sh",
       "verify.sh",
+      "VERSION",
+      "secret_scan.py",
       "通用层/rules/",
       "通用层/skills/",
       "能力层/tvbox/skills/probe-hub/",
@@ -281,5 +285,11 @@
     "secret_scan 自指豁免扩展：inspect_hub.py 对抗用例构造行行级豁免（实测自指误报即修）",
     "docs/遗留登记.md 四条目补齐负责人+期限（新判据生效基线）",
     "本轮借鉴范围盘点定案：A(对抗自测)+B(带过执法) 本轮落地；C(脚本冒烟)/E(环境巡检)/G(闸篡改探针)/D(依赖契约) 已评估在案后补；F/H 及 hooks 类明确不借"
+  ],
+  "changelog_0_8_0": [
+    "版本化迁移机制（借 tvbox-eco upgrade.sh 思想）：VERSION 文件 + 本地已部署标记 ~/.codebuddy/.520_state/version + migrate_to_<ver> 一次性动作表（0.6.0/0.7.0/0.7.1/0.8.0），幂等 + dry-run 支持 + VERSION 不可读不瞎迁",
+    "install.sh cp_bak 机制级修复：备份只留最近一份（此前每次安装堆一个 .bak.$TS 永不清理，实测顶层堆 7 个）",
+    "bootstrap 断言补 VERSION 与 inspect-hub/SKILL.md；sync_shape 补 VERSION（稀疏检出集合，缺它断言必失败——实测抓到）",
+    "sync_shape 补 secret_scan.py（v0.7.0 引入仓库根但漏登记稀疏清单，--target 自检会因缺扫描器记红——实测抓到）"
   ]
 }

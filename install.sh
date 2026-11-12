@@ -65,6 +65,14 @@ cp_bak() {  # cp_bak <src> <dst>
   mkdir -p "$(dirname "$dst")"
   if [ -e "$dst" ]; then
     cp -r "$dst" "$dst.bak.$TS" 2>/dev/null || true
+    # 只留最近一份备份（v0.8.0 机制级修复：此前每次安装堆一个 .bak.$TS 永不清理，
+    # 2026-11-12 实测顶层堆了 7 个；正本真源在仓库 git，旧备份无保留价值）
+    local old
+    for old in "$dst".bak.*; do
+      [ -e "$old" ] || continue
+      [ "$old" = "$dst.bak.$TS" ] && continue
+      rm -rf "$old" 2>/dev/null || true
+    done
     echo "  (备份旧件: $dst.bak.$TS)"
   fi
   cp -r "$src" "$dst"
