@@ -33,10 +33,10 @@
       "config": {
         "declarations": [
           {"skill": "probe-hub", "script": "能力层/tvbox/skills/probe-hub/scripts/probe.py", "declared": 16, "regex": "=\\s*sub\\.add_parser\\('"},
-          {"skill": "space-hub", "script": "通用层/skills/space-hub/scripts/space_hub.py", "declared": 11, "regex": "=\\s*sub\\.add_parser\\('"}
+          {"skill": "space-hub", "script": "通用层/skills/space-hub/scripts/space_hub.py", "declared": 12, "regex": "=\\s*sub\\.add_parser\\('"}
         ]
       },
-      "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/11"
+      "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/12（space-hub v2.1.0 +local-rm）"
     },
     {
       "id": "M5", "gua": "☷", "men": "伤", "face": "结构完整", "impl": "chk_manifest",

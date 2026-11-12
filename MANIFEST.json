@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -77,6 +77,10 @@
         "skills/inspect-hub/scripts/dashboard_template.html": {
           "install_to": "~/.codebuddy/skills/inspect-hub/scripts/dashboard_template.html",
           "role": "卦门合阵面板模板（纯 CSS cqw 自适应，单文件零依赖，手机/电脑双端）"
+        },
+        "skills/learn-hub/CHANGELOG.md": {
+          "install_to": "~/.codebuddy/skills/learn-hub/CHANGELOG.md",
+          "role": "学习工坊变更凭证"
         }
       }
     },
@@ -296,5 +300,12 @@
     "修复探源司→清道夫投递链改名断链（实查 2026-11-12）：清道夫改名 space-hub 后，core.py file_to_janitor 仍写死 ~/.codebuddy/skills/tvbox-janitor + import janitor → import 必失败恒返回 False，投递从未成功且 quiet 静默（旁路设计下最危险失效形态）。改为 space-hub 优先/tvbox-janitor 兜底双探测",
     "probe.py _eco_linked_probe 同步：探针仍探旧路径 → space-hub 装着也报「下游未装」；改新名优先旧名兜底。实测三态：假 id 拒收 ✓ / 投递链路走 space_hub（mock 不动云端）✓ / 探针 (True, None) ✓（None=监察司未迁 520，如实报无法判定）",
     "bootstrap 迁移表 +migrate_to_0.8.1（同步 tvbox-core/probe-hub 副本）；VERSION 0.8.1"
+  ],
+  "changelog_0_8_2": [
+    "库务司 space-hub v2.1.0：新增 auto_file_local 本地欠账登记（learn-hub 旧门面投本地路径被 S156 node_id 护栏拒收——名义联动，投递从未成功，实证 2026-11-12）；list 本地欠账单独成节（云端陈旧剔除逻辑会误剔本地路径）；local-rm 销账（前缀匹配/未命中拒销 exit 2/纯本地不过空间解析）",
+    "学习工坊 learn-hub v1.3.0：_to_janitor→_to_spacehub 改道本地欠账；解耦能力层 tvbox-core 依赖",
+    "classify_rules +「学习与资料」类：learn-hub 产业认主（云端 dry-run 实测引擎按登记册跑通）",
+    "实测：记账/幂等/空路径拒收/前缀销账/未命中 exit 2/learn 门面全链 ✓；副本陈旧时门面报「需 ≥2.1.0」明确失败而非静默",
+    "bootstrap 迁移表 +0.8.2（同步 space-hub/learn-hub 副本）"
   ]
 }

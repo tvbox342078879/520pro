@@ -767,6 +767,17 @@ def cmd_list(a):
     print(f'   共 {len(items)} 项 ｜ 已移入收件箱 {_moved} ｜ ⚠️ 未移动 {_not}')
     if _not:
         print(f'   （未移动项 = 登记了但没挪进收件箱，见清单末列「⚠️ 未移动」）')
+    # ★ 本地欠账（v2.1.0）：本地残留与云端收件箱分开出单——云端项有陈旧剔除
+    #   （不在收件箱即剔），本地路径混进去必被误剔，所以单独成节、不受那道闸管。
+    pend = st.get('local_pending') or []
+    if pend:
+        lines += ['', '## 本地欠账（文件系统残留，直接 rm；处置后 `local-rm` 销账）', '',
+                  '| # | 路径 | 原因 | 登记 |', '|---|---|---|---|']
+        for i, x in enumerate(pend, 1):
+            lines.append(f"| {i} | `{x.get('path', '')}` | {x.get('reason', '')} | {x.get('added', '')} |")
+        md = '\n'.join(lines) + '\n'
+        open(p_md, 'w', encoding='utf-8').write(md)
+        print(f'   📒 另有本地欠账 {len(pend)} 条（清单已追加「本地欠账」节）')
     return 0
 
 
@@ -1052,6 +1063,69 @@ def _try_add(node_id, reason, quiet):
     ad.add_argument('--reason', default=''); ad.add_argument('--force', action='store_true')
     a = ap.parse_args(['add', '--node', node_id, '--reason', reason or '（未注明）'])
     return cmd_add(a) == 0
+
+
+def auto_file_local(path, reason, quiet=False):
+    """★ 生态联动便捷入口·本地欠账（2026-11-12 v2.1.0 新增）：
+
+    把「本地文件系统里删不决的残留」登记进**本地欠账清单**（state 的
+    local_pending 列表）——**不碰云端、不移动节点、不需要收件箱存在**。
+
+    为什么必须有它（实证）：learn-hub 曾把本地残留路径投进 `auto_file`（云端通道），
+    被 S156 node_id 护栏拒收 → 门面名义联动，投递从未成功。而清道夫的设计哲学
+    本来就是「云端节点走收件箱，**本地文件 AI 自己能删**」——本地残留缺的只是
+    一个「删不决时有人记账」的去处。本入口补上这一块：
+      · 上游技能一行调用：`space_hub.auto_file_local(residue_path, 'intake 半成品，需人工确认后删')`
+      · 记账不删账：只有用户跑 `local-rm --path <前缀>` 确认处置后才销账；
+      · `list` 出单时本地欠账单独成节，与云端收件箱项不混（云端项有陈旧剔除逻辑，
+        本地路径过不了那道校验，混在一起会被误剔）。
+
+    永不抛异常（旁路铁律）；写账走 save_state 的写后回读闸。
+    """
+    try:
+        p = str(path or '').strip()
+        if not p:
+            if not quiet:
+                print('  ⚠️ 本地欠账登记被拒：path 为空')
+            return False
+        st = load_state()
+        pend = st.setdefault('local_pending', [])
+        if any(x.get('path') == p for x in pend):
+            if not quiet:
+                print(f'  ℹ️ 本地欠账已在册：{p}')
+            return True
+        pend.append({'path': p, 'reason': reason or '（未注明）',
+                     'added': time.strftime('%Y-%m-%d %H:%M')})
+        save_state(st)
+        if not quiet:
+            print(f'  📒 本地欠账已登记：{p}（{reason}）——`list` 出单可见，`local-rm` 处置后销账')
+        return True
+    except Exception as e:
+        if not quiet:
+            print(f'  ⚠️ 本地欠账登记失败（{type(e).__name__}）：{path} 未记账，请人工处理')
+        return False
+
+
+def cmd_local_rm(a):
+    """销账：本地残留已人工处置，从欠账清单移除（前缀匹配，--all 全清）。"""
+    st = load_state()
+    pend = st.get('local_pending') or []
+    if not pend:
+        print('ℹ️ 本地欠账清单为空，无账可销'); return 0
+    if getattr(a, 'all', False):
+        n = len(pend)
+        st['local_pending'] = []
+        save_state(st)
+        print(f'✅ 已销账 {n} 条本地欠账（--all）'); return 0
+    pfx = (a.path or '').strip()
+    hit = [x for x in pend if x.get('path', '').startswith(pfx)] if pfx else []
+    if not hit:
+        print(f'🛑 未命中任何欠账条目（前缀 {pfx!r}）——不销不存在的账'); return 2
+    st['local_pending'] = [x for x in pend if not x.get('path', '').startswith(pfx)]
+    save_state(st)
+    for x in hit:
+        print(f'  ✅ 销账：{x["path"]}（{x.get("reason", "")}）')
+    print(f'共销 {len(hit)} 条'); return 0
 
 
 def _list_spaces():
@@ -1375,13 +1449,17 @@ def main(argv=None):
     rn = sub.add_parser('rename')
     rn.add_argument('--node', required=True)
     rn.add_argument('--title', required=True)
+    lr = sub.add_parser('local-rm', help='★销账：本地欠账已人工处置，从清单移除（--path 前缀 / --all 全清）')
+    lr.add_argument('--path', default='', help='按路径前缀匹配销账')
+    lr.add_argument('--all', action='store_true', help='销全部本地欠账')
     a = ap.parse_args(argv)
-    if a.cmd != 'init':
-        resolve_space(quiet=True)   # 除 init 外，所有命令先过四层空间解析（失败即退出）
+    if a.cmd not in ('init', 'local-rm'):
+        resolve_space(quiet=True)   # 除 init / local-rm（纯本地账，不依赖云端）外，先过四层空间解析
     return {'init': cmd_init, 'classify': cmd_classify, 'create-db': cmd_create_db,
             'inbox': cmd_inbox, 'add': cmd_add, 'scan': cmd_scan,
             'list': cmd_list, 'render': cmd_render, 'census': cmd_census,
-            'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename}[a.cmd](a)
+            'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename,
+            'local-rm': cmd_local_rm}[a.cmd](a)
 
 
 def dispatch(argv=None):

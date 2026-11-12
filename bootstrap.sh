@@ -402,7 +402,17 @@ migrate_to_0_8_1() {
   fi
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" )
+migrate_to_0_8_2() {
+  say "  · [0.8.2] 库务司 v2.1.0（本地欠账 auto_file_local/local-rm）+ 学习工坊 v1.3.0（门面改道）：同步 space-hub/learn-hub 副本"
+  if [ -d "通用层/skills/space-hub" ]; then
+    run "cp -r 通用层/skills/space-hub/. \"\$HOME/.codebuddy/skills/space-hub/\""
+  fi
+  if [ -d "通用层/skills/learn-hub" ]; then
+    run "cp -r 通用层/skills/learn-hub/. \"\$HOME/.codebuddy/skills/learn-hub/\""
+  fi
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

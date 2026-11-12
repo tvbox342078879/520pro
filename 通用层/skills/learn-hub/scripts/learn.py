@@ -35,39 +35,38 @@ _UNKNOWN_MARKS = ('412', 'timeout', 'timed out', 'login', '登录', 'captcha', '
 # 为什么需要：intake 落盘是**多步写**（source.html → extracted.txt → manifest.json），
 # 中途失败会留下**半个目录**——有文件、无 manifest、无任何记录，谁也不知道。
 # 这类残留本技能删不干净（不知道该不该删），只能交给用户一处按单删。
-# 门面失败**绝不阻断主流程**（core.file_to_janitor 内部已兜住）。
-def _load_core():
-    """加载生态门面。返回 (模块, 失败原因)——**失败原因绝不丢弃**（M-R60）。
+# 门面失败**绝不阻断主流程**（space_hub.auto_file_local 内部已兜住）。
+def _load_spacehub():
+    """加载库务司（space-hub）门面。返回 (模块, 失败原因)——失败原因绝不丢弃（M-R60）。
 
-    刻意写成函数而非模块级 try/except：模块级 `except: X = None` 是
-    「读失败折叠成空态」的典型形态，信号源16 的静态扫描必然要抓它。
-    而这里返回的是 (None, '类型: 消息') —— 调用方拿到的**不是空**，
-    而是一份能直接打印给人看的失败说明，三态可分辨。
+    ★2026-11-12 改道（实证）：原走 tvbox-core 的 file_to_janitor（云端通道），
+    投的是本地残留路径 → 被 S156 node_id 护栏拒收 → 门面名义联动，投递从未成功。
+    清道夫哲学本就是「云端节点走收件箱，本地文件 AI 自己能删」——本地残留缺的只是
+    记账去处，space-hub v2.1.0 新增 auto_file_local（本地欠账登记）正是这一块。
+    顺带收益：学习工坊是通用层技能，从此不再依赖能力层 tvbox-core。
     """
     try:
         import sys as _s
-        # 2026-11-12：tvbox-source-hub 已并入 tvbox-core（方案C）。先新名后旧名，
-        # 两条都不在时如实返回失败原因——门面是旁路，不允许因此崩主流程。
-        for _cand in ('~/.codebuddy/skills/tvbox-core/scripts',
-                      '~/.codebuddy/skills/tvbox-source-hub/scripts'):
-            _d = os.path.expanduser(_cand)
-            if os.path.isdir(_d):
-                if _d not in _s.path:
-                    _s.path.insert(0, _d)
-                break
-        import core
-        return core, ''
+        _d = os.path.expanduser('~/.codebuddy/skills/space-hub/scripts')
+        if not os.path.isdir(_d):
+            return None, 'space-hub 未安装'
+        if _d not in _s.path:
+            _s.path.insert(0, _d)
+        import space_hub
+        if not callable(getattr(space_hub, 'auto_file_local', None)):
+            return None, 'space_hub 缺 auto_file_local（版本过旧，需 ≥2.1.0）'
+        return space_hub, ''
     except Exception as e:
         return None, f'{type(e).__name__}: {str(e)[:80]}'
 
 
-_CORE, _CORE_ERR = _load_core()
+_SH, _SH_ERR = _load_spacehub()
 
 
 def _load_http():
     """取 http_get。**优先同目录 pan.py（自包含）**，回退 tvbox-core。
 
-    为什么不是直接用 _CORE：学习工坊是通用层技能，不该因为「没装 TVBox」就不能抓网页。
+    为什么不直接用库务司门面：网络取数与清理门面是两回事；学习工坊是通用层技能，不该因为「没装 TVBox」就不能抓网页。
     2026-11-12 起 pan.py 自带一份 http_get（原 core.py::http_get 内联），
     本技能的网络取数从此与能力层解耦。
     """
@@ -87,12 +86,12 @@ def _load_http():
 _HTTP_GET, _HTTP_ERR = _load_http()
 
 
-def _to_janitor(path, reason):
-    """把删不掉的残留投递进清道夫。失败只告警，不影响主流程。"""
-    if _CORE is None:
-        print(f'  ⚠️ 清道夫门面不可用（{_CORE_ERR}）——残留 {path} 未能投递，请人工清理')
+def _to_spacehub(path, reason):
+    """把删不决的本地残留登记进库务司「本地欠账」（不碰云端）。失败只告警，不影响主流程。"""
+    if _SH is None:
+        print(f'  ⚠️ 库务司门面不可用（{_SH_ERR}）——残留 {path} 未能记账，请人工清理')
         return False
-    return bool(_CORE.file_to_janitor(path, reason, quiet=True))
+    return bool(_SH.auto_file_local(path, reason, quiet=True))
 
 
 def classify_failure(msg):
@@ -504,7 +503,7 @@ def _intake_url(url, a):
     except Exception as e:
         # M-R60：失败必须说清是什么失败，不得折成"没抓到"
         print(f'❌ 落盘失败（{type(e).__name__}: {e}）——目录 {outdir} 已成半成品')
-        _to_janitor(outdir, f'learn-hub intake 落盘半成品（{type(e).__name__}），无 manifest，需人工确认后删')
+        _to_spacehub(outdir, f'learn-hub intake 落盘半成品（{type(e).__name__}），无 manifest，需人工确认后删')
         sys.exit(2)
     print(f'取到了：HTTP {code}，正文 {len(plain)} 字（原文 HTML {len(body)} 字）')
     print(f'落地：{os.path.relpath(outdir, HOME)}')
@@ -779,8 +778,8 @@ def cmd_purify(a):
                         shutil.move(p, dst)
                         removed += 1
                     except Exception as e:
-                        ok = _to_janitor(p, f'purify 去重移动失败 {type(e).__name__}')
-                        print(f'    ⚠️ 移动失败（{e}）{"，已投清道夫" if ok else "，投递也失败，请人工处理"}')
+                        ok = _to_spacehub(p, f'purify 去重移动失败 {type(e).__name__}')
+                        print(f'    ⚠️ 移动失败（{e}）{"，已记账库务司本地欠账" if ok else "，记账也失败，请人工处理"}')
         print(f'跨库硬去重：{len(dups)} 组重复，{"已移入 .dup_trash " + str(removed) + " 份" if a.apply else "仅报告（--apply 才动手）"}')
     if sub in ('watermark', 'all'):
         # 文本水印：默认 dry 逐文件报告；--apply 就地清洗并留 .pre_clean 备份。
