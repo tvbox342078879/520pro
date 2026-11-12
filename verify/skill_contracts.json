@@ -73,7 +73,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/inspect-hub",
-      "version": "1.3.2",
+      "version": "1.3.3",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",

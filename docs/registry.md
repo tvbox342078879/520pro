@@ -58,6 +58,7 @@
 | 规则↔验证器映射 | `verify/rule_map.json` | 每条 B-xx 的判据号/入口/锚点；T4 双向核，锚点漂移即红 |
 | 交付报告与派活模板 | `docs/模板_阶段完工交付报告.md`、`docs/派活提示模板.md` | 回执含「回滚路径」必填；派活含五段固定基线 |
 | 回归测试（拒收契约 / 规则互引反向） | `verify/tests/` | 手动跑：`python3 verify/tests/test_reject_contract.py`、`bash verify/tests/test_rule_map_reverse.sh`；不进 verify.sh 自动跑（防云端/耗时） |
+| 每技能故障排查（症状索引） | 各技能 `docs/` 下的 `TROUBLESHOOTING.md` | 按症状排，≥5 条真实条目；`verify/tests/test_troubleshoot.py` 机检，占位符判红 |
 | 密钥与卫生扫描 | `secret_scan.py` | 九类凭证 + 个人绝对路径 + 本地 endpoint + 模板真值 |
 
 ---
