@@ -10,8 +10,8 @@
 
 ## 2. 版本与位置
 
-- 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）；本地 git，未推送远端
-- 版本：0.8.19
+- 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）；远端 `origin/main` 已与本地 HEAD 一致（推送后回读 sha 核对，不凭"命令没报错"）
+- 版本：0.8.20
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应全绿
 
 ## 3. 习惯快照指针（只指，不抄）

@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.19",
+  "version": "0.8.20",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -180,7 +180,7 @@
   "channels": {
     "1_user_rule": "~/.codebuddy/rules/core-8.md",
     "2_project_shell": "<项目>/.codebuddy/CODEBUDDY.md（必注入）",
-    "3_user_skill": "~/.codebuddy/skills/tvbox-config-sync（★平台注册可路由）",
+    "3_user_skill": "~/.codebuddy/skills/tvbox-pipeline（★平台注册可路由）",
     "4_mobile_manual": "手机 App 设置→指令，粘贴 手机指令.md"
   },
   "verified_reliability": {
@@ -194,6 +194,7 @@
     "probe_hub_without_core": "真阴性（缺 tvbox-core 必报 ModuleNotFoundError: No module named core）",
     "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）",
     "phone_channel_account_command": "真阳性·兜底（开场自检自动重装 ~30s + 命令直达；持久环境里 Skill 自动发现是正路）",
+    "mobile_pretooluse_hook": "真阳性（2026-11-12 实测：手机端会话 PreToolUse:Bash 实际拦截并给出拒绝文案）。来源不是平台内建、也不是 520 装的，而是旧生态备份仓 DmaxPro908 的 hooks/chain_guard.py 经 restore.py 还原进该环境；判据见 docs/钩子来源判定.md。旧结论「手机不跑钩子」据此作废",
     "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
     "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 全部消失）",
     "version_skew_trap": "真阳性教训：方案 C 改造未升版本号，新旧都叫 v1.20.8，手机端误载旧版（probe.py 9,051 行新版 vs 10,319 行旧版，harvest pan 在 9968 行处可判）。已升 probe-hub 1.21.0 / learn-hub 1.2.0 / tvbox-pipeline 1.0.0",
@@ -287,19 +288,23 @@
     "full": [
       "MANIFEST.json",
       "install.sh",
+      "bootstrap.sh",
       "verify.sh",
       "VERSION",
       "secret_scan.py",
+      "export_skill_cards.py",
       "README.md",
       "TEST.md",
       "手机指令.md",
       "通用层/",
       "能力层/",
-      "docs/"
+      "docs/",
+      "verify/"
     ],
     "lite": [
       "MANIFEST.json",
       "install.sh",
+      "bootstrap.sh",
       "verify.sh",
       "VERSION",
       "secret_scan.py",
@@ -307,7 +312,8 @@
       "通用层/skills/",
       "能力层/tvbox/skills/probe-hub/",
       "能力层/tvbox/skills/tvbox-core/",
-      "能力层/tvbox/scripts/"
+      "能力层/tvbox/scripts/",
+      "verify/"
     ]
   },
   "bootstrap": {
@@ -446,6 +452,13 @@
       "能力层/tvbox/skills/probe-hub/docs/外置_索引.md"
     ]
   },
+  "changelog_0_8_20": [
+    "★工程H：从「靠模型自觉」改成「靠判定点」（用户「开始吧」授权）。四道判定点：① CI（.github/workflows/verify.yml，远端跑，模型绕不过）② 装机自检（bootstrap/install 末尾，rc≠0 不打印成功）③ 提交闸（hooks/pre-commit，密钥+仓检）④ 判据自证（--selftest，注入必红项验证 rc 联动）。",
+    "H1 副本完整性基线：verify.sh 开头打印 HEAD/文件数，工作区文件数 < git 索引 85% 直接 exit 2 并告知「后续判据不可信」。动机：2026-11-12 连出两次误判（13 红、7 处假断链），根因都是拿半份克隆跑判据。",
+    "H3 CI 不直接跑 verify：干净 runner 无 ~/.codebuddy 会整片红（恒红=没 CI），改为先 install --user-skill 到临时 HOME 再跑，顺带验证「新机装得上」。",
+    "干净 clone 自检当场抓出三处真缺陷并修：sync_shape 漏 verify/（换机后 verify.sh 必崩）、漏 bootstrap.sh 与 export_skill_cards.py（换机副本自断入口）、T3 把 RUNTIME_FILES 当断链（本机有这些未跟踪文件所以一直假绿，干净仓必红）。",
+    "H6-H10 止血：channels 技能名 tvbox-config-sync→tvbox-pipeline；handoff 删「未推送远端」；手机钩子结论由「不跑」改「分环境，实测可跑」并新增 mobile_pretooluse_hook；新增 docs/钩子来源判定.md（钩子=DmaxPro908/hooks/chain_guard.py:18-26 + ecosys-conductor 规则册:4334/4451，与 520 无关）；install.sh 默认 all→user-skill（项目级技能不路由）。"
+  ],
   "changelog_0_8_19": [
     "★工程G 历史遗留治理 + 发布门加严（本轮由用户「都做」授权）：",
     "G-1 惊门（M8）转正：实现 chk_triggers——跨技能同词判红／技能内重复判黄／未声明触发词判黄（冲突无从判定≠无冲突）；4 个通用层技能补触发词 40 个（从各自 trigger-samples 的 T 组提炼），覆盖 5/9→9/9、238 词、0 撞车；**八门建库以来首次全部转正**。判据只查字面：负边界交叉包含实测 6 候选全假阳性（中文\"归X管\"与\"不要X\"共用字面词），不做",

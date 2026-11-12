@@ -7,13 +7,14 @@
 #    · 能力层 → 两种模式二选一：
 #        --user-skill      ：TVBox 装到用户级 ~/.codebuddy/（★推荐：路由可靠、跨项目、云端沙箱执行、手机可触发）
 #        --capability-only ：TVBox 装到指定项目 .codebuddy/（隔离，仅本项目）
-#    · 默认 all = 通用层→用户级 + 能力层→项目级（项目隔离版）
+#    · 默认 user-skill = 全部装用户级（★推荐：项目级技能不路由，装了也不触发）
+#    · all = 通用层→用户级 + 能力层→项目级（项目隔离版，需显式指定）
 # ============================================================
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 TARGET="$(pwd)"
-SCOPE="all"      # all | generic | capability | user-skill
+SCOPE="user-skill"   # user-skill(默认) | all | generic | capability
 DRY=0
 TS="$(date +%Y%m%d%H%M%S)"
 
@@ -22,12 +23,12 @@ usage() {
 用法:
   bash install.sh [选项]
 
-模式（四选一，默认 all）:
+模式（四选一，默认 user-skill）:
   --user-skill        通用层 + TVBox 全部装【用户级】~/.codebuddy/  ★推荐
                       路由可靠、跨项目、云端沙箱可执行、手机登录同账号可触发
   --capability-only   TVBox 装【项目级】<目标>/.codebuddy/（项目隔离）
   --generic-only      只装通用层到 ~/.codebuddy/（不碰 TVBox）
-  （默认 all）        通用层→用户级 + 能力层→项目级
+  --all               通用层→用户级 + 能力层→项目级（项目隔离；项目级技能不路由，一般不用）
 
 其它:
   --target <目录>     能力层/项目级部署到该目录（默认当前目录）
@@ -47,6 +48,7 @@ while [ $# -gt 0 ]; do
     --target=*)        TARGET="${1#*=}"; shift ;;
     --user-skill)      SCOPE="user-skill"; shift ;;
     --capability-only) SCOPE="capability"; shift ;;
+    --all)             SCOPE="all"; shift ;;
     --generic-only)    SCOPE="generic"; shift ;;
     --dry-run)         DRY=1; shift ;;
     -h|--help)         usage; exit 0 ;;
@@ -346,7 +348,35 @@ if [ "$DRY" = 0 ]; then
   fi
 fi
 
+# ★ H5（v0.8.20 工程H）：装提交闸。装到仓库自己的 .git/hooks，只对本仓生效。
+#   不装到别处、不写全局 core.hooksPath——免得污染用户其它仓库。
+if [ "$DRY" = 0 ] && [ -d "$ROOT/.git/hooks" ] && [ -f "$ROOT/hooks/pre-commit" ]; then
+  cp "$ROOT/hooks/pre-commit" "$ROOT/.git/hooks/pre-commit"
+  chmod +x "$ROOT/.git/hooks/pre-commit"
+  echo " · 提交闸已装：$ROOT/.git/hooks/pre-commit（可 --no-verify 绕过，终局闸在 CI）"
+fi
+
 echo
+# ★ H4（v0.8.20 工程H）：安装闸。没有这一步，"装好了"只是一句口头承诺。
+#   capability 模式只装项目级、不碰用户级，全量 verify 必然红 → 明确跳过并说明，不静默。
+if [ "$DRY" = 0 ]; then
+  if [ "$SCOPE" = "capability" ]; then
+    echo " · 自检：capability 隔离模式，跳过用户级全量自检（按设计，非降级）"
+  else
+    _vlog="${TMPDIR:-/tmp}/_520_install_verify.log"
+    echo " [装机自检] bash verify.sh --target $ROOT"
+    if bash "$ROOT/verify.sh" --target "$ROOT" >"$_vlog" 2>&1; then
+      echo " · 自检：全部通过（日志 $_vlog）"
+    else
+      _rc=$?
+      echo " ✗ 自检未通过（rc=$_rc）——文件已落盘，但不可宣称安装成功"
+      grep -E '✗' "$_vlog" 2>/dev/null | head -8 | sed 's/^/   /' || true
+      echo "   完整日志：$_vlog；修好后重跑本脚本（幂等）"
+      exit 1
+    fi
+  fi
+fi
+
 echo "════════════════════════════════════════════════════"
 echo " ✅ 完成（mode=$SCOPE）。下一步："
 echo "   1) 开【新会话】使规则/技能生效（会话启动时才加载）"

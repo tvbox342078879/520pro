@@ -2,8 +2,18 @@
 # 520pro 安装自检：检查关键落点是否存在，并做脚本语法/可执行性冒烟
 # 用法：bash verify.sh [--target <项目目录>]
 set -uo pipefail
+# ★ H2（v0.8.20）：参数可任意顺序（--target 与 --selftest 能并存，CI 会同时给）
 TARGET="$(pwd)"
-[ "${1:-}" = "--target" ] && TARGET="$2"
+SELFTEST=0
+REPO_ONLY=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --target) TARGET="${2:-$TARGET}"; shift 2 2>/dev/null || shift ;;
+    --selftest) SELFTEST=1; shift ;;
+    --repo-only) REPO_ONLY=1; shift ;;
+    *) shift ;;
+  esac
+done
 U="$HOME/.codebuddy"
 P="$TARGET/.codebuddy"
 
@@ -26,9 +36,71 @@ opt(){ UNKNOWNS=$((UNKNOWNS + 1)); printf "  %s·%s %s\n" "$C_WARN" "$C_DIM" "$1
 # ★ v0.8.14（B4·WARN 分级）：卫生问题用黄叹号，与"绿✓通过/红✗失败"三态区分——不折叠
 warn(){ printf "  %s⚠%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
 
+# ★ H2（v0.8.20 工程H）：判据自证注入点。只由 --selftest 的子进程携带。
+#   2026-11-12 出过「return 2 if _reject(...) else 2」这种恒真表达式，人眼看不出、
+#   但判据已经失去判红能力。所以判据本身也要能被验证：注入一条必红项，看 rc 会不会变 2。
+if [ -n "${VERIFY_INJECT_FAIL:-}" ]; then
+  no "【selftest 注入】这条永远失败——用来验证「判据→计数→退出码」整条链没断"
+fi
+
 echo "================ 520pro 自检 ================"
 echo "HOME=$U   TARGET=$TARGET"
+
+# ★ H1（v0.8.20 工程H）：副本完整性基线。
+#   2026-11-12 连出两次误判，根因相同：拿一份"半份克隆"跑判据，缺文件 → 整片
+#   "引用断链/技能缺失"假红，再被当成"仓库有毛病"。所以跑判据前先证明脚下的副本完整。
+#   判据不写死绝对数（开发会增文件），用 git 索引自校准；无 .git 时退硬下限 200。
+if [ -f "$TARGET/MANIFEST.json" ] && [ -f "$TARGET/verify.sh" ]; then
+  _nfiles=$(find "$TARGET" -type f -not -path "$TARGET/.git/*" 2>/dev/null | wc -l | tr -d ' ')
+  _nidx=$(git -C "$TARGET" ls-files 2>/dev/null | wc -l | tr -d ' ')
+  _head=$(git -C "$TARGET" rev-parse --short HEAD 2>/dev/null || true)
+  echo "副本：HEAD=${_head:-无 git}  工作区=${_nfiles} 文件  git 索引=${_nidx}"
+  _min=200; _basis="无 git 时硬下限 200"
+  if [ "${_nidx:-0}" -gt 0 ]; then
+    _idx_min=$(( _nidx * 85 / 100 ))
+    if [ "$_idx_min" -gt "$_min" ]; then _min=$_idx_min; fi
+    _basis="git 索引 ${_nidx} 的 85%"
+  fi
+  if [ "$_nfiles" -lt "$_min" ]; then
+    no "工作副本不完整：${_nfiles} 个文件 < 下限 ${_min}（${_basis}）——后续判据不可信，先重新检出"
+    echo "✗ 副本不完整，中止自检（避免假红/假绿混入结论）"
+    echo "  修法：git clone/pull 完整仓库，或 bootstrap.sh 重新稀疏检出"
+    exit 2
+  fi
+  ok "工作副本完整（${_nfiles} 文件 ≥ 下限 ${_min}，${_basis}）"
+fi
+
+# ★ H2（v0.8.20 工程H）：--selftest —— 判据自己也要被验证。
+#   判据坏掉（恒真/恒假）时，正常跑永远绿；只有注入一条必红项才照得出来。
+#   两次子进程：① 注入必红 → 必须 rc=2 且日志里能看到那条注入项；② 正常 → 必须 rc=0。
+if [ "$SELFTEST" = 1 ]; then
+  _self="$0"
+  case "$_self" in /*) ;; *) _self="$(pwd)/$_self" ;; esac
+  echo "[判据自证] 跑两次子进程：一次注入必红项，一次正常"
+  VERIFY_INJECT_FAIL=1 bash "$_self" --target "$TARGET" >/tmp/_vf_bad.log 2>&1; _rc_bad=$?
+  bash "$_self" --target "$TARGET" >/tmp/_vf_ok.log 2>&1; _rc_ok=$?
+  _sf=0
+  if [ "$_rc_bad" -eq 2 ] && grep -q 'selftest 注入' /tmp/_vf_bad.log; then
+    ok "注入必红项 → rc=2 且红项可见（判据确实能判红）"
+  else
+    no "注入必红项但 rc=${_rc_bad} 或日志无该红项（判据疑似恒真/被短路）"; _sf=1
+  fi
+  if [ "$_rc_ok" -eq 0 ]; then
+    ok "无注入 → rc=0（不误报）"
+  else
+    no "无注入却 rc=${_rc_ok}（存在假红，先看 /tmp/_vf_ok.log）"; _sf=1
+  fi
+  echo
+  if [ "$_sf" -eq 0 ]; then echo "✓ 判据自证通过（红得起来、绿得下去）"; else echo "✗ 判据自证失败"; fi
+  exit "$_sf"
+fi
+
 echo
+# ★ H4（v0.8.20）：--repo-only 只验仓库自身（检出完整性 + 契约 + 口径 + 回归），
+#   不验安装落点。给 bootstrap.sh 用——它只负责"检出完整"，还没装到 ~/.codebuddy。
+if [ "$REPO_ONLY" = 1 ]; then
+  echo "[仓库级自检] --repo-only：跳过安装落点（用户级/项目级/冒烟/巡检）"
+else
 echo "[通用层·用户级]"
 [ -f "$U/rules/core-8.md" ] && ok "rules/core-8.md" || no "rules/core-8.md 缺失"
 for s in skill-evolution feature-gate machine-bootstrap artifact-store; do
@@ -244,6 +316,8 @@ else
   opt "skills/inspect-hub 未安装（可后补）"
 fi
 
+fi
+
 echo
 echo "[密钥安全（v0.8.19 起·发布门默认 --strict）]"
 if [ -f "$TARGET/secret_scan.py" ]; then
@@ -332,7 +406,14 @@ if [ -f "$TARGET/verify/skill_contract_check.py" ]; then
   # --require-mirror 只在"本机确实装了技能"时启用：装了就必须一致（红）；
   # 空机未装则退回「无法判定」，不让"没装"冒充"通过"，也不误伤只跑仓检的场景。
   mirror_arg=""
-  [ -d "$HOME/.codebuddy/skills" ] && mirror_arg="--require-mirror"
+  # ★ H4（v0.8.20）：--repo-only 时不比对本机安装副本——该场景（换机检出/CI/新机）
+  #   本来就还没装，比出来只会是"残留/私产"这类环境噪声，不是仓库问题。
+  #   把 --install 指到不存在的路径，C5 自动记「无法判定」，不折算通过也不判红。
+  if [ "$REPO_ONLY" = 1 ]; then
+    mirror_arg="--install /nonexistent-520pro-mirror"
+  elif [ -d "$HOME/.codebuddy/skills" ]; then
+    mirror_arg="--require-mirror"
+  fi
   cout="$(python3 "$TARGET/verify/skill_contract_check.py" --repo "$TARGET" $mirror_arg 2>&1)"
   cstat=$?
   cok=$(printf '%s\n' "$cout" | grep -c '  ✓ \[' || true)

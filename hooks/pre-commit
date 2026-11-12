@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# 520pro · 提交闸（H5，v0.8.20 工程H）
+# ------------------------------------------------------------------
+# 装法：bash install.sh 自动装到 <仓库根>/.git/hooks/pre-commit
+# 绕过：git commit --no-verify（能绕，但必须写明理由；真正的终局闸在 CI）
+# 判据不在这里重写：直接调 secret_scan.py 与 verify.sh --repo-only，
+# 避免"两套判据各自演化"（M1 单一真源）。
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 1
+LOG="${TMPDIR:-/tmp}/_520_precommit.log"
+: >"$LOG"
+
+echo "[pre-commit] ① 密钥/卫生扫描（strict）"
+if ! python3 secret_scan.py --strict >>"$LOG" 2>&1; then
+  echo "✗ 提交被拒：密钥/卫生扫描未通过"
+  grep -E '✗|->' "$LOG" | head -6 | sed 's/^/   /'
+  echo "   完整日志：$LOG"
+  echo "   处置：删掉明文密钥/个人路径后重新 add（确属误报再改判据）"
+  exit 1
+fi
+
+echo "[pre-commit] ② 仓库级自检（--repo-only：不依赖安装副本）"
+if ! bash verify.sh --repo-only --target "$ROOT" >>"$LOG" 2>&1; then
+  echo "✗ 提交被拒：仓库级自检未通过"
+  grep -E '  ✗' "$LOG" | head -8 | sed 's/^/   /'
+  echo "   完整日志：$LOG"
+  echo "   处置：逐条修红项；不许 --no-verify 硬提交（那等于把闸拆了）"
+  exit 1
+fi
+
+echo "✓ pre-commit 通过（密钥干净 + 仓库自洽）"
+exit 0

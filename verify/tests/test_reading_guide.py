@@ -12,6 +12,10 @@ import contextlib
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO, '能力层', 'tvbox', 'skills', 'probe-hub', 'scripts'))
+# ★ H4（v0.8.20）：测试必须自包含。livecheck.py 只把 ~/.codebuddy/... 塞进 sys.path，
+#   在"未安装"的干净环境（CI / --repo-only / 新机检出）里会 ModuleNotFoundError: concurrency。
+#   这里补上仓库内的 tvbox-core/scripts，让测试脱离安装也能跑。
+sys.path.insert(0, os.path.join(REPO, '能力层', 'tvbox', 'skills', 'tvbox-core', 'scripts'))
 import livecheck as L  # noqa: E402
 
 FAIL, PASS = [], []

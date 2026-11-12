@@ -39,11 +39,23 @@ REPO_PREFIXES = ('verify/', '通用层/', '能力层/', 'docs/', 'scripts/', '�
 
 # 豁免：确实"运行时生成""属别的仓""有意不建"的路径，**必须写理由**（M7 有意例外登记）。
 # 判据：写不出理由的就不该豁免——要么是断链（去修），要么是判据假阳（去改判据）。
+_RUNTIME_REASON = ('运行时生成/本机私产：install.sh 的 RUNTIME_FILES 明示不随分发；'
+                   '干净 clone 里不存在是正常的，不是断链（2026-11-12 干净仓自检暴露）')
 EXEMPT = {
     'scripts/activity_log.json':
         '运行时生成（probe.py 首次采样时创建，A_LOG=SELF_DIR/activity_log.json）；本机私产不入 git',
     'verify/model_handover.py':
         'README 在描述**旧仓 tvbox-eco** 原版换机司的断言依赖，不是引用本仓文件',
+    'findings_history.json': _RUNTIME_REASON,
+    'monitors.json': _RUNTIME_REASON,
+    'space_hub_state.json': _RUNTIME_REASON,
+    'monitor_targets.json': _RUNTIME_REASON,
+    'monitor_domains.json': _RUNTIME_REASON,
+    'monitor_pubsources.json': _RUNTIME_REASON,
+    'dead_repos.json': _RUNTIME_REASON,
+    'shellcrack_cands.json': _RUNTIME_REASON,
+    'docs/巡检/dashboard.html':
+        '巡检司面板产物（inspect-hub 运行时渲染生成，不入 git；面板缺了是"没跑过"，不是引用错）',
 }
 
 SCAN_EXT = ('.md',)

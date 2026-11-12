@@ -504,11 +504,20 @@ fi
 
 say "=========================================="
 if [ "$ok" -eq 1 ]; then
-  say "换机成功: 有界工作副本已就绪 @ $TARGET (shape=$SHAPE)"
-  say "下一步: cd $TARGET && bash verify.sh"
-  [ "$DO_INSTALL" -eq 0 ] && say "         bash install.sh --user-skill   # 装到 ~/.codebuddy"
-  say "=========================================="
-  exit 0
+  # ★ H4（v0.8.20 工程H）：检出闸。原来只"提示你自己去跑 verify"，
+  #   于是副本不全时"换机成功"照打——2026-11-12 就这么误判过两次。现在先跑再报。
+  say "检出完成，跑仓库级自检（--repo-only，不依赖安装）…"
+  if bash "$TARGET/verify.sh" --repo-only --target "$TARGET" >"$TARGET/.520_verify.log" 2>&1; then
+    say "换机成功: 工作副本就绪且自检通过 @ $TARGET (shape=$SHAPE)"
+    [ "$DO_INSTALL" -eq 0 ] && say "下一步: bash install.sh --user-skill   # 装到 ~/.codebuddy"
+    say "=========================================="
+    exit 0
+  else
+    echo "换机失败: 仓库级自检未通过（副本可能不全），日志见 $TARGET/.520_verify.log" >&2
+    grep -E '✗' "$TARGET/.520_verify.log" 2>/dev/null | head -8 >&2
+    say "=========================================="
+    exit 1
+  fi
 else
   echo "换机失败: 关键文件缺失或安装失败，见上。" >&2
   say "=========================================="
