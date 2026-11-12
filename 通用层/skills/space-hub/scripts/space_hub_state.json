@@ -1,7 +1,31 @@
 {
-  "inbox": "",
-  "items": [],
+  "inbox": "uloLNXShVlVCPjdXTfWM7b",
+  "items": [
+    {
+      "id": "6G5VPyOib18AJwpyGByTB3",
+      "title": "zz_产物链路测试_20261112",
+      "kind": "drive",
+      "reason": "archive 首测回读超时遗留的孤儿文件（同内容已重传成功）",
+      "moved": true,
+      "added": "2026-11-12 11:39",
+      "origin_parent": "kZRCO0NCMgKAWzyORQr7Qy"
+    }
+  ],
   "space_id": "RYUDZM28yhPFgC8wh3F8kg",
   "space_title": "TVBox 生态空间",
-  "local_pending": []
+  "local_pending": [],
+  "archive_folder": "kZRCO0NCMgKAWzyORQr7Qy",
+  "index_db": "M2WSCWxetWlT8gNLewGDax",
+  "archive_log": [
+    {
+      "name": "zz_产物链路测试_20261112.txt",
+      "cat": "其他",
+      "node_id": "vcVaUHwo7voqUPFlZhDdfP",
+      "db": "M2WSCWxetWlT8gNLewGDax",
+      "date": "2026-11-12",
+      "source": "space-hub v2.2.0 链路测试",
+      "note": "",
+      "indexed": true
+    }
+  ]
 }

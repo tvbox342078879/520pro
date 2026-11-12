@@ -296,6 +296,43 @@ def chk_freshness(target, cfg, ctx):
     return {'status': worst(sts), 'items': items}
 
 
+def chk_products(target, cfg, ctx):
+    """产物纪律面（B-09 · v1.2.0 新增）：本地产物区堆积清点。
+
+    规则真源 core-8 B-09：产出默认不落产物区。产物区文件超阈值 → 黄（提示归档，
+    不判红——产物区是合法点名交付地，堆积只是纪律松弛不是事故）。
+    only_when_target：产物区属于宿主工作环境，巡检对象是临时 clone 时该面无意义
+    （2026-11-12 对照用例实测抓到：clone 巡检扫到宿主 /workspace 49 件 → 假黄），
+    此时如实返回绿+说明，不装作查过。"""
+    pz = cfg.get('product_zone') or {}
+    zone = pz.get('path', '/workspace')
+    th = int(pz.get('threshold', 10))
+    only = pz.get('only_when_target', '')
+    if only and os.path.realpath(target) != os.path.realpath(only):
+        return {'status': 'green', 'items': [{'t': '【绿】产物纪律面未启用（非主仓巡检）',
+                'e': f'target={target} ≠ 主仓 {only}——宿主产物区不随 clone 变化，查了也无意义',
+                'c': '无需处置（主仓巡检时自动启用）'}]}
+    if not os.path.isdir(zone):
+        return {'status': 'green', 'items': [{'t': '【绿】产物区不存在', 'e': zone, 'c': '无需处置'}]}
+    files = [f for f in sorted(os.listdir(zone)) if os.path.isfile(os.path.join(zone, f))]
+    n = len(files)
+    if n > th:
+        return {'status': 'yellow', 'items': [{'t': f'【黄】产物区堆积 {n} 件（B-09 产物纪律）',
+                'e': zone + f'（阈值 {th}）——含点名交付物，不全算违规',
+                'c': '库务司 products --scan 逐件 archive 落库，或人工点名清理'}]}
+    return {'status': 'green', 'items': [{'t': f'【绿】产物区 {n} 件（阈值 {th} 内）', 'e': zone, 'c': '无需处置'}]}
+
+
+def chk_structure(target, cfg, ctx):
+    """伤门复合检查器：结构完整性（chk_manifest）+ 产物纪律（chk_products）。
+    M5 一个门挂两面（八卦布局固定 8 位，新面并入既有门而非加第 9 卦）。"""
+    a = chk_manifest(target, cfg, ctx)
+    b = chk_products(target, cfg, ctx)
+    return {'status': worst([a['status'], b['status']]),
+            'items': a['items'] + b['items'],
+            'count': a.get('count', 0) + b.get('count', 0)}
+
+
 CHECKERS = {k: v for k, v in list(globals().items()) if k.startswith('chk_')}
 
 

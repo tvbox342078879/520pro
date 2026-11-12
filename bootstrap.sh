@@ -412,7 +412,20 @@ migrate_to_0_8_2() {
   fi
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" )
+migrate_to_0_8_3() {
+  say "  · [0.8.3] 产物纪律 B-09 + 库务司 v2.2.0（archive/products/搜索框）+ 巡检司 v1.2.0（伤门复合）：同步 space-hub/inspect-hub 副本与用户级规则"
+  if [ -d "通用层/skills/space-hub" ]; then
+    run "cp -r 通用层/skills/space-hub/. \"\$HOME/.codebuddy/skills/space-hub/\""
+  fi
+  if [ -d "通用层/skills/inspect-hub" ]; then
+    run "cp -r 通用层/skills/inspect-hub/. \"\$HOME/.codebuddy/skills/inspect-hub/\""
+  fi
+  if [ -f "通用层/rules/core-8.md" ]; then
+    run "cp 通用层/rules/core-8.md \"\$HOME/.codebuddy/rules/core-8.md\""
+  fi
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

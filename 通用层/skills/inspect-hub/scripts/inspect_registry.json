@@ -1,13 +1,30 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "inspect-hub 巡检登记册",
-  "note": "加巡检面只改本册：新检查器先登记（impl 留 null=灰色待补），代码补 impl 函数后改为函数名。不改引擎。",
-  "layout": {"stage_w": 700, "stage_h": 664, "center": [350, 330]},
-  "thresholds": {"stale_yellow_days": 14, "stale_red_days": 30, "score_cost_red": 12, "score_cost_yellow": 4},
+  "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/14（space-hub v2.2.0）",
+  "layout": {
+    "stage_w": 700,
+    "stage_h": 664,
+    "center": [
+      350,
+      330
+    ]
+  },
+  "thresholds": {
+    "stale_yellow_days": 14,
+    "stale_red_days": 30,
+    "score_cost_red": 12,
+    "score_cost_yellow": 4
+  },
   "gates": [
     {
-      "id": "M1", "gua": "☰", "men": "开", "face": "规则生效", "impl": "chk_rules",
-      "lp": 50.0, "tp": 10.8,
+      "id": "M1",
+      "gua": "☰",
+      "men": "开",
+      "face": "规则生效",
+      "impl": "chk_rules",
+      "lp": 50.0,
+      "tp": 10.8,
       "config": {
         "user_rules": "~/.codebuddy/rules/core-8.md",
         "repo_copy": "通用层/rules/core-8.md",
@@ -16,49 +33,108 @@
       "note": "结构生效：文件在位+指纹对账。行为生效（本会话是否真注入）由 AI 自报对账，见 SKILL.md 流程"
     },
     {
-      "id": "M2", "gua": "☳", "men": "生", "face": "技能生效", "impl": "chk_skills",
-      "lp": 86.9, "tp": 49.7,
-      "config": {"install_root": "~/.codebuddy/skills"},
+      "id": "M2",
+      "gua": "☳",
+      "men": "生",
+      "face": "技能生效",
+      "impl": "chk_skills",
+      "lp": 86.9,
+      "tp": 49.7,
+      "config": {
+        "install_root": "~/.codebuddy/skills"
+      },
       "note": "安装副本 vs 仓库正本 md5 对账 + .bak 残留检查（防安装时序错位复发）"
     },
     {
-      "id": "M3", "gua": "☵", "men": "杜", "face": "密钥安全", "impl": "chk_secrets",
-      "lp": 50.0, "tp": 88.6,
-      "config": {"scanner": "secret_scan.py"},
+      "id": "M3",
+      "gua": "☵",
+      "men": "杜",
+      "face": "密钥安全",
+      "impl": "chk_secrets",
+      "lp": 50.0,
+      "tp": 88.6,
+      "config": {
+        "scanner": "secret_scan.py"
+      },
       "note": "直接调用仓库正本 secret_scan.py（件①），红=发现明文；扫描器崩=灰（无法判定）"
     },
     {
-      "id": "M4", "gua": "☲", "men": "景", "face": "文档一致", "impl": "chk_docsync",
-      "lp": 23.9, "tp": 22.2,
+      "id": "M4",
+      "gua": "☲",
+      "men": "景",
+      "face": "文档一致",
+      "impl": "chk_docsync",
+      "lp": 23.9,
+      "tp": 22.2,
       "config": {
         "declarations": [
-          {"skill": "probe-hub", "script": "能力层/tvbox/skills/probe-hub/scripts/probe.py", "declared": 16, "regex": "=\\s*sub\\.add_parser\\('"},
-          {"skill": "space-hub", "script": "通用层/skills/space-hub/scripts/space_hub.py", "declared": 12, "regex": "=\\s*sub\\.add_parser\\('"}
+          {
+            "skill": "probe-hub",
+            "script": "能力层/tvbox/skills/probe-hub/scripts/probe.py",
+            "declared": 16,
+            "regex": "=\\s*sub\\.add_parser\\('"
+          },
+          {
+            "skill": "space-hub",
+            "script": "通用层/skills/space-hub/scripts/space_hub.py",
+            "declared": 14,
+            "regex": "=\\s*sub\\.add_parser\\('",
+            "note": "v2.2.0 +archive/products"
+          }
         ]
       },
-      "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/12（space-hub v2.1.0 +local-rm）"
+      "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/14（space-hub v2.2.0 +archive/products）"
     },
     {
-      "id": "M5", "gua": "☷", "men": "伤", "face": "结构完整", "impl": "chk_manifest",
-      "lp": 76.1, "tp": 77.2,
-      "config": {"manifest": "MANIFEST.json"},
-      "note": "MANIFEST layers[].files 登记文件逐个存在性对账（清单说有就得真在）"
+      "id": "M5",
+      "gua": "☷",
+      "men": "伤",
+      "face": "结构完整",
+      "impl": "chk_structure",
+      "lp": 76.1,
+      "tp": 77.2,
+      "config": {
+        "manifest": "MANIFEST.json",
+        "product_zone": {
+          "path": "/workspace",
+          "threshold": 10,
+          "only_when_target": "/workspace/520pro"
+        }
+      },
+      "note": "复合面：结构完整性(chk_manifest) + 产物纪律(chk_products, B-09)。八卦布局固定 8 位，新面并入伤门"
     },
     {
-      "id": "M6", "gua": "☶", "men": "死", "face": "遗留登记", "impl": "chk_ledger",
-      "lp": 23.9, "tp": 77.2,
-      "config": {"ledger": "docs/遗留登记.md"},
+      "id": "M6",
+      "gua": "☶",
+      "men": "死",
+      "face": "遗留登记",
+      "impl": "chk_ledger",
+      "lp": 23.9,
+      "tp": 77.2,
+      "config": {
+        "ledger": "docs/遗留登记.md"
+      },
       "note": "- 【待】行=未闭环待办；带过执法（v1.1.0）：每条必须带负责人+期限缺一即红，同一主题≥2次按复发升红（carryover_guard 思想）。清一条删一行"
     },
     {
-      "id": "M7", "gua": "☴", "men": "休", "face": "新鲜度", "impl": "chk_freshness",
-      "lp": 76.1, "tp": 22.2,
+      "id": "M7",
+      "gua": "☴",
+      "men": "休",
+      "face": "新鲜度",
+      "impl": "chk_freshness",
+      "lp": 76.1,
+      "tp": 22.2,
       "config": {},
       "note": "最近提交距今 + 各技能 CHANGELOG 停更天数（阈值见 thresholds，警惕进化停滞）"
     },
     {
-      "id": "M8", "gua": "☱", "men": "惊", "face": "触发词冲突", "impl": null,
-      "lp": 13.1, "tp": 49.7,
+      "id": "M8",
+      "gua": "☱",
+      "men": "惊",
+      "face": "触发词冲突",
+      "impl": null,
+      "lp": 13.1,
+      "tp": 49.7,
       "config": {},
       "note": "在册待补码：各技能触发词重复检测。先登记占位（灰），下个迭代实现 chk_triggers"
     }

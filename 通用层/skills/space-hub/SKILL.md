@@ -1,5 +1,5 @@
 ---
-version: "2.1.0"
+version: "2.2.0"
 name: space-hub
 description: "库务司·云端资料库总管（可升级）。清理+归纳+整理+建库+搬运正门，管任意 WorkBuddy 云端空间的节点。能力：①垃圾扫描 scan（废弃标记/空库识别→自动投收件箱，--dry-run 预览）；②待删收件箱 inbox/add（AI 无删除权，只挪不删，用户按单删）；③归纳 classify（根层级散落文档按登记册规则归入目标夹，规则只改 classify_rules.json 零改代码）；④建库 create-db（薄封装 library 建库正本+写后回读）；⑤搬运/改名正门 move/rename（移前双校验+移后回读，全生态唯一通道）；⑥误投回退 restore；⑦分层普查 census；⑧四层空间解析（不写死账号，换账号跑 init 一次即适配）。触发词：清理 / 归纳 / 整理 / 归类 / 收纳 / 建库 / 建个库 / 新建数据库 / 删不掉 / 清一下 / 待删的放哪 / 收件箱 / 库务司 / 搬节点 / 节点搬家 / 改名 / 待删清单 / 冗余节点 / 重复节点 / 库房整理 / 换账号空间 / 空间登记 / 盘点空间 / 空间普查。"
 ---
@@ -47,8 +47,11 @@ python3 space_hub.py move --node ID --to 父ID     # 节点移动正门（双校
 python3 space_hub.py rename --node ID --title "新名"  # 改名正门（改后回读）
 python3 space_hub.py census [--json]              # 分层普查（归属/缝统计）
 python3 space_hub.py local-rm --path <前缀>|--all # ★销账：本地欠账已人工处置，从清单移除
+python3 space_hub.py archive --file <f> [--category 类] [--keep]  # ★产物落库正门（B-09）：上传📦产物归档夹+写索引+本地清理
+python3 space_hub.py products --scan|--search-box  # ★产物盘点+单文件搜索框（B-09 配套）
 ```
 
+> **产物纪律（v2.2.0 · 规则真源 core-8 B-09）**：产出默认不落产物区，除非用户点名。需留档的走 `archive` 正门（上传归档夹+写「📦 产物索引」库五字段记录+本地清理，全步回读）；`products --scan` 盘点、`--search-box` 生成搜索框。交互型面板（必须落盘才能预览）属点名例外。
 > **本地欠账（v2.1.0）**：本地文件系统里"删不决"的残留，其他技能经 `auto_file_local(path, reason)` 记账（不碰云端）；`list` 出单时单独成节（云端项的陈旧剔除会误剔本地路径），用户按单处置后 `local-rm` 销账。
 
 ## 3. 归纳登记册（classify_rules.json，唯一真源）

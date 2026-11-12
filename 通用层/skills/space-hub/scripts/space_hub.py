@@ -281,11 +281,13 @@ def _kids(pid):
 
 
 def _find_parent(nid, skip_inbox=True):
-    """从空间超根 ROOT 递归反查 nid 的父节点 id（默认跳过收件箱子树）。
+    """从空间超根递归反查 nid 的父节点 id（默认跳过收件箱子树）。
 
     为什么不用 node-info 的 parentNodeId？那字段实测恒为 None（不可信）。
     故用全树遍历反查——供 cmd_add 在移动前记录原父节点、误投后 restore 一键回退。
-    """
+
+    ★2026-11-12 修：v2.0.0 改 ROOTS 时此处残留 `walk(ROOT)` → NameError，
+    cmd_add 在「记录原父位」一步即崩、节点从未移动（今日实测投递现场踩到）。"""
     st = load_state()
     inbox = st.get('inbox')
     seen = set()
@@ -306,7 +308,11 @@ def _find_parent(nid, skip_inbox=True):
                     return r
         return None
 
-    return walk(ROOT)
+    for root in ROOTS:          # ★ 修：遍历起点集合（原残留单数 ROOT → NameError）
+        r = walk(root)
+        if r:
+            return r
+    return None
 
 
 def _find_inbox():
@@ -1128,6 +1134,252 @@ def cmd_local_rm(a):
     print(f'共销 {len(hit)} 条'); return 0
 
 
+# ══ 产物纪律（B-09 · v2.2.0）：产物落库正门 + 索引库 + 搜索框 ═══════════════
+# 规则真源：通用层/rules/core-8.md B-09——产出默认不落产物区，除非用户点名；
+# 需留档的经本正门归类落云端资料库。交互型面板（必须落盘才能预览）属点名例外。
+
+ARCHIVE_TITLE = '📦 产物归档'
+INDEX_DB_TITLE = '📦 产物索引'
+CAT_MAP = [('.html', '面板'), ('.md', '文档'), ('.csv', '清单'), ('.json', '数据'),
+           ('.png', '图片'), ('.jpg', '图片'), ('.jpeg', '图片'), ('.pdf', '文档')]
+
+
+def _guess_cat(name):
+    low = (name or '').lower()
+    for ext, c in CAT_MAP:
+        if low.endswith(ext):
+            return c
+    return '其他'
+
+
+def _ensure_archive_folder():
+    """幂等定位/创建「📦 产物归档」根夹。state 登记后每次回读验证（防夹被删后记死账）。"""
+    st = load_state()
+    fid = st.get('archive_folder', '')
+    if fid and _find_folder_by_title('', ARCHIVE_TITLE) == fid:
+        return fid
+    fid = _find_folder_by_title('', ARCHIVE_TITLE)
+    if not fid:
+        fid = _create_folder(ARCHIVE_TITLE, '')
+        if not fid:
+            return ''
+    st['archive_folder'] = fid
+    save_state(st)
+    return fid
+
+
+def _ensure_index_db(fid):
+    """幂等定位/创建「📦 产物索引」库（挂归档夹内）。五字段：名称/类别/日期/来源/说明。"""
+    st = load_state()
+    db_id = st.get('index_db', '')
+    kids = {n.get('id'): n for n in _kids(fid)}
+    if db_id and db_id in kids:
+        return db_id
+    for nid, n in kids.items():
+        if n.get('kind') == 'database' and (n.get('title') or '').strip() == INDEX_DB_TITLE:
+            st['index_db'] = nid
+            save_state(st)
+            return nid
+    sc = {'title': INDEX_DB_TITLE, 'space_id': SPACE, 'parent_id': fid,
+          'properties': [
+              {'name': '名称', 'config': {'text': ''}},
+              {'name': '类别', 'config': {'select': {'options': [
+                  {'text': '面板'}, {'text': '文档'}, {'text': '清单'},
+                  {'text': '数据'}, {'text': '图片'}, {'text': '其他'}]}}},
+              {'name': '日期', 'config': {'date': {}}},
+              {'name': '来源', 'config': {'text': ''}},
+              {'name': '说明', 'config': {'text': ''}},
+          ]}
+    db_id, err = _create_db_api(sc)
+    if not db_id:
+        print(f'❌ 产物索引库创建失败：{err}')
+        return ''
+    st['index_db'] = db_id
+    save_state(st)
+    print(f'  ✅ 产物索引库已建并回读确认（{db_id}）')
+    return db_id
+
+
+def _index_add(db_id, name, cat, date, source, note):
+    """写一条索引记录（library 正本 batch_add_database_records）+ 回读容错。"""
+    rec = [{'名称': {'text': name}, '类别': {'text': cat}, '日期': {'text': date},
+            '来源': {'text': source}, '说明': {'text': note}}]
+    r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
+                        '--database-id', db_id, '--records', json.dumps(rec, ensure_ascii=False)],
+                       capture_output=True, text=True)
+    out = (r.stdout or '') + (r.stderr or '')
+    if 'error' in out.lower() and 'KS_' not in out:
+        print(f'  ⚠️ 索引记录写入疑似失败（文件本体已落库）：{out[:160]}')
+        return False
+    return True
+
+
+def cmd_archive(a):
+    """★ 产物落库正门（B-09）：上传「📦 产物归档」夹 + 写索引记录 + 本地清理。
+
+    流程全走 library 正门（create_folder / upload_drive_file / create_database /
+    batch_add_database_records），每步写后回读；落库成功后本地文件默认删除
+    （产物区不再堆积），--keep 显式保留。"""
+    resolve_space()
+    p = os.path.abspath(os.path.expanduser(a.file))
+    if not os.path.isfile(p):
+        print(f'❌ 文件不存在：{p}'); return 1
+    name = os.path.basename(p)
+    cat = a.category or _guess_cat(name)
+    fid = _ensure_archive_folder()
+    if not fid:
+        print('❌ 产物归档夹不可用'); return 2
+    # ① 传文件（独立 drive 节点，import-local-file 正门）
+    r = subprocess.run([sys.executable, f'{LIB}/drive/upload_drive_file.py',
+                        p, '--parent-id', fid, '--space-id', SPACE],
+                       capture_output=True, text=True)
+    out = (r.stdout or '') + (r.stderr or '')
+    node_id = ''
+    for ln in out.splitlines():
+        if 'KS_DRIVE_UPLOAD_OK' in ln or 'KS_IMPORT' in ln:
+            payload = ln.split('\t', 1)[1] if '\t' in ln else ln.split(' ', 1)[1]
+            try:
+                j = json.loads(payload)
+                node_id = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
+            except Exception:
+                pass
+    if not node_id:
+        # 输出可能就是一段 JSON（无 KS 行）
+        try:
+            j = json.loads(out.strip().splitlines()[-1])
+            node_id = j.get('node_id') or j.get('node_block_id') or j.get('nodeId') or ''
+        except Exception:
+            pass
+    # 写后回读：归档夹枚举中必须见到该节点。
+    # ★S200 同款：新建节点后服务端目录索引有传播延迟（实测首查即 miss）——
+    #   带间隔重试 3 次（3s/档），再失败才按未落库处理，不静默、不瞎删本地。
+    kids_ids = set()
+    for _i in range(3):
+        kids_ids = {n.get('id') for n in _kids(fid)}
+        if node_id and node_id in kids_ids:
+            break
+        time.sleep(3)
+    if not node_id or node_id not in kids_ids:
+        print(f'❌ 上传失败或回读不符（按未落库处理，本地文件保留）：{out[:200]}')
+        return 2
+    print(f'  ✅ 文件已落库并回读确认：{name}（{node_id}）')
+    # ② 索引记录
+    db_id = _ensure_index_db(fid)
+    st = load_state()
+    entry = {'name': name, 'cat': cat, 'node_id': node_id, 'db': db_id,
+             'date': time.strftime('%Y-%m-%d'), 'source': a.source or '（未注明）',
+             'note': a.category and '' or ''}
+    if db_id:
+        entry['indexed'] = _index_add(db_id, name, cat, entry['date'],
+                                      entry['source'], a.source and '' or '')
+    # ③ 登记历史（搜索框数据源）+ ④ 本地处置
+    st.setdefault('archive_log', []).append(entry)
+    save_state(st)
+    if a.keep:
+        print('  📎 --keep：本地文件保留')
+    else:
+        try:
+            os.remove(p)
+            print(f'  🧹 本地已清理（产物区不再堆积）：{p}')
+        except Exception as e:
+            print(f'  ⚠️ 本地清理失败（{type(e).__name__}）——文件已落库，可手动删：{p}')
+    print(f'{{已存至 {SPACE_TITLE_OR_FALLBACK()}/{ARCHIVE_TITLE}/{name}}}')
+    return 0
+
+
+def SPACE_TITLE_OR_FALLBACK():
+    """落点回执用的空间名：优先 state 登记的标题，取不到就退化为 space id 前 8 位。"""
+    try:
+        t = (load_state().get('space_title') or '').strip()
+        if t:
+            return t
+        return (SPACE or '空间')[:8]
+    except Exception:
+        return '空间'
+
+
+def _products_index():
+    """汇总产物索引：已落库（archive_log）+ 本地产物区现存（OUT_DIR 顶层文件）。"""
+    st = load_state()
+    rows = [{'name': x.get('name', ''), 'cat': x.get('cat', ''), 'date': x.get('date', ''),
+             'source': x.get('source', ''), 'where': '已落库',
+             'id': x.get('node_id', '')} for x in (st.get('archive_log') or [])]
+    for fn in sorted(os.listdir(OUT_DIR)):
+        p = os.path.join(OUT_DIR, fn)
+        if os.path.isfile(p):
+            sz = os.path.getsize(p)
+            rows.append({'name': fn, 'cat': _guess_cat(fn), 'date': time.strftime(
+                '%Y-%m-%d', time.localtime(os.path.getmtime(p))), 'source': '本地产物区',
+                'where': f'本地 {sz}B', 'id': ''})
+    return rows
+
+
+def cmd_products(a):
+    """★ 产物盘点 + 搜索框（B-09 产物纪律的配套入口）。
+
+    --scan       盘点：已落库索引 + 本地产物区现存，直接打印（不落盘）。
+    --search-box 生成单文件 HTML 搜索框（内嵌索引、零依赖）——属用户点名交付物。"""
+    rows = _products_index()
+    if a.scan:
+        print(f'产物盘点：共 {len(rows)} 件（已落库 {sum(1 for x in rows if x["where"] == "已落库")} '
+              f'｜ 本地产物区 {sum(1 for x in rows if x["where"] != "已落库")}）')
+        for x in rows:
+            print(f'  · [{x["cat"]}] {x["name"][:44]:44} {x["date"]}  {x["where"]}  {x["source"][:20]}')
+        return 0
+    if a.search_box:
+        payload = json.dumps(rows, ensure_ascii=False)
+        html = _SEARCH_BOX_TPL.replace('__PAYLOAD__', payload).replace(
+            '__GEN_TIME__', time.strftime('%Y-%m-%d %H:%M'))
+        out = os.path.join(OUT_DIR, '产物搜索框.html')
+        open(out, 'w', encoding='utf-8').write(html)
+        print(f'🔎 产物搜索框已生成（{len(rows)} 件可搜）：{out}')
+        return 0
+    print('用法：--scan 盘点 ｜ --search-box 生成搜索框'); return 1
+
+
+_SEARCH_BOX_TPL = '''<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>产物搜索框</title>
+<style>
+  :root{--bg:#0b1020;--card:#141b33;--fg:#e8ecf8;--mut:#8b93b8;--acc:#6ea8fe;--ok:#4ade80}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);font:15px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:20px}
+  h1{font-size:18px;margin-bottom:4px} .sub{color:var(--mut);font-size:12px;margin-bottom:14px}
+  #q{width:100%;padding:12px 16px;font-size:16px;border-radius:12px;border:1px solid #2a3560;background:var(--card);color:var(--fg);outline:none}
+  #q:focus{border-color:var(--acc)}
+  .stats{color:var(--mut);font-size:12px;margin:10px 2px}
+  .card{background:var(--card);border-radius:12px;padding:10px 14px;margin:8px 0;border-left:3px solid #2a3560}
+  .card.hit{border-left-color:var(--ok)}
+  .nm{font-weight:600;word-break:break-all} .mt{color:var(--mut);font-size:12px;margin-top:2px}
+  .tag{display:inline-block;background:#1e2a52;color:var(--acc);border-radius:6px;padding:0 8px;font-size:12px;margin-right:6px}
+  .empty{color:var(--mut);text-align:center;padding:30px 0}
+</style></head><body>
+<h1>🔎 产物搜索框</h1>
+<div class="sub">生成时间 __GEN_TIME__ ｜ 数据内嵌 · 零依赖 ｜ 产物纪律 B-09：新产物经库务司 archive 落库</div>
+<input id="q" placeholder="搜名称 / 类别 / 日期 / 来源…" autofocus>
+<div class="stats" id="st"></div>
+<div id="list"></div>
+<script>
+const DATA = __PAYLOAD__;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(q){
+  q = (q||'').trim().toLowerCase();
+  const hits = !q ? DATA : DATA.filter(x =>
+    [x.name,x.cat,x.date,x.source,x.where].join(' ').toLowerCase().includes(q));
+  document.getElementById('st').textContent = `共 ${DATA.length} 件 ｜ 命中 ${hits.length} 件`;
+  document.getElementById('list').innerHTML = hits.length ? hits.map(x =>
+    `<div class="card hit"><div class="nm"><span class="tag">${esc(x.cat)}</span>${esc(x.name)}</div>
+     <div class="mt">${esc(x.date)} · ${esc(x.where)} · ${esc(x.source)}</div></div>`).join('')
+    : '<div class="empty">没有命中的产物</div>';
+}
+const q = document.getElementById('q');
+q.addEventListener('input', () => render(q.value));
+render('');
+</script></body></html>
+'''
+
+
 def _list_spaces():
     """列出当前账号可访问的全部空间（list-user-spaces，无需任何写死 id）。"""
     d = _space('space.workspace.list-user-spaces')
@@ -1318,6 +1570,39 @@ def cmd_classify(a):
     return 0
 
 
+def _create_db_api(sc):
+    """调 library 建库正本（create_database.py --stdin）+ 多行 JSON 解析 + 父容器回读。
+    返回 (db_id, err)。M-R38 单一实现：cmd_create_db 与 _ensure_index_db 共用（B-08 不自造）。"""
+    r = subprocess.run([sys.executable, f'{LIB}/database/create_database.py', '--stdin'],
+                       input=json.dumps(sc, ensure_ascii=False), capture_output=True, text=True)
+    out = (r.stdout or '').strip()
+    # 正本输出可能是多行 pretty JSON——整体解析，失败再退化到逐行找首个完整 '{' 块
+    try:
+        j = json.loads(out)
+    except Exception:
+        buf, j = '', None
+        for ln in out.splitlines():
+            if ln.strip().startswith('{') and not buf:
+                buf = ln
+            elif buf:
+                buf += '\n' + ln
+            if buf:
+                try:
+                    j = json.loads(buf)
+                    break
+                except Exception:
+                    continue
+        j = j or {}
+    db_id = j.get('database_id', '')
+    if not db_id:
+        return '', f'{out[:200]}{(r.stderr or "")[:200]}'
+    # 写后回读：在父容器枚举中确认该 id 真实存在
+    kids_ids = {n.get('id') for n in _kids(sc.get('parent_id') or '')}
+    if db_id not in kids_ids:
+        return '', f'回读不符：API 返回 {db_id}，但父容器枚举未见该节点——按未建成处理（S169）'
+    return db_id, ''
+
+
 def cmd_create_db(a):
     """建库：薄封装 library/database/create_database.py（正本入口，不重写 HTTP 层）。
 
@@ -1360,43 +1645,9 @@ def cmd_create_db(a):
     if not a.yes:
         print('❌ 建库是写动作，须显式 --yes（防静默写云端）')
         return 1
-    try:
-        r = subprocess.run([sys.executable, f'{LIB}/database/create_database.py', '--stdin'],
-                           input=json.dumps(sc, ensure_ascii=False),
-                           capture_output=True, text=True)
-    except Exception as e:
-        print(f'❌ 调用建库正本失败：{e}')
-        db_id = ''
-    out = (r.stdout or '').strip()
-    db_id, err = '', ''
-    # 正本输出可能是多行 pretty JSON——整体解析，失败再退化到逐行找首个完整 '{' 块
-    try:
-        j = json.loads(out)
-    except Exception:
-        buf = ''
-        for ln in out.splitlines():
-            if ln.strip().startswith('{') and not buf:
-                buf = ln
-            elif buf:
-                buf += '\n' + ln
-            if buf:
-                try:
-                    j = json.loads(buf)
-                    break
-                except Exception:
-                    continue
-        else:
-            j = None
-    j = j or {}
-    db_id = j.get('database_id', '')
-    err = j.get('error', '')
+    db_id, err = _create_db_api(sc)
     if not db_id:
-        print(f'❌ 建库失败：{out[:200]}{(r.stderr or "")[:200]}'); return 1
-    # 写后回读：在父容器枚举中确认该 id 真实存在
-    kids_ids = {n.get('id') for n in _kids(parent or '')}
-    if db_id not in kids_ids:
-        print(f'❌ 回读不符：API 返回 {db_id}，但父容器枚举未见该节点——按未建成处理（S169）')
-        return 1
+        print(f'❌ 建库失败：{err}'); return 1
     print(f'✅ 库已建成并回读确认：{sc["title"]}（{db_id}，{len(sc["properties"])} 字段）')
     print(f'   → 后续写记录走 library 正本：database/batch_add_database_records.py')
     return 0
@@ -1452,14 +1703,24 @@ def main(argv=None):
     lr = sub.add_parser('local-rm', help='★销账：本地欠账已人工处置，从清单移除（--path 前缀 / --all 全清）')
     lr.add_argument('--path', default='', help='按路径前缀匹配销账')
     lr.add_argument('--all', action='store_true', help='销全部本地欠账')
+    ar = sub.add_parser('archive', help='★产物落库正门（B-09）：上传📦产物归档夹+写索引+本地清理')
+    ar.add_argument('--file', required=True, help='本地产物文件路径')
+    ar.add_argument('--category', default='', help='类别（缺省按扩展名猜：面板/文档/清单/数据/图片）')
+    ar.add_argument('--source', default='', help='来源说明（哪个技能/任务产出）')
+    ar.add_argument('--keep', action='store_true', help='保留本地文件（默认落库成功后删除本地）')
+    pr = sub.add_parser('products', help='★产物盘点+搜索框（B-09 配套）')
+    pr.add_argument('--scan', action='store_true', help='盘点已落库+本地产物区现存（只打印不落盘）')
+    pr.add_argument('--search-box', action='store_true', dest='search_box',
+                    help='生成单文件 HTML 搜索框（点名交付物）')
     a = ap.parse_args(argv)
-    if a.cmd not in ('init', 'local-rm'):
-        resolve_space(quiet=True)   # 除 init / local-rm（纯本地账，不依赖云端）外，先过四层空间解析
+    if a.cmd not in ('init', 'local-rm', 'products'):
+        resolve_space(quiet=True)   # 除 init / local-rm / products（纯本地账，不依赖云端）外，先过四层空间解析
     return {'init': cmd_init, 'classify': cmd_classify, 'create-db': cmd_create_db,
             'inbox': cmd_inbox, 'add': cmd_add, 'scan': cmd_scan,
             'list': cmd_list, 'render': cmd_render, 'census': cmd_census,
             'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename,
-            'local-rm': cmd_local_rm}[a.cmd](a)
+            'local-rm': cmd_local_rm, 'archive': cmd_archive,
+            'products': cmd_products}[a.cmd](a)
 
 
 def dispatch(argv=None):
