@@ -14,9 +14,15 @@ C_OK=""; C_NO=""; C_WARN=""; C_DIM=""
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   C_OK=$'\033[32m'; C_NO=$'\033[31m'; C_WARN=$'\033[33m'; C_DIM=$'\033[0m'
 fi
+# ★ v0.8.19（工程G-3）：**失败计数 + 真退出码**。
+#   原实现只有打印、从不 exit——`bash verify.sh` 恒返回 0，于是任何自动化/发布脚本
+#   都拿不到失败信号（有红项也照样过）。人眼看 ✓ 能过，机器看 rc 永远通过，这是最坏的一种假绿。
+#   现约定：✗ 计失败并最终 exit 2；· 记"无法判定"单独计数（不阻断，但不许被当成通过）。
+FAILS=0
+UNKNOWNS=0
 ok(){ printf "  %s✓%s %s\n" "$C_OK" "$C_DIM" "$1"; }
-no(){ printf "  %s✗%s %s\n" "$C_NO" "$C_DIM" "$1"; }
-opt(){ printf "  %s·%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
+no(){ FAILS=$((FAILS + 1)); printf "  %s✗%s %s\n" "$C_NO" "$C_DIM" "$1"; }
+opt(){ UNKNOWNS=$((UNKNOWNS + 1)); printf "  %s·%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
 # ★ v0.8.14（B4·WARN 分级）：卫生问题用黄叹号，与"绿✓通过/红✗失败"三态区分——不折叠
 warn(){ printf "  %s⚠%s %s\n" "$C_WARN" "$C_DIM" "$1"; }
 
@@ -137,11 +143,11 @@ if [ -d "$SK/probe-hub/scripts" ]; then
   # 只看功能性硬编码（sys.path / 变量赋值），文案与注释里的路径不影响运行
   hit=$(grep -rEn "sys\.path\.insert\([^)]*'/root/\.codebuddy|^[[:space:]]*[A-Z_]+[[:space:]]*=[[:space:]]*'/root/\.codebuddy" "$SK" --include="*.py" 2>/dev/null | wc -l | tr -d ' ')
   [ "${hit:-0}" -eq 0 ] && ok "无功能性硬编码 /root/.codebuddy（可跨机器）" || no "仍有 $hit 处功能性硬编码路径"
-  echo "  · 探源司 status 冒烟（约 10s，网络受限时会降级）"
+  echo "    （探源司 status 冒烟，约 10s；下面是结果，不是判定符号）"
   out=$( cd "$SK/probe-hub/scripts" && PROBE_HUB_NO_BANNER=1 timeout 60 python3 probe.py monitor status 2>/dev/null || true )
   case "$out" in
     *"个目标"*) ok "probe.py monitor status 可跑（监测台正常）" ;;
-    *) echo "  · status 未通过 → 记「无法判定」（多为沙箱网络受限，非必失败）" ;;
+    *) opt "探源司 status 未通过 → 无法判定（多为沙箱网络受限，非必失败）" ;;
   esac
   # 分发卫生（v0.8.12）：个人资产册不得被 git 跟踪，模板册必须在位
   if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
@@ -211,7 +217,7 @@ fi
 echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"
 [ -f "$P/CODEBUDDY.md" ] && ok "CODEBUDDY.md" || opt "CODEBUDDY.md 未装（用户级模式正常）"
-[ -d "$P/skills/tvbox-pipeline" ] && ok "skills/tvbox-pipeline" || echo "  · 项目级技能未装（用户级模式正常）"
+[ -d "$P/skills/tvbox-pipeline" ] && ok "skills/tvbox-pipeline" || opt "项目级技能未装（用户级模式正常）"
 for f in collect_repos check_live merge_config; do
   [ -f "$P/scripts/$f.py" ] && ok "scripts/$f.py" || true
 done
@@ -239,16 +245,33 @@ else
 fi
 
 echo
-echo "[密钥安全（v0.7.0 起·core-8 规则 5 零明文凭证）]"
+echo "[密钥安全（v0.8.19 起·发布门默认 --strict）]"
 if [ -f "$TARGET/secret_scan.py" ]; then
-  scan_out=$(python3 "$TARGET/secret_scan.py" "$TARGET" 2>&1); scan_rc=$?
+  # ★ v0.8.19（工程G-3）：默认 --strict——卫生问题（个人绝对路径 / 本地 endpoint）
+  #   从"提示"升级为"发布前必须清或显式豁免"。理由：WARN 挂在面板上三轮都没人管，
+  #   而这类东西一旦分发出去就是"别人的机器上跑不通 + 泄露我的目录结构"。
+  #   临时排查可 SECRET_STRICT=0 bash verify.sh 关掉（关了要说出来，别静默降级）。
+  SCAN_ARGS=""
+  [ "${SECRET_STRICT:-1}" = "1" ] && SCAN_ARGS="--strict"
+  scan_out=$(python3 "$TARGET/secret_scan.py" "$TARGET" $SCAN_ARGS 2>&1); scan_rc=$?
   echo "$scan_out"
-  [ "$scan_rc" -eq 0 ] && ok "secret_scan 无明文密钥（含 .git/config 复查）" \
-    || no "secret_scan 发现疑似明文密钥（见上方清单，立即处置）"
-  # ★ v0.8.14（工程B·B4）：WARN 级卫生问题单列计数——不阻断，但必须可见
+  if [ "$scan_rc" -eq 0 ]; then
+    if [ -n "$SCAN_ARGS" ]; then
+      ok "secret_scan 无明文密钥、无未处置卫生问题（--strict 发布门）"
+    else
+      ok "secret_scan 无明文密钥（含 .git/config 复查；SECRET_STRICT=0 已关闭严格模式）"
+    fi
+  else
+    no "secret_scan 未通过（明文密钥立即处置；卫生问题按 A 口径改文本，历史档案走 HYGIENE_EXEMPT 并写理由）"
+  fi
+  # WARN 级计数（strict 模式下这些已经会判红，这里仍单独报数，便于知道"红了几条卫生"）
   warn_n=$(printf '%s\n' "$scan_out" | sed -n 's/^\[WARN\] \([0-9]*\) 处.*/\1/p' | head -1)
   if [ -n "${warn_n:-}" ] && [ "$warn_n" -gt 0 ]; then
-    warn "发布面卫生 ${warn_n} 处 WARN（个人路径/本地endpoint，不阻断；--strict 可升级为红）"
+    if [ -n "$SCAN_ARGS" ]; then
+      no "发布面卫生 ${warn_n} 处 WARN（--strict 下计为失败：活文档改中性表述，历史档案登记豁免）"
+    else
+      warn "发布面卫生 ${warn_n} 处 WARN（SECRET_STRICT=0，不阻断；仅用于临时排查）"
+    fi
   fi
 else
   no "secret_scan.py 缺失（零明文凭证防线未装）"
@@ -378,7 +401,10 @@ fi
 #   不进上一节的统计口径（它们是行为判据，不是落点判据），失败单独列原因。
 echo
 echo "[扩展回归（v0.8.18 起·工程F）]"
-for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract; do
+# ★ 注意：test_verify_exit.sh **不能**挂在这里——它内部会调 verify.sh，会无限递归。
+#   它由人手动跑（或在 CI 里作为最外层一步）。
+for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
+         test_triggers test_docsync test_skill_cards; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
@@ -392,4 +418,11 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
 done
 
 echo "============================================"
+printf '汇总：✓ 通过 ／ ✗ 失败 %d ／ · 无法判定 %d\n' "$FAILS" "$UNKNOWNS"
+if [ "$FAILS" -gt 0 ]; then
+  echo "✗ 自检未通过（退出码 2）——红项在上方，逐条处置后重跑"
+  exit 2
+fi
+echo "✓ 自检通过（退出码 0）"
 echo "提示：装完/改完要【开新会话】才加载；手机按 手机指令.md 手动粘规则。"
+exit 0

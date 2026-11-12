@@ -173,6 +173,19 @@ def chk_secrets(target, cfg, ctx):
 
 
 def chk_docsync(target, cfg, ctx):
+    """景门 · 文档一致（v1.4.1 改为**集合比对**）。
+
+    旧实现拿登记册里写死的 `declared` 常量比代码计数——代码加个子命令、没人改登记册，
+    这面就永远红（2026-11-12 实测 space-hub 就是这样：登记 14、实况其实是 19）。
+    假红比不查更坏：人一旦习惯"这面老是红的"，真吹牛就淹掉了。
+
+    新判据两边都**现读**，不写死数字：
+      文档侧：SKILL.md 里出现的 `<脚本名> <子命令>`（用户真能看到的那份清单）
+      代码侧：`sub.add_parser('<cmd>')` / `sub.add_parser("<cmd>")`
+      差异：文档有代码无 → 红（吹牛，用户照着敲会报错）
+            代码有文档无 → 黄（漏写，用户不知道这命令存在）
+    兼容：只配了 declared 的老登记仍可跑（但不再推荐）。
+    """
     items, sts = [], []
     for d in cfg.get('declarations', []):
         script = os.path.join(target, d['script'])
@@ -180,14 +193,61 @@ def chk_docsync(target, cfg, ctx):
             items.append({'t': '【黄】脚本缺失无法清点: ' + d['skill'], 'e': d['script'], 'c': '核对登记路径'})
             sts.append('yellow')
             continue
-        txt = open(script, encoding='utf-8', errors='ignore').read()
-        n = len(re.findall(d['regex'], txt))
-        if n == d['declared']:
-            items.append({'t': '【绿】' + d['skill'] + ' 声明与实况一致', 'e': 'SKILL 声明 ' + str(d['declared']) + ' = 代码实count ' + str(n), 'c': '无需处置'})
-            sts.append('green')
-        else:
-            items.append({'t': '【红】' + d['skill'] + ' 文档吹牛：声明 ' + str(d['declared']) + ' ≠ 实况 ' + str(n), 'e': d['script'], 'c': '改 SKILL.md 或补实现，二者必须对齐'})
+        code_txt = open(script, encoding='utf-8', errors='ignore').read()
+        code_set = set(re.findall(d['regex'], code_txt))
+
+        if not d.get('doc'):
+            # 老口径（写死 declared）——保留可用，但结果只能说明"数字不等"，说不出差在哪
+            n = len(re.findall(d['regex'], code_txt))
+            ok = n == d['declared']
+            items.append({'t': ('【绿】' if ok else '【红】') + d['skill'] + ' 声明与实况' + ('一致' if ok else '不符'),
+                          'e': f'登记 {d["declared"]} vs 实读 {n}（老口径：只有数字，说不出差在哪）',
+                          'c': '无需处置' if ok else '改 SKILL.md 或补实现，建议升级为 doc 口径'})
+            sts.append('green' if ok else 'red')
+            continue
+
+        doc_path = os.path.join(target, d['doc'])
+        if not os.path.isfile(doc_path):
+            items.append({'t': '【黄】文档缺失无法对账: ' + d['skill'], 'e': d['doc'], 'c': '核对登记路径'})
+            sts.append('yellow')
+            continue
+        doc_txt = open(doc_path, encoding='utf-8', errors='ignore').read()
+        # 只在 ``` 代码块内抽命令：正文里 "probe" 常作普通词出现（实测 "probe tvbox 相关" 被误抓
+        # 当成吹牛），而代码块里的才是用户会照抄的东西。无代码块时退回全文（老文档兼容）。
+        blocks = re.findall(r'```[a-zA-Z]*\n(.*?)```', doc_txt, re.S)
+        scope = '\n'.join(blocks) if blocks else doc_txt
+        doc_set = set(re.findall(d['doc_regex'], scope))
+        if not doc_set or not code_set:
+            items.append({'t': f'【白】{d["skill"]} 两侧至少一侧抽不出命令，无法判定',
+                          'e': f'文档 {len(doc_set)} 条 / 代码 {len(code_set)} 条——抽取为空时"一致"没有意义',
+                          'c': '核对 doc_regex 是否匹配当前写法'})
+            sts.append('unknown')
+            continue
+
+        ghost = sorted(doc_set - code_set)      # 文档有、代码无 = 吹牛（必查）
+        missing = sorted(code_set - doc_set)    # 代码有、文档无 = 漏写（仅 check_missing 时查）
+        # 为什么分级：命令极多的技能（probe-hub 26 个）文档只列主命令是**设计选择**，
+        # 「没列全」报黄会变成几十条噪音，把真吹牛淹掉。而「写了个不存在的命令」
+        # 一定是错——用户照文档敲会直接报错，无论文档该列几条。
+        for c in ghost:
+            items.append({'t': f'【红】{d["skill"]} 文档吹牛：写了 {c} 但代码没有',
+                          'e': f'{d["doc"]} 列了 {c}，而 {d["script"]} 无此子命令',
+                          'c': f'删掉文档里的 {c}，或补实现（用户照文档敲会直接报错）'})
             sts.append('red')
+        for c in (missing if d.get('check_missing', True) else []):
+            items.append({'t': f'【黄】{d["skill"]} 文档漏写子命令 {c}',
+                          'e': f'代码有 {c}，{d["doc"]} 未列——用户不知道它存在',
+                          'c': f'在文档命令节补一行 {c}；若是内部/废弃命令，应从代码删除而不是留着'})
+            sts.append('yellow')
+        if not ghost and (not d.get('check_missing', True) or not missing):
+            extra = '' if d.get('check_missing', True) else f'；代码另有 {len(missing)} 条未列（不判）'
+            # 标题里就要写清"只保证写了的都存在"——只写"都存在"会被读成"文档列全了"
+            title = (f'【绿】{d["skill"]} 文档与代码命令集一致' if d.get('check_missing', True)
+                     else f'【绿】{d["skill"]} 文档所写命令都存在（未列 {len(missing)} 条不判）')
+            items.append({'t': title,
+                          'e': f'文档 {len(doc_set)} 条全部命中代码 {len(code_set)} 条（现读两侧，无写死数字）{extra}',
+                          'c': '无需处置'})
+            sts.append('green')
     return {'status': worst(sts), 'items': items}
 
 
@@ -328,6 +388,138 @@ def chk_products(target, cfg, ctx):
                 'e': zone + f'（阈值 {th}）——含点名交付物，不全算违规',
                 'c': '库务司 products --scan 逐件 archive 落库，或人工点名清理'}]}
     return {'status': 'green', 'items': [{'t': f'【绿】产物区 {n} 件（阈值 {th} 内）', 'e': zone, 'c': '无需处置'}]}
+
+
+# ---------- 惊门（M8）· 触发词冲突（v1.4.0 转正） ----------
+# 设计取舍（2026-11-12 实测得出，别推翻）:
+#   平台路由靠「description 命中触发词」，所以**两个技能声明同一个词 = 用户说这话时路由二义**。
+#   这条能机检，判红。
+#   但「语义相近、字面不同」（learn-hub 的"整理成笔记" vs space-hub 的"整理"）字面判据抓不到；
+#   试过"负边界交叉包含"（A 的触发词出现在 B 的不要用于里），实测 6 个候选**全是假阳性**——
+#   中文里"归某技能管"和"不要做某事"共用同一批字面词（如 artifact-store 写"不要用于云端建库
+#   （归 space-hub 库务司）"，字面包含 space-hub 的触发词"库务司"，实则是指路）。
+#   故本门**只查字面**，语义冲突显式交给各技能 references/trigger-samples.md 的 N 组「应归谁」。
+#   宁可查得少而准，也不报一堆假红把真冲突淹掉。
+_TRIG_STOP = r'(?:。|正门[:：]|能力[:：]|★|【|不要用于|不适用于|$|等触发词)'
+
+
+def _skill_desc(path):
+    """取 SKILL.md frontmatter 的 description（引号 / 折叠两种写法都吃）。取不到返回 ''。"""
+    try:
+        t = open(path, encoding='utf-8').read()
+    except Exception:
+        return ''
+    if not t.startswith('---'):
+        return ''
+    end = t.find('\n---', 3)
+    if end < 0:
+        return ''
+    # 截到下一个顶格键：不加 (?=^[^\s]|\Z) 会贪婪到 frontmatter 末尾，
+    # 把 allowed-tools 之类整行吞进 description（导出卡片时实测踩到）。
+    m = re.search(r'^description:\s*(.*?)(?=^[^\s]|\Z)', t[3:end], re.M | re.S)
+    if not m:
+        return ''
+    g = m.group(1)
+    q = re.match(r'\s*"(.*?)"\s*$', g, re.S)
+    return q.group(1) if q else g.strip()
+
+
+def _trig_words(desc):
+    """抽触发词。两种官方写法都认：
+         ① `触发词：a / b / c`          ② `当用户说「a」「b」…时使用`
+    都没有 → 返回 []。**空列表的意思是"没得查"，不是"没冲突"**（调用方按缺口报黄）。"""
+    words = []
+    m = re.search(r'触发词[:：](.*?)' + _TRIG_STOP, desc, re.S)
+    if m:
+        for w in re.split(r'[/／、]', m.group(1)):
+            w = w.strip().strip('；;，,。 ')
+            if w:
+                words.append(w)
+    if not words:
+        words = re.findall(r'当用户说((?:「[^」]+」)+)', desc)
+        # findall 只回来一串「a」「b」，再拆
+        words = re.findall(r'「([^」]+)」', ''.join(words)) if words else []
+    return words
+
+
+def _norm_word(w):
+    """归一化：只做不改变语义的处理——去括号注释、全角空格、大小写折叠、去所有空白。"""
+    w = re.sub(r'[（(][^）)]*[）)]', '', w)
+    w = w.replace('\u3000', ' ')
+    return re.sub(r'\s+', '', w).lower()
+
+
+def chk_triggers(target, cfg, ctx):
+    """惊门（M8）· 触发词冲突检测器。
+
+    能机检的三类:
+      ① 跨技能同词 → 红（用户说这词，路由二义，两个技能都可能被叫起）
+      ② 技能内重复登记 → 黄（清单自撞，权重失真）
+      ③ 未声明触发词 → 黄（**冲突无从判定**，不是"无冲突"；三态不折叠）
+    查不了的一类（必须写在面板上，不许装绿）:
+      语义相近但字面不同 → 各技能 references/trigger-samples.md 的 N 组「应归谁」人工核。
+    """
+    skills = repo_skills(target)
+    if not skills:
+        return {'status': 'unknown', 'items': [{'t': '【白】未发现技能，触发词面无从判定',
+                                                'e': target, 'c': '核对 --target 是否指向 520pro 根'}]}
+    if len(skills) < 2:
+        # 只有一个技能时"撞车"在定义上不可能发生——这时的绿是假绿（2026-11-12 反④ 用例实测抓到）
+        return {'status': 'unknown', 'items': [{'t': f'【白】仅 {len(skills)} 个技能，冲突无从判定',
+                   'e': '撞车是技能间的概念，样本不足 2 个时"无冲突"没有意义',
+                   'c': '核对 --target 指向的目录是否完整（技能应 ≥2 个）'}]}
+    owner, gaps, dups, total_words = {}, [], [], 0
+    for name, sk in skills:
+        ws = _trig_words(_skill_desc(os.path.join(sk, 'SKILL.md')))
+        if not ws:
+            gaps.append(name)
+            continue
+        total_words += len(ws)
+        seen = set()
+        for w in ws:
+            k = _norm_word(w)
+            if not k:
+                continue
+            if k in seen:
+                dups.append((name, w))
+            seen.add(k)
+            owner.setdefault(k, []).append((name, w))
+    covered = len(skills) - len(gaps)
+    items, sts = [], []
+
+    # ① 跨技能同词（红）
+    cross = {k: v for k, v in owner.items() if len({n for n, _ in v}) > 1}
+    for k, v in sorted(cross.items()):
+        who = '、'.join(sorted({n for n, _ in v}))
+        items.append({'t': '【红】触发词撞车「' + k + '」→ ' + who,
+                      'e': '同一词被 ' + str(len({n for n, _ in v})) + ' 个技能声明，用户说这话时路由二义',
+                      'c': '留一个最贴切的，其余改写成更具体的说法（如"整理文件"vs"整理学习资料"）'})
+        sts.append('red')
+
+    # ② 技能内重复（黄）
+    for name, w in dups:
+        items.append({'t': f'【黄】{name} 触发词重复登记「{w}」',
+                      'e': '同一技能清单里出现两次（归一化后相同）',
+                      'c': '删掉重复项，清单里一个词只出现一次'})
+        sts.append('yellow')
+
+    # ③ 未声明触发词（黄·冲突无从判定）
+    if gaps:
+        items.append({'t': f'【黄】{len(gaps)} 个技能未声明触发词，冲突无从判定',
+                      'e': '、'.join(gaps) + f'（覆盖 {covered}/{len(skills)}）',
+                      'c': '在 description 补「触发词：a / b / c」（词从 references/trigger-samples.md 的 T 组提炼，不凭空编）'})
+        sts.append('yellow')
+
+    # 覆盖统计与边界说明（无论红绿都要出现——否则"0 冲突"会被读成"全都健康"）
+    items.append({'t': f'【提示】字面覆盖 {covered}/{len(skills)} 技能、{total_words} 个触发词（本门只查字面同词）',
+                  'e': '语义相近（"整理成笔记"vs"整理"）字面判据抓不到；负边界交叉包含试过，全是假阳性故不做',
+                  'c': '语义冲突靠各技能 references/trigger-samples.md 的 N 组「应归谁」人工核（E10 manual 判据）'})
+    if not cross and not gaps and not dups:
+        items.append({'t': '【绿】无触发词撞车', 'e': f'{len(skills)} 个技能、{total_words} 个词全量比对通过',
+                      'c': '无需处置'})
+        sts.append('green')
+    return {'status': worst(sts), 'items': items,
+            'covered': covered, 'total': len(skills), 'words': total_words}
 
 
 def chk_structure(target, cfg, ctx):

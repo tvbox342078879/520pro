@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.4.0",
   "name": "inspect-hub 巡检登记册",
   "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/14（space-hub v2.2.0）",
   "layout": {
@@ -71,19 +71,23 @@
           {
             "skill": "probe-hub",
             "script": "能力层/tvbox/skills/probe-hub/scripts/probe.py",
-            "declared": 16,
-            "regex": "=\\s*sub\\.add_parser\\('"
+            "doc": "能力层/tvbox/skills/probe-hub/SKILL.md",
+            "regex": "sub\\.add_parser\\(\\s*['\\\"]([a-z][a-z0-9-]*)['\\\"]",
+            "doc_regex": "\\b(?:tvbox[ \\t]+)?probe[ \\t]+([a-z][a-z0-9-]*)",
+            "check_missing": false,
+            "note": "前缀是 tvbox probe；水平空白不跨行（\\s+ 会把行尾 probe 与下行 tvbox 连成伪命令）"
           },
           {
             "skill": "space-hub",
             "script": "通用层/skills/space-hub/scripts/space_hub.py",
-            "declared": 14,
-            "regex": "=\\s*sub\\.add_parser\\('",
-            "note": "v2.2.0 +archive/products"
+            "doc": "通用层/skills/space-hub/SKILL.md",
+            "regex": "sub\\.add_parser\\(\\s*['\\\"]([a-z][a-z0-9-]*)['\\\"]",
+            "doc_regex": "space_hub\\.py[ \\t]+([a-z][a-z0-9-]*)",
+            "check_missing": true
           }
         ]
       },
-      "note": "SKILL 文档声明 vs 代码实况（防文档吹牛）；正则计数锚点 2026-11-12 实测 16/14（space-hub v2.2.0 +archive/products）"
+      "note": "文档命令集 vs 代码子命令集，两边现读集合比对（v1.4.1：不用写死 declared 防假红）；文档有代码无=红（吹牛，必查），代码有文档无=黄（仅 check_missing=true 时）"
     },
     {
       "id": "M5",
@@ -132,11 +136,11 @@
       "gua": "☱",
       "men": "惊",
       "face": "触发词冲突",
-      "impl": null,
+      "impl": "chk_triggers",
       "lp": 13.1,
       "tp": 49.7,
       "config": {},
-      "note": "在册待补码：各技能触发词重复检测。先登记占位（灰），下个迭代实现 chk_triggers"
+      "note": "触发词冲突：跨技能同词判红；未声明触发词判黄（冲突无从判定）；语义冲突靠 N 组样本人工核"
     }
   ]
 }

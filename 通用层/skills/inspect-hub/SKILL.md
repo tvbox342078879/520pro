@@ -1,7 +1,7 @@
 ---
 name: inspect-hub
 description: 520 巡检司（监察司思想通用化）。当用户说「520 体检」「体检」「巡检」「拉面板」「520健康吗」「哪里没检查」「有什么遗留」「inspect」等触发词时使用。对 520pro 仓库自身跑 8 面巡检（规则生效/技能生效/密钥安全/文档一致/结构完整/遗留登记/新鲜度/触发词），产出单文件 dashboard.html 八卦八门面板并拉到用户眼前；登记册驱动加巡检面零改代码；检查器失灵报「无法判定」绝不装绿（三态铁律）。与 probe-hub（盯外部 TVBox 上游）相对，本技能盯 520 自家健康。 能力：①八面巡检（规则生效/技能生效/密钥安全/文档一致/结构完整/遗留登记/新鲜度/触发词）；②登记册驱动（加巡检面零改代码，先登记占位灰）；③八卦八门面板（单文件 dashboard.html，拉到眼前）；④三态判定（检查器失灵报「无法判定」，绝不装绿）；⑤环比指纹（findings_history 对比上次，只看变化）。正门：scripts/inspect_hub.py（run 出面板 / self-check 自检）。不要用于：盯 TVBox 上游仓库与线路（归 probe-hub 探源司）；不要用于技能契约的逐项机检（归 verify/skill_contract_check.py）；不要用于修改被检对象（只体检、不动刀，修由各技能正门做）。
-version: 1.3.3
+version: 1.4.1
 ---
 
 # inspect-hub · 520 巡检司 v1.3.1
@@ -25,7 +25,7 @@ version: 1.3.3
 | 伤 | ☷ | 结构完整 | MANIFEST 登记文件逐个存在性 |
 | 死 | ☶ | 遗留登记 | docs/遗留登记.md 的【待】/【阻】条目；**带过执法**：每条必须带「负责人+期限」缺一即红，同一主题 ≥2 次按复发升红（借 tvbox-eco carryover_guard 思想） |
 | 休 | ☴ | 新鲜度 | 最近提交距今 + 各技能 CHANGELOG 停更天数 |
-| 惊 | ☱ | 触发词冲突 | 在册待补码（灰），实现 chk_triggers 后转正 |
+| 惊 | ☱ | 触发词冲突 | 各 SKILL description 的「触发词」跨技能比对：**同词撞车判红**（用户说这词路由二义）；技能内重复判黄；未声明触发词判黄（冲突无从判定，非无冲突）。**只查字面**，语义近义靠各技能 trigger-samples 的 N 组人工核 |
 
 ## 使用流程（强制，逐条执行不许跳）
 
@@ -50,6 +50,7 @@ version: 1.3.3
 
 ```
 python3 scripts/inspect_hub.py self-check    # 登记 8 门齐 + impl 映射一致 + 模板可渲染
+python3 verify/tests/test_triggers.py       # 惊门：真仓 green / 撞词红 / 缺词黄 / 单技能 unknown（G1）
 python3 verify/tests/test_troubleshoot.py   # 每技能「按症状排」的故障排查是否 ≥5 条（F3）
 python3 scripts/inspect_hub.py adversarial --target <520pro根>   # 对抗自测（v1.1.0）
 ```

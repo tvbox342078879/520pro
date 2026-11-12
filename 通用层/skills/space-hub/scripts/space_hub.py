@@ -18,7 +18,6 @@ publish/unpublish）。凡 AI 删不掉的节点 → 本技能**移动**到一�
   janitor add --node ID [--reason R]  把节点移入收件箱 + 登记清单（AI 能做的最后一步）
   janitor scan                        扫全空间找"废弃/待删/🗑"标记节点（补漏登记）
   janitor list                        打印待删清单（Markdown + CSV 落盘）
-  janitor render                      把清单重写进收件箱内的说明文档
   janitor move --node ID --to 父节点ID              节点移动到指定文件夹（改名/归位通用）
   janitor rename --node ID --title "新标题"         节点改名
 
@@ -1056,12 +1055,6 @@ def cmd_list(a):
     return 0
 
 
-def cmd_render(a):
-    """把清单重写进收件箱内的说明文档（需知道文档 node-id）。"""
-    print('（render：清单文档由 list 生成 Markdown，可用 create-doc 手动更新收件箱说明）')
-    return 0
-
-
 def cmd_census(a):
     """★ S158 大生态/小生态分层普查：回答「这块归谁管」，而不只是「这块是不是垃圾」。
 
@@ -1188,8 +1181,22 @@ def cmd_census(a):
 
 
 def _node_parent(nid):
-    """反查节点的真实父节点。node-info 的 parentNodeId 实测恒为 None（不可信），
-    故走全树遍历 _find_parent。返回 '' 表示查不到（调用方必须显式报，不许当"根"）。"""
+    """反查节点的真实父节点 id。
+
+    ★ 2026-11-12 修（工程G 实测踩到）：原实现只走全树遍历 `_find_parent`，
+      对 `kind=database` 的节点**恒返回空串**——因为数据库节点挂在 space 下，
+      不进 root 的子节点枚举链。而调用方把空串当"不在收件箱"，于是
+      「add 报成功 → 回读说不在箱」自相矛盾（本次两个测试库就是这样对不上的）。
+      注意 docstring 里"不可信"的是 `parentNodeId`（恒 None），不是 `parentId`；
+      `parentId` 实测准。故改为：**node-info 的 parentId 优先，遍历兜底**。
+    返回 '' 表示查不到（调用方必须显式报，不许当"根"）。"""
+    try:
+        info = _space('space.workspace.node-info', node_id=nid)
+        pid = (((info or {}).get('data') or {}).get('node') or {}).get('parentId')
+        if pid:
+            return pid
+    except Exception:
+        pass
     try:
         return _find_parent(nid, skip_inbox=False) or ''
     except Exception:
@@ -3028,7 +3035,6 @@ def main(argv=None):
     _lp = sub.add_parser('list')
     _lp.add_argument('--no-verify', dest='no_verify', action='store_true',
                      help='跳过服务端位置校验（默认逐项核 parentId，剔除已迁出的陈旧项）')
-    sub.add_parser('render')
     cs = sub.add_parser('census')
     cs.add_argument('--json', action='store_true',
                     help='额外落盘 JSON 明细（/workspace/S158_大生态分层普查.json）')
@@ -3078,7 +3084,7 @@ def main(argv=None):
         resolve_space(quiet=True)   # 除纯本地账与自举类命令外，先过四层空间解析
     return {'init': cmd_init, 'classify': cmd_classify, 'create-db': cmd_create_db,
             'inbox': cmd_inbox, 'add': cmd_add, 'scan': cmd_scan,
-            'list': cmd_list, 'render': cmd_render, 'census': cmd_census,
+            'list': cmd_list, 'census': cmd_census,
             'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename,
             'local-rm': cmd_local_rm, 'archive': cmd_archive,
             'products': cmd_products, 'ensure': cmd_ensure, 'adopt': cmd_adopt,

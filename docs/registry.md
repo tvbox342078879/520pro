@@ -57,7 +57,9 @@
 | 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链 + 规则↔验证器互引（CHANGELOG/测试记录不查） |
 | 规则↔验证器映射 | `verify/rule_map.json` | 每条 B-xx 的判据号/入口/锚点；T4 双向核，锚点漂移即红 |
 | 交付报告与派活模板 | `docs/模板_阶段完工交付报告.md`、`docs/派活提示模板.md` | 回执含「回滚路径」必填；派活含五段固定基线 |
-| 回归测试 | `verify/tests/` | 五个随 verify.sh 自动跑（troubleshoot/language/doc_index/reading_guide/reject_contract）+ 三个手动（handoff 已挂、rule_map_reverse 会改文件故手动）；每个都做过"拆实现即翻红"的变异验证 |
+| 技能卡片导出（手机端导入用） | `export_skill_cards.py` | 从 SKILL.md 现读现出，不手抄；坏技能整条不输出（半张卡片更难查）；`verify/tests/test_skill_cards.py` 盯"description 不许夹带 frontmatter 其它键" |
+| verify.sh 退出码 | `verify.sh` 末尾 | ✗ 计 FAILS 并 exit 2；· 记 UNKNOWNS 不阻断。**自动化只认 rc，人眼只认 ✓，两者必须同源** |
+| 回归测试 | `verify/tests/` | 八个随 verify.sh 自动跑（troubleshoot/language/doc_index/reading_guide/reject_contract/triggers/docsync/skill_cards）+ 三个手动（test_verify_exit 会递归调 verify.sh 故不挂、test_node_parent 需真接口、rule_map_reverse 会改文件）；每个都做过"拆实现即翻红"的变异验证 |
 | 每技能故障排查（症状索引） | 各技能 `docs/` 下的 `TROUBLESHOOTING.md` | 按症状排，≥5 条真实条目；`verify/tests/test_troubleshoot.py` 机检，占位符判红 |
 | 密钥与卫生扫描 | `secret_scan.py` | 九类凭证 + 个人绝对路径 + 本地 endpoint + 模板真值 |
 

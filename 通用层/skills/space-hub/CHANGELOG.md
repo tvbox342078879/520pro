@@ -1,5 +1,11 @@
 # space-hub · 库务司 CHANGELOG
 
+## v2.7.1 — 修 database 反查 + 删 render 死桩（工程G-2，2026-11-12）
+- **修 `_node_parent`**：原实现只走全树遍历，对 `kind=database` 节点恒返回空串；调用方把空串当"不在收件箱"，于是「add 报成功 → 回读说不在箱」自相矛盾（投两个测试库时实测踩到，差点误判为移动失败去重试）。改为 node-info 的 `parentId` 优先、遍历兜底（`parentNodeId` 恒 None 不可信，`parentId` 是准的）
+- **删 `render` 子命令**：空壳桩（只 print 一句、return 0 什么都不做），无任何调用方、文档也从未列它。保留假成功比报错更危险——调它的人会以为清单真重写了。现调 `render` 会明确报 invalid choice
+- 命令数因此 19 → 18，与 SKILL 文档列出的 18 条完全对齐（景门集合比对可证）
+- 回归：`verify/tests/test_node_parent.py` 6 组（parentId 优先 / 空值退回 / 异常退回 / 都查不到返空串 / 遍历异常不冒泡 / 真接口）
+
 ## v2.7.0 — 拒收结构化三元组 + 写前必读（工程E，2026-11-12）
 机制借鉴 Memory Palace 的 guard 三元组（`{reason, target, method}`）与"写前必读目标"。
 
