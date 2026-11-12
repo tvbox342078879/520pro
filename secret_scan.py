@@ -46,18 +46,23 @@ def mask(s):
 
 
 # ---- 自指豁免（仅构造行/注释行，非整文件）----
+# inspect_hub.py 的对抗用例里必然含伪造密钥字面量（造脏输入），行级豁免防工具自杀
 SELF_EXEMPT = {'secret_scan.py'}
 
 
 def is_self_sample_line(rel, line):
-    """扫描器自身必然出现 'ghp_' 之类的构造字面量；只放宽构造行/注释行。"""
-    if rel not in SELF_EXEMPT:
-        return False
-    s = line.strip()
-    return (s.startswith('#')
-            or 're.compile' in line
-            or '"ghp_" +' in line
-            or '"github_pat_" +' in line)
+    """扫描器/对抗用例必然出现 'ghp_' 之类的构造字面量；只放宽构造行/注释行。"""
+    base = os.path.basename(rel)
+    if base == 'secret_scan.py':
+        s = line.strip()
+        return (s.startswith('#')
+                or 're.compile' in line
+                or '"ghp_" +' in line
+                or '"github_pat_" +' in line)
+    if base == 'inspect_hub.py':
+        s = line.strip()
+        return s.startswith('#') or '"ghp_" +' in line
+    return False
 
 
 def candidate_files(root):

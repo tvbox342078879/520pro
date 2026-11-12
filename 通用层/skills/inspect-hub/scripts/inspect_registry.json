@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "inspect-hub 巡检登记册",
   "note": "加巡检面只改本册：新检查器先登记（impl 留 null=灰色待补），代码补 impl 函数后改为函数名。不改引擎。",
   "layout": {"stage_w": 700, "stage_h": 664, "center": [350, 330]},
@@ -48,7 +48,7 @@
       "id": "M6", "gua": "☶", "men": "死", "face": "遗留登记", "impl": "chk_ledger",
       "lp": 23.9, "tp": 77.2,
       "config": {"ledger": "docs/遗留登记.md"},
-      "note": "- 【待】行=未闭环待办；清一条删一行，面板自动消黄/消红"
+      "note": "- 【待】行=未闭环待办；带过执法（v1.1.0）：每条必须带负责人+期限缺一即红，同一主题≥2次按复发升红（carryover_guard 思想）。清一条删一行"
     },
     {
       "id": "M7", "gua": "☴", "men": "休", "face": "新鲜度", "impl": "chk_freshness",

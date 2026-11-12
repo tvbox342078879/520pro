@@ -1,10 +1,10 @@
 ---
 name: inspect-hub
 description: 520 巡检司（监察司思想通用化）。当用户说「520 体检」「体检」「巡检」「拉面板」「520健康吗」「哪里没检查」「有什么遗留」「inspect」等触发词时使用。对 520pro 仓库自身跑 8 面巡检（规则生效/技能生效/密钥安全/文档一致/结构完整/遗留登记/新鲜度/触发词），产出单文件 dashboard.html 八卦八门面板并拉到用户眼前；登记册驱动加巡检面零改代码；检查器失灵报「无法判定」绝不装绿（三态铁律）。与 probe-hub（盯外部 TVBox 上游）相对，本技能盯 520 自家健康。
-version: 1.0.0
+version: 1.1.0
 ---
 
-# inspect-hub · 520 巡检司 v1.0.0
+# inspect-hub · 520 巡检司 v1.1.0
 
 盯 520 自家的健康。probe-hub 盯外面，这里盯家里。
 
@@ -20,7 +20,7 @@ version: 1.0.0
 | 杜 | ☵ | 密钥安全 | 调仓库 secret_scan.py（件①），红=明文密钥 |
 | 景 | ☲ | 文档一致 | SKILL 声明命令数 vs 代码实况（防文档吹牛） |
 | 伤 | ☷ | 结构完整 | MANIFEST 登记文件逐个存在性 |
-| 死 | ☶ | 遗留登记 | docs/遗留登记.md 的【待】/【阻】条目 |
+| 死 | ☶ | 遗留登记 | docs/遗留登记.md 的【待】/【阻】条目；**带过执法**：每条必须带「负责人+期限」缺一即红，同一主题 ≥2 次按复发升红（借 tvbox-eco carryover_guard 思想） |
 | 休 | ☴ | 新鲜度 | 最近提交距今 + 各技能 CHANGELOG 停更天数 |
 | 惊 | ☱ | 触发词冲突 | 在册待补码（灰），实现 chk_triggers 后转正 |
 
@@ -46,5 +46,15 @@ version: 1.0.0
 ## 自检
 
 ```
-python3 scripts/inspect_hub.py self-check   # 登记 8 门齐 + impl 映射一致 + 模板可渲染
+python3 scripts/inspect_hub.py self-check    # 登记 8 门齐 + impl 映射一致 + 模板可渲染
+python3 scripts/inspect_hub.py adversarial --target <520pro根>   # 对抗自测（v1.1.0）
 ```
+
+## 对抗自测（adversarial，v1.1.0 起）
+
+方法论（借 tvbox-eco adversarial_suite）：**每个门禁必须配「篡改输入→必翻红」用例**。
+在临时 `git clone` 副本上逐门造脏（改规则正本/脏 SKILL.md/伪造密钥/注假子命令/藏登记文件/无主无期阻塞项/回拨 CHANGELOG），断言对应门翻红；另配一组无脏对照防「用例恒红」。任一未翻红 exit 2 = 门禁失灵，先修再巡。
+
+- 使用时机：改过任何检查器/登记册之后必跑；平时建议每周随体检跑一次。
+- 不污染仓库：造脏全在临时 clone 上，跑完即删。
+- 自指豁免：secret_scan 对 inspect_hub.py 的对抗用例构造行做**行级**豁免（只豁构造行，不豁整文件）。

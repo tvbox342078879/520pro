@@ -207,21 +207,53 @@ def chk_manifest(target, cfg, ctx):
     return {'status': worst(sts), 'items': items, 'total': total, 'missing': miss}
 
 
+# 「下轮带过」执法判据（借 tvbox-eco verify/carryover_guard.py，去旧生态化）
+OWNER_RE = re.compile(r'负责人|跟进人|owner', re.I)
+DEADLINE_RE = re.compile(r'期限|截止|deadline|\d{4}[-/年]\d{1,2}([-/月]\d{1,2})?|周[一二三四五六日天]|前完成|前交付', re.I)
+
+
+def _topic_of(line):
+    """从【待】/【阻】行提取归一化主题（截到结构标点/负责人/期限前，用于复发判定）。"""
+    m = re.search(r'【(?:待|阻)】\s*(.+)', line)
+    t = m.group(1).strip() if m else line.strip()
+    t = re.split(r'[（(]|负责人|跟进人|期限|，|。|；|;', t)[0]
+    return re.sub(r'[\s：:]', '', t)[:20]
+
+
 def chk_ledger(target, cfg, ctx):
     lp = os.path.join(target, cfg.get('ledger', 'docs/遗留登记.md'))
     if not os.path.isfile(lp):
         return {'status': 'yellow', 'items': [{'t': '【黄】遗留登记文件缺失', 'e': lp + ' 不存在（遗留无处登记就会烂尾）', 'c': '创建并登记当前待办'}]}
-    items, sts = [], []
+    items, sts, topics = [], [], {}
     n = 0
     for ln, line in enumerate(open(lp, encoding='utf-8', errors='ignore'), 1):
         s = line.strip()
-        if s.startswith('- 【待】'):
+        if s.startswith('- 【待】') or s.startswith('- 【阻】'):
             n += 1
-            items.append({'t': '【黄】遗留待办 #' + str(n), 'e': s[4:], 'c': '闭环后从登记册删除该行'})
-            sts.append('yellow')
-        elif s.startswith('- 【阻】'):
-            n += 1
-            items.append({'t': '【红】阻塞项', 'e': s[4:], 'c': '优先处置，阻塞项压总评分'})
+            kind = '阻' if '【阻】' in s else '待'
+            # 带过执法①：待办必须带负责人+期限，缺一即红（不许口头带过）
+            missing = []
+            if not OWNER_RE.search(s):
+                missing.append('负责人')
+            if not DEADLINE_RE.search(s):
+                missing.append('期限')
+            if missing:
+                items.append({'t': '【红】带过违规 #' + str(n) + '：待办缺 ' + '/'.join(missing),
+                              'e': '第' + str(ln) + '行：' + s[:60], 'c': '补「负责人：… / 期限：…」后重巡，或本轮清掉'})
+                sts.append('red')
+            elif kind == '阻':
+                items.append({'t': '【红】阻塞项 #' + str(n), 'e': s[4:], 'c': '优先处置，阻塞项压总评分'})
+                sts.append('red')
+            else:
+                items.append({'t': '【黄】遗留待办 #' + str(n) + '（有主有期）', 'e': s[4:], 'c': '到期未清会在后续巡检持续亮黄'})
+                sts.append('yellow')
+            # 带过执法②：同一主题出现 ≥2 次 => 复发，自动升红
+            tp = _topic_of(s)
+            topics[tp] = topics.get(tp, 0) + 1
+    for tp, c in topics.items():
+        if c >= 2 and tp:
+            items.append({'t': '【红】复发条目：「' + tp + '」出现 ' + str(c) + ' 次',
+                          'e': '同一事项反复带过 = 烂尾，必须本轮处置', 'c': '立即闭环或拆成有主有期的新待办'})
             sts.append('red')
     if n == 0:
         items.append({'t': '【绿】遗留清零', 'e': lp, 'c': '无需处置'})
@@ -382,6 +414,78 @@ def cmd_selfcheck():
     return 0
 
 
+# ---------- 对抗自测（借 tvbox-eco verify/adversarial_suite.py，去旧生态化） ----------
+# 方法论：每个门禁必须配「篡改输入→必翻红」用例，在临时 clone 上做，不污染仓库；
+# 任一用例未翻红 => exit 2（门禁失灵）。另配一组无脏对照，防止用例本身恒红。
+ADVERSARIAL_CASES = [
+    ('M1', 'red', '开门：改仓库正本规则 → 指纹对账必翻红',
+     lambda d: open(os.path.join(d, '通用层/rules/core-8.md'), 'a').write('\n<!-- adv dirty -->\n')),
+    ('M2', 'yellow', '生门：弄脏技能 SKILL.md 正本 → 副本漂移必翻黄',
+     lambda d: open(os.path.join(d, '通用层/skills/learn-hub/SKILL.md'), 'a').write('\n<!-- adv dirty -->\n')),
+    ('M3', 'red', '杜门：伪造明文密钥 → secret_scan 必翻红',
+     lambda d: open(os.path.join(d, 'zz_adv_leak.py'), 'w').write('k = "ghp_" + "QWERTYUIOPASDFGHJKLM"\n')),
+    ('M4', 'red', '景门：注入假子命令 → 文档对账必翻红',
+     lambda d: _patch_space_hub(d)),
+    ('M5', 'red', '伤门：藏走 MANIFEST 登记文件 → 存在性必翻红',
+     lambda d: os.remove(os.path.join(d, '通用层/skills/space-hub/scripts/classify_rules.json'))),
+    ('M6', 'red', '死门：登记无主无期阻塞项 → 带过执法必翻红',
+     lambda d: open(os.path.join(d, 'docs/遗留登记.md'), 'a').write('- 【阻】对抗测试伪造阻塞项（无负责人无期限）\n')),
+    ('M7', 'red', '休门：CHANGELOG 回拨 40 天 → 停更阈值必翻红',
+     lambda d: os.utime(os.path.join(d, '通用层/skills/space-hub/CHANGELOG.md'),
+                        (datetime.datetime.now().timestamp() - 40 * 86400,) * 2)),
+]
+
+
+def _patch_space_hub(d):
+    p = os.path.join(d, '通用层/skills/space-hub/scripts/space_hub.py')
+    txt = open(p, encoding='utf-8').read()
+    txt = txt.replace("    rs = sub.add_parser('restore')",
+                      "    rs = sub.add_parser('restore')\n    zz = sub.add_parser('zz-adv-fake')", 1)
+    open(p, 'w', encoding='utf-8').write(txt)
+
+
+def cmd_adversarial(target):
+    import shutil
+    import tempfile
+    self_py = os.path.abspath(__file__)
+    results = []
+    for gate, expect, name, mutate in [('CTRL', None, '对照：无脏 clone → 杜门/伤门必须绿', None)] + \
+            [(g, e, n, m) for g, e, n, m in ADVERSARIAL_CASES]:
+        tmp = tempfile.mkdtemp(prefix='adv_520_')
+        try:
+            dst = os.path.join(tmp, 'clone')
+            r = subprocess.run(['git', 'clone', '-q', target, dst], capture_output=True, text=True, timeout=120)
+            if r.returncode != 0:
+                results.append((name, False, 'clone 失败: ' + r.stderr[-120:]))
+                continue
+            if mutate:
+                mutate(dst)
+            out = os.path.join(tmp, 'out')
+            r = subprocess.run([sys.executable, self_py, 'run', '--target', dst, '--out', out],
+                               capture_output=True, text=True, timeout=300)
+            fj = os.path.join(out, 'findings.json')
+            if not os.path.isfile(fj):
+                results.append((name, False, '巡检未产出 findings.json（rc=' + str(r.returncode) + '）'))
+                continue
+            gates = {g['id']: g['status'] for g in json.load(open(fj, encoding='utf-8'))['gates']}
+            if gate == 'CTRL':
+                ok = gates.get('M3') == 'green' and gates.get('M5') == 'green'
+                results.append((name, ok, 'M3=' + str(gates.get('M3')) + ' M5=' + str(gates.get('M5'))))
+            else:
+                st = gates.get(gate)
+                results.append((name, st == expect, '期望 ' + expect + ' 实得 ' + str(st)))
+        except Exception as e:
+            results.append((name, False, repr(e)))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    fails = [x for x in results if not x[1]]
+    print('==== 对抗自测（篡改必翻红）====')
+    for name, ok, note in results:
+        print(('  ✓ ' if ok else '  ✗ ') + name + ' | ' + note)
+    print('对抗套件: ' + str(len(results) - len(fails)) + '/' + str(len(results)) + ' 通过')
+    return 2 if fails else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description='inspect-hub 520 巡检司')
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -389,9 +493,13 @@ def main():
     r.add_argument('--target', default=os.environ.get('INSPECT_TARGET') or '.')
     r.add_argument('--out', default=None)
     sub.add_parser('self-check', help='引擎/登记册/模板健康预检')
+    av = sub.add_parser('adversarial', help='对抗自测：逐门造脏断言必翻红（临时 clone，不污染仓库）')
+    av.add_argument('--target', default=os.environ.get('INSPECT_TARGET') or '.')
     a = ap.parse_args()
     if a.cmd == 'self-check':
         sys.exit(cmd_selfcheck())
+    if a.cmd == 'adversarial':
+        sys.exit(cmd_adversarial(a.target))
     sys.exit(cmd_run(a.target, getattr(a, 'out', None)))
 
 

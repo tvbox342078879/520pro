@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -275,5 +275,11 @@
     "件② inspect-hub 巡检司 v1.0.0：8 门（开规则/生技能/杜密钥/景文档/伤结构/死遗留/休新鲜/惊触发词待补码），单文件 dashboard.html 八卦八门面板，造脏五门实测全部抓到、清脏清零",
     "docs/遗留登记.md 新建：巡检司死门数据源，【待】黄【阻】红，闭环删行自动消色",
     "旧仓 archive 盘点定案：legacy-diagnostics 化石不迁；tvbox-inspect/legacy-watchdog 原代码死引用不迁、机制（登记册可成长/健康预检/报告环比）由 inspect-hub 继承；ecosys-conductor 仅 secret_scan 迁"
+  ],
+  "changelog_0_7_1": [
+    "inspect-hub v1.1.0：adversarial 对抗自测子命令（临时 clone 逐门造脏断言必翻红，8/8 实测）+ 死门带过执法（待办必须带负责人+期限，复发自动升红，借 tvbox-eco carryover_guard/adversarial_suite 思想）",
+    "secret_scan 自指豁免扩展：inspect_hub.py 对抗用例构造行行级豁免（实测自指误报即修）",
+    "docs/遗留登记.md 四条目补齐负责人+期限（新判据生效基线）",
+    "本轮借鉴范围盘点定案：A(对抗自测)+B(带过执法) 本轮落地；C(脚本冒烟)/E(环境巡检)/G(闸篡改探针)/D(依赖契约) 已评估在案后补；F/H 及 hooks 类明确不借"
   ]
 }
