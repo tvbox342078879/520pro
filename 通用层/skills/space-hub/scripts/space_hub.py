@@ -1363,7 +1363,7 @@ def _ensure_path(path_str):
     return cur
 
 
-def _upload_any(p, parent_id):
+def _upload_any(p, parent_id, title=None):
     """按类型选正门上传。返回 (node_id, err_text)；node_id 为空时 err_text 说明原因。
 
     ★ 实测（2026-11-12）：drive 上传 .md 直接被拒——{"error":"该文件类型不走网盘上传，
@@ -1374,8 +1374,11 @@ def _upload_any(p, parent_id):
     ext = os.path.splitext(p)[1].lower()
     name = os.path.basename(p)
     if ext in ('.md', '.markdown'):
+        # 标题用记录名（v0.8.12）：学习成品的主文档文件叫 index.md，用文件名当标题
+        # 会在云端出现一堆叫「index」的文档，等于没归档（实测）。
+        title = (title or '').strip() or os.path.splitext(name)[0]
         r = subprocess.run([sys.executable, f'{LIB}/doc/create_doc.py',
-                            '--title', os.path.splitext(name)[0],
+                            '--title', title,
                             '--space-id', SPACE, '--parent-id', parent_id,
                             '--content-file', p],
                            capture_output=True, text=True)
@@ -1410,16 +1413,29 @@ def _upload_any(p, parent_id):
     return '', out[:200]
 
 
-def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
+def _archive_file(p, category='', source='', note='', keep=False, quiet=False,
+                  name=None, write_index=True, target=None):
     """归档单个文件：上传「📦 产物归档/<类别>/」+ 写索引 + 本地处置。
 
     返回 (ok, info)：ok=True → info=node_id；ok=False → info=失败原因。
     **回读确认是唯一判据**（S169/S200）：API 说成功不算，父夹枚举里见到才算。
+
+    name        —— 记录名（v0.8.12）。学习成品是**目录名**，主文档文件叫 index.md，
+                   不传就会把索引记成 index.md，找不回是哪个成品。
+    write_index —— False 时只上传、不单独建索引（v0.8.12）。一份成品由「主文档 + 整包
+                   zip」两个节点组成，索引只该有一条；zip 仍进 archive_log 以便追溯。
+    target      —— 显式落点（v0.8.12），优先于 artifacts.json 声明。成品目录名通常
+                   不含"学习"这类关键词，靠 match 匹配不到，必须由调用方直接指定。
     """
     say = (lambda *x: None) if quiet else print
     if not os.path.isfile(p):
         return False, '文件不存在'
-    name = os.path.basename(p)
+    # 防御：内部调用方（能力层 import）可能没走过 main 的空间解析
+    if not SPACE:
+        resolve_space(quiet=True)
+    if not SPACE:
+        return False, '空间未解析（无法判定落到哪个空间，已记 pending）'
+    name = (name or '').strip() or os.path.basename(p)
     # ★ 先看能力层的产出声明：命中就用它指定的落点/类别/来源（"归类整理"的真身）。
     rule = _match_rule(p) or {}
     cat = category or rule.get('category') or _guess_cat(name)
@@ -1428,7 +1444,7 @@ def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
     fid = _ensure_archive_folder()
     if not fid:
         return False, '产物归档夹不可用'
-    target = (rule.get('target') or '').strip()
+    target = (target or '').strip() or (rule.get('target') or '').strip()
     if target:
         cfid = _ensure_path(target)
         if not cfid:
@@ -1441,7 +1457,7 @@ def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
         if not quiet:
             print(f'  ⚠️ 产出未声明 artifacts.json（{rule.get("_from") or "来源未知"}）'
                   f'→ 已落「{ARCHIVE_TITLE}/未归类」，可在该技能加声明自动归类')
-    node_id, uerr = _upload_any(p, cfid)
+    node_id, uerr = _upload_any(p, cfid, title=name)
     out = uerr or ''
     # 写后回读：新建节点服务端目录索引有传播延迟（S200 实测首查即 miss）→ 3 次重试
     kids_ids = set()
@@ -1453,17 +1469,19 @@ def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
     if not node_id or node_id not in kids_ids:
         return False, f'上传失败或回读不符：{out[:180]}'
     say(f'  ✅ 文件已落库并回读确认：{name}（{node_id}）')
-    # ② 索引记录
-    db_id = _ensure_index_db(fid)
+    # ② 索引记录（write_index=False 的附件不单独建索引，只进 archive_log）
+    db_id = _ensure_index_db(fid) if write_index else ''
     st = load_state()
     landing = (target or f'{ARCHIVE_TITLE}/未归类')
     entry = {'name': name, 'cat': cat, 'node_id': node_id, 'db': db_id,
              'space': SPACE, 'date': time.strftime('%Y-%m-%d'),
              'source': source, 'note': note,
              'path': f'{landing}/{name}'}
-    if db_id:
+    if db_id and write_index:
         entry['indexed'] = _index_add(db_id, name, cat, entry['date'],
                                       entry['source'], entry['note'], entry['path'])
+    elif not write_index:
+        entry['indexed'] = '（附件·随主记录）'
     st.setdefault('archive_log', []).append(entry)
     save_state(st)
     # ③ 本地处置：落库成功才清理；失败路径根本走不到这里
@@ -1510,7 +1528,8 @@ def _pending_artifact(path, reason):
         pass
 
 
-def archive_out(path, source='', category='', note='', keep=False, quiet=False):
+def archive_out(path, source='', category='', note='', keep=False, quiet=False,
+                name=None, write_index=True, target=None):
     """★ 能力层出口门面（v2.4.0）：先自举库房，再归档。**永不抛异常**。
 
     为什么不让能力层自己判断库在不在：测活/学习资料的作者不该知道库务司存在。
@@ -1519,17 +1538,27 @@ def archive_out(path, source='', category='', note='', keep=False, quiet=False):
 
     失败语义（三态）：False + info 说清原因，本地文件保留并记 pending；
     绝不把"没落库"说成"已归档"。
+
+    name / write_index（v0.8.12）：见 _archive_file 同名参数——一份学习成品是
+    「主文档（写索引）+ 整包 zip（不写索引）」两个节点，靠这两个参数区分。
     """
     try:
         p = os.path.abspath(os.path.expanduser(str(path or '')))
         if not p or not os.path.isfile(p):
             return False, '文件不存在'
+        # ★ 空间必须先解析（v0.8.12 修）：archive_out 是被能力层 import 调用的，
+        #   不走 main 的统一 resolve_space。而下面"当天已自举就跳过 ensure"的分支
+        #   不会顺带解析——实测：次日/新进程里 SPACE 仍是 None，建夹时
+        #   subprocess 收到 None 抛 TypeError，归档全挂（v0.8.11 潜伏缺陷）。
+        if not SPACE:
+            resolve_space(quiet=True)
         # 每天首次归档做一次全量收敛（自愈：夹被误删也能补回）；当天后续跳过，
         # 避免每条产出都跑一遍枚举+建库检查（实测每次 3–5s，批量产出时很可观）。
         st = load_state()
         if (st.get('blueprint') or {}).get('ensured_at', '')[:10] != time.strftime('%Y-%m-%d'):
             ensure_library(quiet=True)
-        ok, info = _archive_file(p, category, source, note, keep, quiet=quiet)
+        ok, info = _archive_file(p, category, source, note, keep, quiet=quiet,
+                                 name=name, write_index=write_index, target=target)
         if not ok:
             _pending_artifact(p, f'归档失败：{info}')
         return ok, info
@@ -1781,6 +1810,14 @@ def _find_folder_by_title(pid, title):
 
 
 def _create_folder(title, parent_id):
+    # 守卫（v0.8.12）：SPACE 为 None 时 subprocess 会在 _fork_exec 抛
+    # "expected str, bytes or os.PathLike object, not NoneType"——栈指向 subprocess，
+    # 极难反查到"空间没解析"。这里直接拦住并说清原因。
+    if not SPACE:
+        resolve_space(quiet=True)
+    if not SPACE:
+        print('❌ 空间未解析——无法建夹（请先跑 init 或检查授权）')
+        return ''
     r = subprocess.run([sys.executable, f'{LIB}/manage/create_folder.py',
                         '--title', title, '--space-id', SPACE, '--parent-id', parent_id],
                        capture_output=True, text=True)
@@ -1841,12 +1878,12 @@ def cmd_classify(a):
         return 1
     moved = 0
     for t, items in plan.items():
-        fid = _find_folder_by_title('', t)
+        # target 是路径（v0.8.12）：与 archive 共用 _ensure_path 逐级定位，
+        # 不再在根层级建同名夹——否则「📦 产物归档/文档」之外又多一套「归档·报告」。
+        fid = _ensure_path(t)
         if not fid:
-            fid = _create_folder(t, '')
-            if not fid:
-                print(f'⚠️ 目标夹「{t}」创建失败 → 该组 {len(items)} 项**保持原位**（不漏项，铁律2）')
-                continue
+            print(f'⚠️ 目标夹「{t}」创建失败 → 该组 {len(items)} 项**保持原位**（不漏项，铁律2）')
+            continue
         for nid, title in items:
             rc = cmd_move(argparse.Namespace(node=nid, to=fid))
             if rc == 0:
@@ -2204,6 +2241,228 @@ def ensure_library(dry=False, quiet=False, space_title=None):
     return {'space': sid, 'created': created, 'claimed': claimed, 'roots': root_ids}
 
 
+# ══════════════════ 账号接管 adopt（v0.8.12）══════════════════
+# 同一个入口要对付三种账号：
+#   · 新账号 —— 云端什么都没有，按蓝图建齐（17 个单元）；
+#   · 老账号 —— 一堆历史夹/文档/库，**先接管再接新产出**，不重建、不搬、不删；
+#   · 别人的空间 —— 不是本生态的，不能往里建任何东西。
+# 判据必须是**可实证的指纹**，不能拿"节点数 > 0"猜：那会把别人正常的空间当老账号，
+# 然后往人家根层级建一整套夹——这比不建更糟。
+FINGERPRINT_TITLES = ('📦 产物归档', '🗑 待删收件箱')
+
+
+def _norm_title(t):
+    """标题归一化：去 emoji / 空白 / 常见分隔符 / 全角括号。跨账号比对只认归一化标题，不认 id。"""
+    t = re.sub(r'[\U0001F300-\U0001FAFF\u2600-\u27BF\uFE0F]', '', t or '')
+    return re.sub(r'[\s·・_\-（）()【】\[\]。、]', '', t).strip()
+
+
+def _nodes_or_none(pid):
+    """列子节点；**失败返回 None**（与"真·空"严格区分）。
+
+    _kids() 失败时返回 []，和"空空间"长得一模一样——用它判账号形态，
+    授权失效会被误判成新账号，然后一次建 17 个单元全失败（三态塌陷）。
+    """
+    d = _space('space.workspace.list-nodes', space_id=SPACE,
+               parent_node_id=pid, limit=200, offset=0)
+    if not isinstance(d, dict) or d.get('error'):
+        return None
+    return (d.get('data') or {}).get('nodes') or []
+
+
+def detect_mode():
+    """判账号形态 → (mode, info)。mode ∈ fresh / hybrid / foreign / unknown。
+
+    unknown **不许折叠**成 fresh：枚举失败只能报"无法判定"，不能当空账号去建库。
+    """
+    roots = _nodes_or_none('')
+    if roots is None:
+        return 'unknown', {'reason': '顶层节点枚举失败（授权/网络）'}
+    if not roots:
+        return 'fresh', {'nodes': 0, 'fingerprint': []}
+    titles = {_norm_title(n.get('title')) for n in roots if n.get('kind') == 'folder'}
+    fp = [t for t in FINGERPRINT_TITLES if _norm_title(t) in titles]
+    if (load_state().get('space_id') or '') == SPACE:
+        fp.append('state.space_id')
+    if fp:
+        return 'hybrid', {'nodes': len(roots), 'fingerprint': fp}
+    return 'foreign', {'nodes': len(roots), 'fingerprint': []}
+
+
+def _walk_tree(max_depth=3):
+    """递归枚举 → [(depth, node, 父链)]。限深防爆（实测本账号 240 节点 / 深 3 到底）。"""
+    out = []
+
+    def rec(pid, d, chain):
+        if d > max_depth:
+            return
+        for n in _kids(pid):
+            out.append((d, n, tuple(chain)))
+            if n.get('kind') == 'folder':
+                rec(n.get('id'), d + 1, chain + [(n.get('title') or '').strip()])
+
+    rec('', 0, [])
+    return out
+
+
+def _similar_pair(a, b):
+    """两个夹名是否"疑似同一套体系的两种叫法"（产物区 vs 📦 产物归档）。"""
+    import difflib
+    na, nb = _norm_title(a), _norm_title(b)
+    if not na or not nb or na[0] != nb[0]:
+        return False
+    return difflib.SequenceMatcher(None, na, nb).ratio() >= 0.5
+
+
+def _cat_of_node(kind, title):
+    """存量节点的**类别**（索引 select 的 6 个值之一）。
+
+    ★ 类别回答"这东西是什么"（文档/清单/数据/图片/面板），不回答"属于哪个业务板块"。
+      早先把业务分类（报告与交付）直接当类别写，9 个值里 8 个不在 select 选项内，
+      全部降级成"其他"，类别列等于废了（实测 14 条清一色"其他"）。
+      业务分类改写到「说明」里，检索靠「来源」列区分新产出与存量。
+    """
+    if kind == 'doc':
+        return '文档'
+    if kind == 'web':
+        return '面板'
+    if kind == 'database':
+        return '数据'
+    ext = os.path.splitext(title or '')[1].lower()
+    if ext in ('.md', '.markdown', '.txt', '.pdf', '.docx'):
+        return '文档'
+    if ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'):
+        return '图片'
+    if ext in ('.csv', '.json', '.xlsx', '.xls', '.sql', '.py', '.sh', '.js', '.ts', '.zip'):
+        return '数据'
+    return '其他'
+
+
+def _adopt_stock(dry=False, quiet=False):
+    """接管存量：登记，不搬运。返回统计 dict。
+
+    ★ 为什么不搬：云端文档被网页/台账引用的是 node_id，一搬老账号里的既有链接全断。
+      "归位"只写进索引的落点列，物理移动留给用户显式 classify --yes。
+    """
+    bp = _merge_blueprint()
+    claim_norm = {_norm_title(r['title']) for r in bp['roots']}
+    tree = _walk_tree(3)
+    roots = [n for d, n, c in tree if d == 0]
+    rules = (_classify_rules() or {}).get('rules') or []
+
+    claimed, external = [], []
+    for n in roots:
+        if n.get('kind') != 'folder':
+            continue
+        t = (n.get('title') or '').strip()
+        if _norm_title(t) in claim_norm:
+            claimed.append(t)
+        elif any(kw in t for kw in KW):
+            # 收件箱/已标废弃的夹属本生态治理面（归 scan 管），不算"用户自有体系"
+            continue
+        else:
+            external.append(t)
+
+    # dry-run 一律不写：只找不建（_ensure_archive_folder 会建夹，干跑时不能用）
+    fid = (_find_folder_by_title('', ARCHIVE_TITLE) or '') if dry else _ensure_archive_folder()
+    db_id = (_ensure_index_db(fid) if fid else '') if not dry else ''
+    st = load_state()
+    ad = st.setdefault('adopted', {})
+    reg_ids = set(ad.get('registered_ids') or [])
+
+    to_reg, obsolete, already = [], [], 0
+    for d, n, chain in tree:
+        if d != 0 or n.get('kind') == 'folder':
+            continue
+        nid, title = n.get('id'), (n.get('title') or '').strip()
+        if nid in reg_ids:
+            already += 1
+            continue
+        if any(kw in title for kw in KW):
+            obsolete.append((nid, title))
+            continue
+        hit = next((r for r in rules if any(kw in title for kw in (r.get('match') or []))), None)
+        to_reg.append((nid, title, n.get('kind'), hit))
+
+    if not dry and db_id:
+        for nid, title, kind, hit in to_reg:
+            cat = _cat_of_node(kind, title)
+            biz = (hit or {}).get('category') or ''
+            tgt = (hit or {}).get('target') or ''
+            note = '存量接管｜原位保留｜类型 ' + (kind or '?')
+            if biz:
+                note += f'｜业务分类 {biz}'
+            if tgt:
+                note += f'｜建议落点 {tgt}'
+            else:
+                note += '｜未归类（无规则命中）'
+            if _index_add(db_id, title, cat, time.strftime('%Y-%m-%d'), '存量接管',
+                          note, ''):          # 落点列留空：它还没被搬，写假路径就是骗人
+                reg_ids.add(nid)
+            else:
+                print(f'  ⚠️ 存量登记失败（索引写入未成功）：{title[:36]}')
+    elif dry:
+        reg_ids |= {x[0] for x in to_reg}
+
+    suspects = [(e, c) for e in external for c in claimed if _similar_pair(e, c)]
+
+    if not dry:
+        ad.update({
+            'at': time.strftime('%Y-%m-%d %H:%M'), 'mode': 'hybrid',
+            'nodes': len(tree), 'registered': len(reg_ids),
+            'skipped_obsolete': len(obsolete), 'external_roots': external,
+            'claimed_roots': claimed, 'suspect_pairs': suspects,
+            'registered_ids': sorted(reg_ids)})
+        save_state(st)
+
+    if not quiet:
+        print(f'全树 {len(tree)} 节点（深 ≤3）')
+        print(f'  认领蓝图根 {len(claimed)}：{"、".join(claimed) or "（无）"}')
+        print(f'  保留自有体系 {len(external)}（原位不动）：{"、".join(external) or "（无）"}')
+        print(f'  存量登记 {len(to_reg)} 条'
+              f'（定位到建议落点 {sum(1 for x in to_reg if x[3])} / 未归类 '
+              f'{sum(1 for x in to_reg if not x[3])}）')
+        print(f'  跳过已标废弃 {len(obsolete)}（归 scan 管辖）'
+              f'{"｜此前已登记 " + str(already) + " 条" if already else ""}')
+        if suspects:
+            print(f'  ⚠️ 疑似两套体系（不自动合并，需你定）：'
+                  + '；'.join(f'「{e}」≈「{c}」' for e, c in suspects))
+    return {'nodes': len(tree), 'claimed': claimed, 'external': external,
+            'registered': len(to_reg), 'obsolete': len(obsolete), 'suspects': suspects,
+            'db': db_id}
+
+
+def adopt(dry=False, quiet=False, space_title=None, force=False):
+    """★ 统一入口：判形态 → 分派 fresh/hybrid/foreign。返回 dict。"""
+    mode, info = detect_mode()
+    if mode == 'unknown':
+        print(f'❌ 无法判定账号形态：{info.get("reason")}——不建、不搬、不动')
+        raise SystemExit(2)
+    if mode == 'foreign' and not force:
+        print(f'❌ 这个空间不像本生态的（顶层 {info["nodes"]} 节点，无生态指纹）。')
+        print('   为免在别人的空间里建一整套夹，已停止。确认要接管请加 --force。')
+        raise SystemExit(3)
+    if mode in ('fresh', 'foreign'):
+        print(f'账号形态：{"fresh（新账号，全空白）" if mode == "fresh" else "foreign（--force 接管）"}')
+        r = ensure_library(dry=dry, quiet=quiet, space_title=space_title)
+        r['mode'] = mode
+        return r
+    print(f'账号形态：hybrid（老账号，顶层 {info["nodes"]} 节点，'
+          f'指纹 {"、".join(info["fingerprint"])}）')
+    r = ensure_library(dry=dry, quiet=quiet, space_title=space_title)
+    stock = _adopt_stock(dry=dry, quiet=quiet)
+    r.update({'mode': 'hybrid', 'stock': stock})
+    return r
+
+
+def cmd_adopt(a):
+    try:
+        adopt(dry=a.dry_run, space_title=a.space_title, force=a.force)
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 2
+    return 0
+
+
 def cmd_ensure(a):
     try:
         ensure_library(dry=a.dry_run, space_title=a.space_title)
@@ -2494,6 +2753,10 @@ def main(argv=None):
     en = sub.add_parser('ensure', help='★库房自举：按蓝图收敛（认领已有 + 补建缺失 + 回读），幂等')
     en.add_argument('--dry-run', action='store_true', help='只打印将建什么，不写云端')
     en.add_argument('--space-title', default='', help='蓝图缺省空间标题（仅自动建空间时用）')
+    ad_ = sub.add_parser('adopt', help='★账号接管：判 fresh/hybrid/foreign → 建齐 或 接管存量（登记不搬）')
+    ad_.add_argument('--dry-run', action='store_true', help='只报告，不写入（不建夹/不建库/不登记）')
+    ad_.add_argument('--force', action='store_true', help='空间不像本生态时仍强行接管（默认拒绝）')
+    ad_.add_argument('--space-title', default='', help='蓝图缺省空间标题（仅自动建空间时用）')
     eg = sub.add_parser('evolve-log', help='★演化记账：写一条版本演化记录（版本/日期/类型/新增能力/摘要/证据）')
     eg.add_argument('--version', default='', help='版本号（缺省读部署标记/VERSION）')
     eg.add_argument('--type', default='', help='类型（缺省按有无上次快照判：首次落地/升级）')
@@ -2511,7 +2774,7 @@ def main(argv=None):
             'list': cmd_list, 'render': cmd_render, 'census': cmd_census,
             'restore': cmd_restore, 'move': cmd_move, 'rename': cmd_rename,
             'local-rm': cmd_local_rm, 'archive': cmd_archive,
-            'products': cmd_products, 'ensure': cmd_ensure,
+            'products': cmd_products, 'ensure': cmd_ensure, 'adopt': cmd_adopt,
             'evolve-log': cmd_evolve_log, 'evolve-view': cmd_evolve_view}[a.cmd](a)
 
 

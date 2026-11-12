@@ -21,3 +21,11 @@ docs/巡检/
 通用层/skills/inspect-hub/scripts/findings_history.json
 通用层/skills/inspect-hub/scripts/monitors.json
 通用层/skills/space-hub/scripts/space_hub_state.json
+
+# 探源司·本机运行时数据（v0.8.12：含用户个人采集的监测目标/死册/候选，属私产，不随分发携带）
+# 各留同名 .example.json 作结构模板；新机器首次运行按模板自动建空册
+能力层/tvbox/skills/probe-hub/scripts/monitor_targets.json
+能力层/tvbox/skills/probe-hub/scripts/monitor_domains.json
+能力层/tvbox/skills/probe-hub/scripts/monitor_pubsources.json
+能力层/tvbox/skills/probe-hub/scripts/dead_repos.json
+能力层/tvbox/skills/probe-hub/scripts/shellcrack_cands.json

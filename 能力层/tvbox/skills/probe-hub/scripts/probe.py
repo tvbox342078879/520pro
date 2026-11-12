@@ -619,6 +619,33 @@ def _inject_domain_sets(targets):
     return targets
 
 
+def _ensure_targets_file():
+    """缺册时按模板建**空册**（新机器首次运行）。返回 True=已建。
+
+    ★ v0.8.12：监测册是本机运行时数据，**不随分发包携带**（含用户个人采集的
+      186 条目标，属私产）。新机器上缺册是**正常状态**，不是故障：
+      按 monitor_targets.example.json 的 _schema 建空册，后续 probe/monitor 自动填。
+      失败只提示、不抛——缺册不能把探源司整个卡死。
+    """
+    tpl = os.path.join(SELF_DIR, 'monitor_targets.example.json')
+    schema = {}
+    try:
+        if os.path.exists(tpl):
+            schema = json.load(open(tpl, encoding='utf-8')).get('_schema') or {}
+    except Exception:
+        schema = {}
+    out = {'_note': '探源司·上游仓库监测登记册（本机运行时数据；云端 DB_UPSTREAM 为权威）',
+           '_schema': schema, 'targets': []}
+    try:
+        json.dump(out, open(TARGETS, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+        print(f'  ℹ️ 已建空监测册：{os.path.basename(TARGETS)}'
+              f'（新机器正常状态；采集/登记后自动填充）')
+        return True
+    except Exception as e:
+        print(f'  ⚠️ 空监测册创建失败（{type(e).__name__}）——本轮按"无登记目标"继续')
+        return False
+
+
 def load_targets():
     """三态读监测目标登记册 → (state, targets)。**云端优先**，本地兜底。
 
@@ -643,6 +670,7 @@ def load_targets():
               '请勿据此判定「无监测目标」')
     # 回退本地（云端为空/未配置/不可达）
     if not os.path.exists(TARGETS):
+        _ensure_targets_file()      # 新机器首次运行：按模板建空册（见函数注释）
         return ('ok', []) if cst == 'ok' else ('none', [])
     try:
         d = json.load(open(TARGETS, encoding='utf-8'))
@@ -1199,6 +1227,12 @@ def _harvest_id(api):
 def _load_schema_doc():
     try:
         return json.load(open(TARGETS, encoding='utf-8')).get('_schema', {})
+    except Exception:
+        pass
+    # 缺册/损坏：退到模板的 _schema，保证新建的空册仍带字段说明（v0.8.12）
+    try:
+        return json.load(open(os.path.join(SELF_DIR, 'monitor_targets.example.json'),
+                              encoding='utf-8')).get('_schema', {})
     except Exception:
         return {}
 

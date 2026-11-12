@@ -27,6 +27,14 @@ if [ -f "$U/skills/learn-hub/scripts/learn.py" ]; then
   else
     no "  └ pan.py 缺失（网盘取料不可用）"
   fi
+  # v0.8.12 学习产出出口：成品入库后自动进「📚 学习资料/成品」（主文档 + 整包）
+  _ld="$U/skills/learn-hub/scripts/learn.py"
+  if [ -f "$_ld" ]; then
+    grep -q "def _pick_main_doc" "$_ld" && grep -q "def _zip_dir" "$_ld" \
+      && grep -q "_archive_learning(name, dst)" "$_ld" \
+      && ok "  └ 产出出口已接线（主文档 + 整包 → 资料库）" \
+      || no "  └ 产出出口未接线（学习成品不会进资料库）"
+  fi
 else
   opt "skills/learn-hub 未安装（v0.5.0 之前的旧安装，正常）"
 fi
@@ -53,10 +61,33 @@ if [ -f "$U/skills/space-hub/scripts/space_hub.py" ]; then
   python3 -c "
 import sys; sys.path.insert(0,'$U/skills/space-hub/scripts')
 import space_hub as s
-need=['ensure_library','archive_out','cmd_ensure','cmd_evolve_log','_merge_blueprint','_artifact_rules']
+need=['ensure_library','archive_out','cmd_ensure','cmd_evolve_log','_merge_blueprint','_artifact_rules',
+      'adopt','detect_mode','_nodes_or_none','_adopt_stock','cmd_adopt']
 miss=[n for n in need if not hasattr(s,n)]
 sys.exit(1 if miss else 0)" 2>/dev/null \
-    && ok "  └ 自举/跟随/台账入口齐全" || no "  └ 自举入口缺失（ensure/archive_out/evolve-log）"
+    && ok "  └ 自举/跟随/台账/接管入口齐全" || no "  └ 入口缺失（ensure/archive_out/evolve-log/adopt）"
+  # v0.8.12 账号接管：fresh/hybrid/foreign 三态**不可折叠**（unknown 不许当 fresh 去建库）
+  python3 -c "
+import sys; sys.path.insert(0,'$U/skills/space-hub/scripts')
+import space_hub as s
+o1,o2 = s._nodes_or_none, s.load_state
+s._nodes_or_none = lambda pid: None
+m1,_ = s.detect_mode()
+s._nodes_or_none = lambda pid: []
+m2,_ = s.detect_mode()
+s._nodes_or_none = lambda pid: [{'kind':'folder','title':'别人的相册','id':'x'}]
+s.load_state = lambda: {}
+m3,_ = s.detect_mode()
+s._nodes_or_none, s.load_state = o1, o2
+sys.exit(0 if (m1,m2,m3)==('unknown','fresh','foreign') else 1)" 2>/dev/null \
+    && ok "  └ 三态判定正确（枚举失败=unknown≠fresh，空= fresh，无指纹=foreign）" \
+    || no "  └ 三态判定塌陷（unknown 可能被当成 fresh 去建库）"
+  # classify 落点必须与 archive 同体系：target 不得再是根层级旧名（归档·xx）
+  if grep -q '"target": *"归档·' "$U/skills/space-hub/scripts/classify_rules.json" 2>/dev/null; then
+    no "  └ 归纳登记册仍在用根层级旧落点（会与新体系形成两套目录）"
+  else
+    ok "  └ 归纳落点与产物归档同体系（无根层级旧名）"
+  fi
 else
   opt "skills/space-hub 未安装（正常，可后补）"
 fi
@@ -103,6 +134,19 @@ if [ -d "$SK/probe-hub/scripts" ]; then
     *"个目标"*) ok "probe.py monitor status 可跑（监测台正常）" ;;
     *) echo "  · status 未通过 → 记「无法判定」（多为沙箱网络受限，非必失败）" ;;
   esac
+  # 分发卫生（v0.8.12）：个人资产册不得被 git 跟踪，模板册必须在位
+  if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
+    leaked=$(git -C "$TARGET" ls-files -- "能力层/tvbox/skills/probe-hub/scripts/*.json" 2>/dev/null \
+             | grep -E "(monitor_targets|monitor_domains|monitor_pubsources|dead_repos|shellcrack_cands)\.json$" \
+             | grep -v '\.example\.json$' | wc -l | tr -d ' ')
+    [ "${leaked:-0}" -eq 0 ] && ok "个人资产册未进 git（分发不带私产）" \
+      || no "仍有 $leaked 个真册被 git 跟踪（个人资产会随分发泄露）"
+  fi
+  miss_tpl=""
+  for f in monitor_targets monitor_domains monitor_pubsources dead_repos shellcrack_cands; do
+    [ -f "$SK/probe-hub/scripts/$f.example.json" ] || miss_tpl="$miss_tpl $f"
+  done
+  [ -z "$miss_tpl" ] && ok "五册模板齐全（新机器可建空册）" || no "模板册缺失：$miss_tpl"
 fi
 # 探源司 v1.26.0 能力（2026-11-12 从旧仓 tvbox-eco 并回）：修源 / 写源四门禁 / 广告治理
 if [ -d "$SK/probe-hub/repair" ]; then

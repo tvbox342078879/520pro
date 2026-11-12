@@ -1,0 +1,14 @@
+{
+  "_note": "探源司·域名型监测目标【模板】。真册 monitor_domains.json 为本机运行时数据，不随分发携带。",
+  "domains": {
+    "example-domain-set": {
+      "kind": "domain-set",
+      "模式": "suffix-set",
+      "名称": "示例·动态后缀集（可删）",
+      "前缀格式": "https://example{8位随机}.example.com/api",
+      "种子": [
+        "example.com"
+      ]
+    }
+  }
+}

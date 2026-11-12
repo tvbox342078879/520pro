@@ -10,7 +10,7 @@
 自检探针一律用 AST 只取目标函数字面量（S171 教训：探针与被检代码同居一文件
 会自己判自己通过，这是"同侧变量互比"）。
 """
-import os, sys, json, re, hashlib, shutil, argparse, subprocess, zipfile
+import os, sys, json, re, hashlib, shutil, argparse, subprocess, zipfile, tempfile
 from datetime import datetime
 
 HOME = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1139,6 +1139,95 @@ def cmd_retro(a):
     return 0
 
 
+# ══════════════════ 成品进资料库（v0.8.12）══════════════════
+# 「学习资料做完了，资料库里得看得到，而且是归好类的」——落点在出口：
+#   · 主文档单独建成文档节点 → 云端能直接读正文、能按标题检索；
+#   · 整目录打 zip 兜底      → 附件/图片/数据一份不丢；
+#   · 索引只记一条（zip 不单独建索引），说明写清"多少文件 / 主文档 / 整包名"。
+# 失败一律不阻断入库：本地 library/ 才是主存储，云端是"让人找得到"的补充。
+LEARN_LANDING = '📚 学习资料/成品'
+LEARN_SOURCE = '学习工坊·产出'
+
+
+def _pick_main_doc(d):
+    """挑成品主文档：index.md > README.md > 唯一的 *.md。
+
+    多个 md 又没有 index/README → 返回 ''，**不猜**（猜错会把一篇附录当正文，
+    比不建文档节点更糟）。调用方据此改走"只入整包"。
+    """
+    for cand in ('index.md', 'README.md', 'readme.md'):
+        p = os.path.join(d, cand)
+        if os.path.isfile(p):
+            return p
+    mds = []
+    for fn in sorted(os.listdir(d)):
+        p = os.path.join(d, fn)
+        if os.path.isfile(p) and fn.lower().endswith('.md'):
+            mds.append(p)
+    return mds[0] if len(mds) == 1 else ''
+
+
+def _zip_dir(d, out_path):
+    """整目录打 zip（保留相对路径，解包即还原成品结构）。"""
+    base = os.path.dirname(os.path.abspath(d))
+    with zipfile.ZipFile(out_path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for dp, _, fns in os.walk(d):
+            for fn in fns:
+                fp = os.path.join(dp, fn)
+                z.write(fp, os.path.relpath(fp, base))
+    return out_path
+
+
+def _archive_learning(name, d):
+    """把已入库的成品目录交给库务司。**永不抛异常、永不阻断入库**。
+
+    有主文档 → 主文档建索引 + zip 作附件（不建索引）；
+    无主文档/主文档失败 → 整包建索引（兜底，说明里写"未识别到主文档"）。
+    """
+    tmpd = ''
+    try:
+        sd = os.path.expanduser('~/.codebuddy/skills/space-hub/scripts')
+        if not os.path.isdir(sd):
+            print('  ℹ️ 未装库务司（space-hub）——成品已入本地库，未上传云端')
+            return
+        if sd not in sys.path:
+            sys.path.insert(0, sd)
+        import space_hub
+        n_files = sum(len(fns) for _, _, fns in os.walk(d))
+        main = _pick_main_doc(d)
+        tmpd = tempfile.mkdtemp(prefix='learnzip_')
+        zname = f'{name}.zip'
+        zp = _zip_dir(d, os.path.join(tmpd, zname))
+        if main:
+            note = f'{n_files} 文件｜主文档 {os.path.basename(main)}｜整包 {zname} 同夹'
+            ok, info = space_hub.archive_out(
+                main, source=LEARN_SOURCE, category='文档', note=note,
+                name=name, keep=True, quiet=True, target=LEARN_LANDING)
+            if ok:
+                space_hub.archive_out(
+                    zp, source=LEARN_SOURCE, category='数据',
+                    note=f'整包·随主记录「{name}」', name=zname,
+                    keep=False, quiet=True, write_index=False, target=LEARN_LANDING)
+                print(f'  📦 已进资料库：{LEARN_LANDING}/{name}（主文档 + 整包 {zname}）')
+                return
+            print(f'  ⚠️ 主文档归档失败（{info}）——改用整包入库')
+            note = f'{n_files} 文件｜主文档归档失败（{info[:40]}）｜整包 {zname}'
+        else:
+            note = f'{n_files} 文件｜未识别到主文档（无 index.md / README.md / 唯一 md）｜整包 {zname}'
+        ok, info = space_hub.archive_out(
+            zp, source=LEARN_SOURCE, category='数据', note=note,
+            name=name, keep=False, quiet=True, target=LEARN_LANDING)
+        if ok:
+            print(f'  📦 已进资料库（整包）：{LEARN_LANDING}/{zname}')
+        else:
+            print(f'  ⚠️ 归档未完成（{info}）——成品仍在本地库，可 products --retry 补投')
+    except Exception as e:
+        print(f'  ⚠️ 归档门面异常（{type(e).__name__}: {str(e)[:60]}），成品已在本地库，不受影响')
+    finally:
+        if tmpd:
+            shutil.rmtree(tmpd, ignore_errors=True)
+
+
 def cmd_store(a):
     sub = a.sub
     if sub == 'put':
@@ -1170,6 +1259,7 @@ def cmd_store(a):
         _save_json(INDEX, idx)
         print(f'入库：{name}（{len(files)} 个文件）→ {os.path.relpath(dst, HOME)}')
         print(f'索引：{os.path.relpath(INDEX, HOME)}（现 {len(idx["items"])} 份）')
+        _archive_learning(name, dst)      # 出口：进云端资料库（失败不影响入库）
         return
 
     if sub == 'find':

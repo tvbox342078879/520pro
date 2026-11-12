@@ -326,7 +326,22 @@ def cmd_shellcrack(a):
         if a.infile:
             cands = json.load(open(a.infile))
         else:
-            cands = json.load(open(__file__.replace('shellcrack.py', 'shellcrack_cands.json')))
+            # 候选册是本机运行时数据（v0.8.12 起不随分发包携带）：新机器上本来就没有，
+            # 这不是故障。缺件报"请用 --in"，绝不抛 FileNotFoundError 把命令崩掉。
+            _cf = __file__.replace('shellcrack.py', 'shellcrack_cands.json')
+            if not os.path.exists(_cf):
+                print(f'ℹ️ 候选册不存在：{os.path.basename(_cf)}'
+                      f'（本机运行时数据，新机器为空是正常状态）')
+                print('   用法：shellcrack scan --in <清单.json>，清单格式 [[名称, 接口URL], ...]')
+                return 0
+            try:
+                cands = json.load(open(_cf, encoding='utf-8'))
+            except Exception as e:
+                print(f'❌ 候选册损坏（{type(e).__name__}）：{_cf}——请人工修复或换 --in')
+                return 2
+        if not cands:
+            print('ℹ️ 候选册为空——用 --in <清单.json> 提供待判定的壳站点')
+            return 0
         results = []
         for name, api in cands:
             form, info = triage(name, api)

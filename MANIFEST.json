@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.11",
+  "version": "0.8.12",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -362,5 +362,13 @@
     "★生态演化台账：「🧬 生态演化/版本演化台账」（版本/日期/类型/新增能力/变更摘要/证据），evolve-log 用已装技能快照差集回答「这版增加了什么」，同版本同快照去重；install.sh 收尾自动记账；evolve-view 出时间线",
     "能力声明：probe-hub/artifacts.json（测活报告→🔍 探源产出/测活报告）、learn-hub/artifacts.json（学习产出→📚 学习资料/成品）；未声明产出落「未归类」并点名提示，加技能即跟随、清道夫零改动",
     "实测修四坑：date 字段写 {\"text\":...} 被静默丢弃（须 {\"date\":...}）；select 写 text 同样静默丢（按 schema 类型写，未知类别降级其他并保留真类别）；drive 拒收 .md（按类型分流 doc/drive）；products 扫 /workspace 全盘把 50+ 无关文件算产物（收窄为声明可识别）"
+  ],
+  "changelog_0_8_12": [
+    "★账号接管 adopt（space-hub v2.5.0）：三态判定 fresh/hybrid/foreign/unknown——空空间按蓝图建 17 单元；老账号认领已有+登记存量（**只登记不搬**，15 条历史进索引，业务分类写说明、类别按节点类型）；别人的空间拒绝接管（exit 3，需 --force）；枚举失败报 unknown，绝不折叠成 fresh 去乱建",
+    "★分发净化：探源司 5 个运行时刻度册（monitor_targets 186 条/domains/pubsources/dead_repos/shellcrack_cands）退出 git 并 gitignore，各留 .example.json 模板；新机器首次运行自动建空册，shellcrack 缺件不再抛 FileNotFoundError（实测 rc=0 并给出 --in 用法）",
+    "★学习资料出口接线（learn-hub v1.4.0）：learn store put 收尾自动进「📚 学习资料/成品」——主文档（index.md>README.md>唯一 md）单建文档节点可读可检索，整目录打 zip 兜底；索引只记一条（zip 走 write_index=False），说明含「N 文件｜主文档｜整包名」；无主文档时如实写「未识别到主文档」并改走整包",
+    "★修复 v0.8.11 潜伏缺陷：archive_out 在「当天已自举」分支跳过空间解析，新进程里 SPACE=None，建夹时 subprocess 收到 None 抛 TypeError 导致归档全挂；现入口显式 resolve_space，_create_folder 加 None 守卫",
+    "★classify 落点统一：登记册 target 由根层级旧名（归档·报告与交付）改为路径（📦 产物归档/文档），与 archive 共用 _ensure_path；实测 10 项存量归入 2 个夹，根层级不再新建同名夹",
+    "实测修：drive 上传 md 被拒（按类型分流已在上版）、doc 标题曾用文件名致云端一堆「index」文档（改用记录名）、索引「类别」写入业务分类导致清一色「其他」（改为按节点类型：doc→文档/web→面板/database→数据）"
   ]
 }

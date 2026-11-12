@@ -1,7 +1,7 @@
 ---
-version: "2.4.0"
+version: "2.5.0"
 name: space-hub
-description: "库务司·云端资料库总管（可升级）。清理+归纳+整理+建库+搬运正门，管任意 WorkBuddy 云端空间的节点。能力：①垃圾扫描 scan（废弃标记/空库识别→自动投收件箱，--dry-run 预览）；②待删收件箱 inbox/add（AI 无删除权，只挪不删，用户按单删）；③归纳 classify（根层级散落文档按登记册规则归入目标夹，规则只改 classify_rules.json 零改代码）；④建库 create-db（薄封装 library 建库正本+写后回读）；⑤搬运/改名正门 move/rename（移前双校验+移后回读，全生态唯一通道）；⑥误投回退 restore；⑦分层普查 census；⑧四层空间解析（不写死账号，换账号跑 init 一次即适配）；⑨★库房自举 ensure（按蓝图收敛：认领已有+补建缺失，新机首次产出即自动建齐）；⑩★产出自动跟随 archive_out＋演化台账 evolve-log（能力层产出自动进资料库并归类）。触发词：清理 / 归纳 / 整理 / 归类 / 收纳 / 建库 / 建个库 / 新建数据库 / 删不掉 / 清一下 / 待删的放哪 / 收件箱 / 库务司 / 搬节点 / 节点搬家 / 改名 / 待删清单 / 冗余节点 / 重复节点 / 库房整理 / 换账号空间 / 空间登记 / 盘点空间 / 空间普查。"
+description: "库务司·云端资料库总管（可升级）。清理+归纳+整理+建库+搬运正门，管任意 WorkBuddy 云端空间的节点。能力：①垃圾扫描 scan（废弃标记/空库识别→自动投收件箱，--dry-run 预览）；②待删收件箱 inbox/add（AI 无删除权，只挪不删，用户按单删）；③归纳 classify（根层级散落文档按登记册规则归入目标夹，规则只改 classify_rules.json 零改代码）；④建库 create-db（薄封装 library 建库正本+写后回读）；⑤搬运/改名正门 move/rename（移前双校验+移后回读，全生态唯一通道）；⑥误投回退 restore；⑦分层普查 census；⑧四层空间解析（不写死账号，换账号跑 init 一次即适配）；⑨★库房自举 ensure（按蓝图收敛：认领已有+补建缺失，新机首次产出即自动建齐）；⑩★产出自动跟随 archive_out＋演化台账 evolve-log（能力层产出自动进资料库并归类）；⑪★账号接管 adopt（新账号按蓝图建齐 / 老账号认领并存量登记 / 别人空间拒绝）。触发词：清理 / 归纳 / 整理 / 归类 / 收纳 / 建库 / 建个库 / 新建数据库 / 删不掉 / 清一下 / 待删的放哪 / 收件箱 / 库务司 / 搬节点 / 节点搬家 / 改名 / 待删清单 / 冗余节点 / 重复节点 / 库房整理 / 换账号空间 / 空间登记 / 盘点空间 / 空间普查。"
 ---
 
 # space-hub · 库务司（清理 + 归纳 + 整理 + 建库）
@@ -49,6 +49,7 @@ python3 space_hub.py census [--json]              # 分层普查（归属/缝统
 python3 space_hub.py local-rm --path <前缀>|--all # ★销账：本地欠账已人工处置，从清单移除
 python3 space_hub.py archive --file <f> [--category 类] [--source 来源] [--note 说明] [--keep]  # ★落库正门：按声明归类+写索引+本地清理
 python3 space_hub.py products --scan|--search-box|--retry  # ★盘点/搜索框/待归档补投
+python3 space_hub.py adopt [--dry-run] [--force]    # ★账号接管：判 fresh/hybrid/foreign → 建齐 或 接管存量（登记不搬）
 python3 space_hub.py ensure [--dry-run]            # ★库房自举：按蓝图收敛（认领已有+补建缺失），幂等
 python3 space_hub.py evolve-log [--version V] [--summary S] [--evidence E]  # ★演化记账（版本/新增能力/摘要/证据）
 python3 space_hub.py evolve-view [--md]            # ★演化时间线
@@ -84,6 +85,25 @@ ok, info = space_hub.archive_out(report_path, source='探源司·测活', note='
 - **永不抛异常**：失败 → 本地文件保留 + `local_pending(kind=待归档)`，`products --retry` 补投。
 - 落库=上传到声明落点 + 写「📦 产物索引」（名称/类别/日期/来源/说明/落点路径）+ 回读确认。
 - md 走 `doc/create_doc`，其余走 `drive`（实测 drive 拒收 .md）；类别不在 select 选项时降级"其他"并保留真类别。
+
+### 账号接管（adopt）：一个入口对付三种账号
+
+| 形态 | 判据（可实证） | 动作 |
+|---|---|---|
+| **fresh** 新账号 | 顶层 0 节点 | 按蓝图建 17 单元（4 根 + 11 子夹 + 2 库） |
+| **hybrid** 老账号 | 有生态指纹（`📦 产物归档` 或 present state.space_id 匹配） | 认领已有 + **登记存量**（不建不搬不删） |
+| **foreign** 别人空间 | 有节点但零指纹 | 拒绝（exit 3），确认要接管才加 `--force` |
+| **unknown** | 枚举失败（授权/网络） | 报"无法判定"（exit 2），**绝不折叠成 fresh** |
+
+**为什么 unknown 不能当 fresh**：`_kids()` 失败返回 `[]`，和空空间长得一样。用它判形态，授权失效
+就会被当成新账号，然后一次建 17 个单元全失败，报一堆看不懂的错。故判定走 `_nodes_or_none()`
+（失败返回 None），`unknown` 直接停手。
+
+**存量只登记不搬运**：云端文档被网页/台账引用的是 `node_id`，一搬老账号里的既有链接全断。
+所以「归位」只写进索引的说明列（建议落点），物理移动交给用户显式 `classify --yes`。
+实测本账号：246 节点 → 认领 4 根 / 保留 6 个自有体系夹 / 登记 14 条历史 / 跳过 13 个已标废弃。
+
+**疑似两套体系只报不合**：`产物区` ≈ `📦 产物归档` 会在报告里点名——合并不可逆，交人定。
 
 ### 生态演化（evolve-log）
 

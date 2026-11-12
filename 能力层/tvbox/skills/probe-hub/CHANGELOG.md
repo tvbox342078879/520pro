@@ -1,3 +1,22 @@
+## v1.26.3 — 分发净化：个人资产册退出分发包（2026-11-12）
+
+生态要给别人用，但**不可能把攒了几年的资产一并给出去**。实测：`monitor_targets.json` 里
+186 个监测目标、129KB，全在 git 里，`install.sh` 是从仓库目录 `cp -r` —— 别人 clone 一下，
+打开探源司就看见我的全部上游目标。这不是"要不要分享"的问题，是该不该随包走的问题。
+
+- **5 册退出 git**（gitignore + `git rm --cached`）：`monitor_targets` / `monitor_domains` /
+  `monitor_pubsources` / `dead_repos` / `shellcrack_cands`。`install.sh` 的 `RUNTIME_FILES`
+  早已覆盖它们（覆盖升级时现场优先），所以本机升级不受影响。
+- **各留 `.example.json` 模板**：monitor_targets 抄 `_schema` + 1 条示例行；domains/pubs 各 1 条
+  结构示例；dead_repos / shellcrack_cands 留空数组（示例行会被当"真实判死/真实候选"，不如空）。
+- **缺件不崩**（新机器第一次跑就撞上）：
+  - `load_targets()` 缺册 → `_ensure_targets_file()` 按模板建空册（带 `_schema`），提示"新机器正常状态"；
+  - `_load_schema_doc()` 缺册 → 退到模板的 `_schema`，保证新建空册仍有字段说明；
+  - `shellcrack.py scan` 缺候选册 → 原来直接 `json.load(open(...))` 抛 `FileNotFoundError`，
+    现在提示"本机运行时数据，新机器为空是正常状态"并给出 `--in` 用法，rc=0。
+- **自检兜底**：`verify.sh` 新增两条——真册不得被 git 跟踪（防回归）、五册模板必须在位。实测
+  空目录模拟新机器：五册移走后 `load_targets` 自动建 1330B 空册，`shellcrack scan` rc=0。
+
 ## v1.26.2 — 库坐标接回单真源 + 两脚本三态塌陷修复（2026-11-12）
 
 并回旧仓能力时漏掉的一处机制：旧仓用 `config/asset_ids.py` 读 `config/assets_blocklist.json`

@@ -1,0 +1,13 @@
+{
+  "_note": "探源司·发布源型监测目标【模板】。真册 monitor_pubsources.json 为本机运行时数据，不随分发携带。",
+  "pubs": {
+    "example-pub": {
+      "kind": "pub-package",
+      "名称": "示例·发布信号锚点（可删）",
+      "发布源URL": "https://example.com/path/mark.json",
+      "包类型": "对象存储直连",
+      "关联底包": "底包·示例系",
+      "监测周期": "每周"
+    }
+  }
+}
