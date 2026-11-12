@@ -1,5 +1,15 @@
 # inspect-hub CHANGELOG
 
+## v1.3.1 — target 自解析 + 版本号对齐（2026-11-12）
+
+- **仓库根自解析**：`--target` 缺省不再硬取 `'.'`，改为从 cwd 逐级向上找含 `MANIFEST.json`
+  的目录（SKILL.md §1 一直这么承诺，代码没实现）。实测从安装目录
+  `~/.codebuddy/skills/inspect-hub/scripts` 跑，旧实现把技能目录当仓库根，
+  开门/生门/景门/伤门/死门/休门集体假红/假黄，健康分 76 全是噪声。
+- **定不到根就报「无法判定」**：`require_target()` 兜底，exit 2 并给出 `--target` 提示，
+  不再产出假红假黄（三态铁律：不知道 ≠ 有问题）。
+- **版本号对齐**：frontmatter 停在 1.1.0、CHANGELOG 已到 1.3.0（两处断链），统一到 1.3.1。
+
 ## v1.3.0 — 监测登记门面 + 生门对账口径修复（2026-11-12）
 
 - **register_monitor 迁入本技能**（原 tvbox-core 门面探旧生态 tvbox-inspect，在 520 恒失败）：

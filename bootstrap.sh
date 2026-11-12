@@ -441,7 +441,16 @@ migrate_to_0_8_4() {
   run "rm -f \"\$HOME/.codebuddy/skills/tvbox-pipeline/CHANGELOG-interface.md\""
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" )
+migrate_to_0_8_5() {
+  say "  · [0.8.5] 部署器修复：cp_bak 不再把源拷成 dst/basename 嵌套；巡检司 target 自解析。清历史嵌套 + 同步副本"
+  # 清历史嵌套副本（旧 cp -r 到已存在目录的产物，如 tvbox-core/tvbox-core）
+  run "for b in \"\$HOME\"/.codebuddy/skills/*/; do [ -d \"\$b\" ] || continue; n=\$(basename \"\$b\"); if [ -d \"\${b}\${n}\" ]; then rm -rf \"\${b}\${n}\"; fi; done"
+  if [ -d "通用层/skills/inspect-hub" ]; then
+    run "cp -r 通用层/skills/inspect-hub/. \"\$HOME/.codebuddy/skills/inspect-hub/\""
+  fi
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

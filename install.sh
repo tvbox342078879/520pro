@@ -56,12 +56,19 @@ done
 USER_DIR="$HOME/.codebuddy"
 PROJ_DIR="$TARGET/.codebuddy"
 
+# 运行时数据：装在技能 scripts/ 下、随使用增长、不在 git 里。
+# 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/登记册。
+RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json"
+
 cp_bak() {  # cp_bak <src> <dst>
   local src="$1" dst="$2"
   if [ "$DRY" = 1 ]; then
     echo "  [dry-run] $src  ->  $dst"
     return 0
   fi
+  case "$dst" in
+    ""|"/"|"$HOME") echo "  ✗ 拒绝操作危险路径: '$dst'"; return 1 ;;
+  esac
   mkdir -p "$(dirname "$dst")"
   if [ -e "$dst" ]; then
     cp -r "$dst" "$dst.bak.$TS" 2>/dev/null || true
@@ -75,8 +82,42 @@ cp_bak() {  # cp_bak <src> <dst>
     done
     echo "  (备份旧件: $dst.bak.$TS)"
   fi
+  # 覆盖安装：先删目标再拷。此前直接 `cp -r src dst` 且 dst 已存在时，
+  # cp 会把源拷成 dst/basename —— 2026-11-12 实测生成
+  # ~/.codebuddy/skills/tvbox-core/tvbox-core 全量副本（1.1M），
+  # 技能目录里出现"第二份实现"，改哪份生效都说不清。
+  local tmpdir="" f
+  if [ -d "$dst/scripts" ]; then
+    for f in $RUNTIME_FILES; do
+      [ -e "$dst/scripts/$f" ] || continue
+      [ -n "$tmpdir" ] || tmpdir="$(mktemp -d)"
+      cp -a "$dst/scripts/$f" "$tmpdir/$f"
+    done
+  fi
+  if [ -e "$dst" ]; then rm -rf "$dst"; fi
   cp -r "$src" "$dst"
+  if [ -n "$tmpdir" ]; then
+    mkdir -p "$dst/scripts"
+    for f in $RUNTIME_FILES; do
+      [ -e "$tmpdir/$f" ] || continue
+      # 现场优先：仓库工作区里可能残留一份过期的运行时文件，装完不能反把现场盖掉
+      cp -a "$tmpdir/$f" "$dst/scripts/$f"
+    done
+    rm -rf "$tmpdir"
+    echo "  · 已保留运行时数据（$(ls "$dst/scripts" | grep -E '^(findings_history|monitors|space_hub_state)\.json$' | tr '\n' ' ')）"
+  fi
   echo "  ✓ $dst"
+}
+
+check_no_nested() {  # 防 cp 语义回归：技能目录里不允许再出现同名子目录
+  local base="$1" name
+  [ -d "$base" ] || return 0
+  name="$(basename "$base")"
+  if [ -d "$base/$name" ]; then
+    echo "  ✗ 嵌套副本：$base/$name"
+    return 1
+  fi
+  return 0
 }
 
 deploy_generic_user() {
@@ -181,6 +222,22 @@ case "$SCOPE" in
     deploy_generic_user
     deploy_capability_project ;;
 esac
+
+# 安装后自检：技能目录里不许出现嵌套同名副本（cp -r 语义回归的硬信号）
+if [ "$DRY" = 0 ]; then
+  bad=0
+  for base in "$USER_DIR"/skills/*/ "$PROJ_DIR"/skills/*/; do
+    [ -d "$base" ] || continue
+    check_no_nested "${base%/}" || bad=1
+  done
+  if [ "$bad" = 1 ]; then
+    echo
+    echo " ✗ 自检失败：存在嵌套副本（install.sh 的 cp_bak 已修复，出现即说明有历史残留），"
+    echo "   删掉上面列出的目录后重装。"
+    exit 1
+  fi
+  echo " · 自检：技能目录无嵌套副本"
+fi
 
 echo
 echo "════════════════════════════════════════════════════"

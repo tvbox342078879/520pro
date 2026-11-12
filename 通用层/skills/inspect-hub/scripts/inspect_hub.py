@@ -565,21 +565,54 @@ def cmd_adversarial(target):
     return 2 if fails else 0
 
 
+def resolve_target():
+    """未显式给 --target 时：从 cwd 向上找含 MANIFEST.json 的目录（SKILL.md §1 承诺的语义）。
+
+    找不到就返回 None —— 由调用方报「无法判定」，不能退回 '.'。
+    2026-11-12 实测：从安装目录 ~/.codebuddy/skills/inspect-hub/scripts 跑，
+    旧实现 default='.' 会把技能目录当仓库根，开门/生门/伤门集体假红。
+    """
+    env = os.environ.get('INSPECT_TARGET')
+    if env:
+        return env
+    cur = os.path.abspath(os.getcwd())
+    for _ in range(8):
+        if os.path.isfile(os.path.join(cur, 'MANIFEST.json')):
+            return cur
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    return None
+
+
+def require_target(target):
+    """仓库根定不下来时按三态铁律报「无法判定」，不产出假红假黄。"""
+    if target and os.path.isfile(os.path.join(target, 'MANIFEST.json')):
+        return target
+    print('==== 520 巡检（卦门合阵）====')
+    print('⚪ 无法判定 | 未定位到 520pro 仓库根（向上未找到 MANIFEST.json）')
+    print('   处置：cd 到 520pro 仓库根再跑，或 --target <520pro根>')
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description='inspect-hub 520 巡检司')
     sub = ap.add_subparsers(dest='cmd', required=True)
     r = sub.add_parser('run', help='跑全量巡检并产出面板')
-    r.add_argument('--target', default=os.environ.get('INSPECT_TARGET') or '.')
+    r.add_argument('--target', default=resolve_target())
     r.add_argument('--out', default=None)
     sub.add_parser('self-check', help='引擎/登记册/模板健康预检')
     av = sub.add_parser('adversarial', help='对抗自测：逐门造脏断言必翻红（临时 clone，不污染仓库）')
-    av.add_argument('--target', default=os.environ.get('INSPECT_TARGET') or '.')
+    av.add_argument('--target', default=resolve_target())
     a = ap.parse_args()
     if a.cmd == 'self-check':
         sys.exit(cmd_selfcheck())
     if a.cmd == 'adversarial':
-        sys.exit(cmd_adversarial(a.target))
-    sys.exit(cmd_run(a.target, getattr(a, 'out', None)))
+        t = require_target(a.target)
+        sys.exit(2 if not t else cmd_adversarial(t))
+    t = require_target(a.target)
+    sys.exit(2 if not t else cmd_run(t, getattr(a, 'out', None)))
 
 
 if __name__ == '__main__':

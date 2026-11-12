@@ -1,326 +1,326 @@
 {
-  "ecosystem": "520pro",
-  "version": "0.8.4",
-  "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
-  "based_on": [
-    "WorkBuddy 平台运行时",
-    "新生态 v0.1.0",
-    "368817 存活素材"
-  ],
-  "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
-  "deploy_modes": {
-    "user-skill": "通用层→~/.codebuddy + TVBox→~/.codebuddy（★推荐）",
-    "capability-only": "TVBox→<项目>/.codebuddy（项目隔离）",
-    "generic-only": "只装通用层到 ~/.codebuddy",
-    "all": "通用层→用户级 + 能力层→项目级（默认）"
-  },
-  "layers": {
-    "通用层": {
-      "scope": "用户级·跨项目",
-      "deploy_to": "~/.codebuddy/",
-      "files": {
-        "rules/core-8.md": {
-          "install_to": "~/.codebuddy/rules/core-8.md",
-          "alwaysApply": true,
-          "role": "9 条通用铁律（B-01~B-09 + M1–M7）"
-        },
-        "rules/zh-style.md": {
-          "install_to": "<项目>/.codebuddy/rules/zh-style.md",
-          "alwaysApply": true,
-          "role": "项目级文档/输出纪律契约（项目隔离模式才装）"
-        },
-        "skills/skill-evolution/SKILL.md": {
-          "role": "复发问题固化成技能"
-        },
-        "skills/feature-gate/SKILL.md": {
-          "role": "特性开关+绞杀者切流"
-        },
-        "skills/machine-bootstrap/SKILL.md": {
-          "role": "一键换机/克隆工作副本"
-        },
-        "skills/artifact-store/SKILL.md": {
-          "role": "本地产物轻量化·防手机卡顿"
-        },
-        "skills/learn-hub/": {
-          "install_to": "~/.codebuddy/skills/learn-hub/",
-          "role": "学习工坊：资料采集/分类/精炼/质检/入库/监测，13 个模块",
-          "entry": "scripts/learn.py",
-          "contains": "SKILL.md · scripts/learn.py · scripts/pan.py · scripts/flow.json · library/tree.json",
-          "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
-          "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
-          "not_tvbox": "与 TVBox 无关，纯通用层"
-        },
-        "skills/space-hub/SKILL.md": {
-          "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
-          "role": "库务司·云端库总管 v2.0.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号"
-        },
-        "skills/space-hub/scripts/space_hub.py": {
-          "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
-          "role": "引擎：init/classify/create-db/inbox/add/scan/list/restore/move/rename/census"
-        },
-        "skills/space-hub/scripts/classify_rules.json": {
-          "install_to": "~/.codebuddy/skills/space-hub/scripts/classify_rules.json",
-          "role": "归纳登记册（唯一真源，加规则零改代码）"
-        },
-        "skills/inspect-hub/SKILL.md": {
-          "install_to": "~/.codebuddy/skills/inspect-hub/SKILL.md",
-          "role": "巡检司 v1.0.0：520 自家健康 8 面巡检（八卦八门面板），登记册驱动，结构生效+行为生效两层判定"
-        },
-        "skills/inspect-hub/scripts/inspect_hub.py": {
-          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_hub.py",
-          "role": "巡检引擎：run/self-check，检查器失灵报「无法判定」绝不装绿，环比指纹落 findings_history.json"
-        },
-        "skills/inspect-hub/scripts/inspect_registry.json": {
-          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_registry.json",
-          "role": "巡检登记册：加巡检面零改引擎（先登记占位灰，补码后转正）"
-        },
-        "skills/inspect-hub/scripts/dashboard_template.html": {
-          "install_to": "~/.codebuddy/skills/inspect-hub/scripts/dashboard_template.html",
-          "role": "卦门合阵面板模板（纯 CSS cqw 自适应，单文件零依赖，手机/电脑双端）"
-        },
-        "skills/learn-hub/CHANGELOG.md": {
-          "install_to": "~/.codebuddy/skills/learn-hub/CHANGELOG.md",
-          "role": "学习工坊变更凭证"
-        }
-      }
+ "ecosystem": "520pro",
+ "version": "0.8.5",
+ "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
+ "based_on": [
+  "WorkBuddy 平台运行时",
+  "新生态 v0.1.0",
+  "368817 存活素材"
+ ],
+ "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
+ "deploy_modes": {
+  "user-skill": "通用层→~/.codebuddy + TVBox→~/.codebuddy（★推荐）",
+  "capability-only": "TVBox→<项目>/.codebuddy（项目隔离）",
+  "generic-only": "只装通用层到 ~/.codebuddy",
+  "all": "通用层→用户级 + 能力层→项目级（默认）"
+ },
+ "layers": {
+  "通用层": {
+   "scope": "用户级·跨项目",
+   "deploy_to": "~/.codebuddy/",
+   "files": {
+    "rules/core-8.md": {
+     "install_to": "~/.codebuddy/rules/core-8.md",
+     "alwaysApply": true,
+     "role": "9 条通用铁律（B-01~B-09 + M1–M7）"
     },
-    "能力层": {
-      "scope": "TVBox（用户级或项目级，按模式）",
-      "files": {
-        "tvbox/skills/tvbox-core/": {
-          "user_install": "~/.codebuddy/skills/tvbox-core/",
-          "project_install": "<项目>/.codebuddy/skills/",
-          "role": "★共享代码库：core.py / concurrency.py / guard.py / link.py / pipeline.py / blk.py。无 SKILL.md，平台不注册不路由",
-          "not_a_skill": true,
-          "depended_by": [
-            "probe-hub",
-            "tvbox-pipeline"
-          ],
-          "critical": "缺此目录，探源司必报 ModuleNotFoundError: No module named 'core'"
-        },
-        "tvbox/skills/probe-hub/": {
-          "user_install": "~/.codebuddy/skills/probe-hub/",
-          "role": "探源司本体：monitor/search/harvest/forge/shellcrack + 源库查询",
-          "depends_on": [
-            "tvbox-core"
-          ],
-          "entry": "scripts/probe.py",
-          "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'"
-        },
-        "tvbox/skills/tvbox-pipeline/": {
-          "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
-          "role": "出品流水线：A 整包加工（原 tvbox-interface）+ B 配置同步（原 tvbox-config-sync）",
-          "depends_on": [
-            "tvbox-core"
-          ],
-          "entry": "SKILL.md → SOP_整包加工.md"
-        },
-        "tvbox/fix_paths.py": {
-          "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接"
-        },
-        "tvbox/agents/tvbox-agent.md": {
-          "user_install": "~/.codebuddy/agents/",
-          "role": "隔离子代理"
-        },
-        "tvbox/commands/tvbox-sync.md": {
-          "user_install": "~/.codebuddy/commands/",
-          "role": "/tvbox-sync 命令"
-        },
-        "tvbox/scripts/collect_repos.py": {
-          "user_install": "~/.codebuddy/scripts/",
-          "role": "拉仓库抽源"
-        },
-        "tvbox/scripts/check_live.py": {
-          "user_install": "~/.codebuddy/scripts/",
-          "role": "并发测活"
-        },
-        "tvbox/scripts/merge_config.py": {
-          "user_install": "~/.codebuddy/scripts/",
-          "role": "存活源集成"
-        },
-        "tvbox/master_config.example.json": {
-          "user_install": "~/.codebuddy/tvbox/",
-          "role": "主配置模板"
-        },
-        "tvbox/CODEBUDDY.md": {
-          "project_install": "<项目>/.codebuddy/CODEBUDDY.md",
-          "role": "项目级薄壳兜底（用户级模式可不装）"
-        },
-        "tvbox/rules/tvbox-style.md": {
-          "project_install": "<项目>/.codebuddy/rules/",
-          "alwaysApply": true,
-          "role": "TVBox 纪律（项目隔离模式）"
-        },
-        "tvbox/rules/tvbox.paths.md": {
-          "project_install": "<项目>/.codebuddy/rules/",
-          "alwaysApply": false,
-          "paths": [
-            "**/master_config*.json"
-          ],
-          "role": "条件规则示例（实测不注入）"
-        }
-      }
+    "rules/zh-style.md": {
+     "install_to": "<项目>/.codebuddy/rules/zh-style.md",
+     "alwaysApply": true,
+     "role": "项目级文档/输出纪律契约（项目隔离模式才装）"
+    },
+    "skills/skill-evolution/SKILL.md": {
+     "role": "复发问题固化成技能"
+    },
+    "skills/feature-gate/SKILL.md": {
+     "role": "特性开关+绞杀者切流"
+    },
+    "skills/machine-bootstrap/SKILL.md": {
+     "role": "一键换机/克隆工作副本"
+    },
+    "skills/artifact-store/SKILL.md": {
+     "role": "本地产物轻量化·防手机卡顿"
+    },
+    "skills/learn-hub/": {
+     "install_to": "~/.codebuddy/skills/learn-hub/",
+     "role": "学习工坊：资料采集/分类/精炼/质检/入库/监测，13 个模块",
+     "entry": "scripts/learn.py",
+     "contains": "SKILL.md · scripts/learn.py · scripts/pan.py · scripts/flow.json · library/tree.json",
+     "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
+     "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
+     "not_tvbox": "与 TVBox 无关，纯通用层"
+    },
+    "skills/space-hub/SKILL.md": {
+     "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
+     "role": "库务司·云端库总管 v2.0.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号"
+    },
+    "skills/space-hub/scripts/space_hub.py": {
+     "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
+     "role": "引擎：init/classify/create-db/inbox/add/scan/list/restore/move/rename/census"
+    },
+    "skills/space-hub/scripts/classify_rules.json": {
+     "install_to": "~/.codebuddy/skills/space-hub/scripts/classify_rules.json",
+     "role": "归纳登记册（唯一真源，加规则零改代码）"
+    },
+    "skills/inspect-hub/SKILL.md": {
+     "install_to": "~/.codebuddy/skills/inspect-hub/SKILL.md",
+     "role": "巡检司 v1.0.0：520 自家健康 8 面巡检（八卦八门面板），登记册驱动，结构生效+行为生效两层判定"
+    },
+    "skills/inspect-hub/scripts/inspect_hub.py": {
+     "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_hub.py",
+     "role": "巡检引擎：run/self-check，检查器失灵报「无法判定」绝不装绿，环比指纹落 findings_history.json"
+    },
+    "skills/inspect-hub/scripts/inspect_registry.json": {
+     "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_registry.json",
+     "role": "巡检登记册：加巡检面零改引擎（先登记占位灰，补码后转正）"
+    },
+    "skills/inspect-hub/scripts/dashboard_template.html": {
+     "install_to": "~/.codebuddy/skills/inspect-hub/scripts/dashboard_template.html",
+     "role": "卦门合阵面板模板（纯 CSS cqw 自适应，单文件零依赖，手机/电脑双端）"
+    },
+    "skills/learn-hub/CHANGELOG.md": {
+     "install_to": "~/.codebuddy/skills/learn-hub/CHANGELOG.md",
+     "role": "学习工坊变更凭证"
     }
+   }
   },
-  "rule_dual_track": {
-    "hard": "平台「设置→给 WorkBuddy 的指令」（账号级，跨设备强注入）",
-    "soft": "~/.codebuddy/rules/core-8.md（本地兜底）"
-  },
-  "channels": {
-    "1_user_rule": "~/.codebuddy/rules/core-8.md",
-    "2_project_shell": "<项目>/.codebuddy/CODEBUDDY.md（必注入）",
-    "3_user_skill": "~/.codebuddy/skills/tvbox-config-sync（★平台注册可路由）",
-    "4_mobile_manual": "手机 App 设置→指令，粘贴 手机指令.md"
-  },
-  "verified_reliability": {
-    "user_level_skill_routing": "真阳性（本环境 ~/.codebuddy/skills 技能均在 active 列表）",
-    "CODEBUDDY_md_injection": "真阳性（368817：仅 CODEBUDDY.md 被注入）",
-    "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
-    "conditional_paths_injection": "真阴性（不注入，仅示例）",
-    "project_level_skill_routing": "真阴性（不进 active 列表）",
-    "user_skill_cross_device_to_new_phone": "分环境：①持久环境（桌面沙箱/云电脑）装一次长期可用，Skill 工具自动发现加载（云电脑 02:01 实证）；②手机普通聊天会话沙箱每次新建，装了即丢，需每次重装或走账号库",
-    "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
-    "probe_hub_without_core": "真阴性（缺 tvbox-source-hub 必报 ModuleNotFoundError: No module named 'core'）",
-    "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）",
-    "phone_channel_account_command": "真阳性·兜底（开场自检自动重装 ~30s + 命令直达；持久环境里 Skill 自动发现是正路）",
-    "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
-    "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 全部消失）",
-    "version_skew_trap": "真阳性教训：方案 C 改造未升版本号，新旧都叫 v1.20.8，手机端误载旧版（probe.py 9,051 行新版 vs 10,319 行旧版，harvest pan 在 9968 行处可判）。已升 probe-hub 1.21.0 / learn-hub 1.2.0 / tvbox-pipeline 1.0.0",
-    "skill_discovery_mechanism": "真阳性·关键修正（2026-11-12 02:31）：Skill 工具扫描的是会话环境里的 ~/.codebuddy/skills/ 目录——文件在就能被发现并加载，不依赖账号技能库。之前『手工件不被检索』的判断错误，真实原因只是沙箱重建后文件消失",
-    "project_rules_always_apply": "真阳性（2026-11-12 03:17 沙箱实测）：项目级 .codebuddy/rules/ + alwaysApply:true，在全新构建的上下文（子代理=新会话等价物）中自动注入，金丝雀 B7X9Q-ALWAYS 被原文引用。此前「项目级规则不注入」的定案作废——旧实验不满足官方两个前置条件（新会话 + 工作目录在项目根）",
-    "project_rules_paths_conditional": "真阳性（2026-11-12 03:18 沙箱实测·含对照组）：paths 命中文件（*.canary）被读取后规则注入；读不匹配文件（README）的对照组无注入。条件机制按官方口径工作。此前「paths 不注入」定案作废",
-    "rules_take_effect_on_new_session": "真阳性（官方文档 + 实测一致）：规则只在会话/上下文构建时注入，本会话中途新建的金丝雀在本会话上下文中不出现——改规则必须新开会话"
-  },
-  "probe_hub": {
-    "display_name": "探源司",
-    "version": "1.20.8",
-    "source": "tvbox342078879/tvbox-skills-eco (master)",
-    "required_set": [
+  "能力层": {
+   "scope": "TVBox（用户级或项目级，按模式）",
+   "files": {
+    "tvbox/skills/tvbox-core/": {
+     "user_install": "~/.codebuddy/skills/tvbox-core/",
+     "project_install": "<项目>/.codebuddy/skills/",
+     "role": "★共享代码库：core.py / concurrency.py / guard.py / link.py / pipeline.py / blk.py。无 SKILL.md，平台不注册不路由",
+     "not_a_skill": true,
+     "depended_by": [
       "probe-hub",
-      "tvbox-source-hub",
-      "tvbox-interface",
-      "tvbox-source-blacklist"
-    ],
-    "entry": "python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py <module> <cmd>",
-    "note": "仓库内无 tvbox CLI 实现，`tvbox probe` 仅为别名壳；真实入口是 probe.py",
-    "modules": {
-      "monitor": [
-        "status",
-        "check",
-        "diff",
-        "forecast",
-        "add",
-        "import",
-        "due",
-        "purge-test"
-      ],
-      "search": [
-        "github",
-        "gitee",
-        "gitlab",
-        "rank",
-        "verify"
-      ],
-      "harvest": [
-        "scan",
-        "pull",
-        "filter",
-        "export",
-        "dispatch"
-      ],
-      "extra": [
-        "forge",
-        "livecheck",
-        "decrypt",
-        "quality",
-        "shellcrack",
-        "self-check"
-      ]
+      "tvbox-pipeline"
+     ],
+     "critical": "缺此目录，探源司必报 ModuleNotFoundError: No module named 'core'"
+    },
+    "tvbox/skills/probe-hub/": {
+     "user_install": "~/.codebuddy/skills/probe-hub/",
+     "role": "探源司本体：monitor/search/harvest/forge/shellcrack + 源库查询",
+     "depends_on": [
+      "tvbox-core"
+     ],
+     "entry": "scripts/probe.py",
+     "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'"
+    },
+    "tvbox/skills/tvbox-pipeline/": {
+     "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
+     "role": "出品流水线：A 整包加工（原 tvbox-interface）+ B 配置同步（原 tvbox-config-sync）",
+     "depends_on": [
+      "tvbox-core"
+     ],
+     "entry": "SKILL.md → SOP_整包加工.md"
+    },
+    "tvbox/fix_paths.py": {
+     "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接"
+    },
+    "tvbox/agents/tvbox-agent.md": {
+     "user_install": "~/.codebuddy/agents/",
+     "role": "隔离子代理"
+    },
+    "tvbox/commands/tvbox-sync.md": {
+     "user_install": "~/.codebuddy/commands/",
+     "role": "/tvbox-sync 命令"
+    },
+    "tvbox/scripts/collect_repos.py": {
+     "user_install": "~/.codebuddy/scripts/",
+     "role": "拉仓库抽源"
+    },
+    "tvbox/scripts/check_live.py": {
+     "user_install": "~/.codebuddy/scripts/",
+     "role": "并发测活"
+    },
+    "tvbox/scripts/merge_config.py": {
+     "user_install": "~/.codebuddy/scripts/",
+     "role": "存活源集成"
+    },
+    "tvbox/master_config.example.json": {
+     "user_install": "~/.codebuddy/tvbox/",
+     "role": "主配置模板"
+    },
+    "tvbox/CODEBUDDY.md": {
+     "project_install": "<项目>/.codebuddy/CODEBUDDY.md",
+     "role": "项目级薄壳兜底（用户级模式可不装）"
+    },
+    "tvbox/rules/tvbox-style.md": {
+     "project_install": "<项目>/.codebuddy/rules/",
+     "alwaysApply": true,
+     "role": "TVBox 纪律（项目隔离模式）"
+    },
+    "tvbox/rules/tvbox.paths.md": {
+     "project_install": "<项目>/.codebuddy/rules/",
+     "alwaysApply": false,
+     "paths": [
+      "**/master_config*.json"
+     ],
+     "role": "条件规则示例（实测不注入）"
     }
-  },
-  "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",
-  "verify": "bash verify.sh",
-  "sync_shape": {
-    "full": [
-      "MANIFEST.json",
-      "install.sh",
-      "verify.sh",
-      "VERSION",
-      "secret_scan.py",
-      "README.md",
-      "TEST.md",
-      "手机指令.md",
-      "通用层/",
-      "能力层/",
-      "docs/"
-    ],
-    "lite": [
-      "MANIFEST.json",
-      "install.sh",
-      "verify.sh",
-      "VERSION",
-      "secret_scan.py",
-      "通用层/rules/",
-      "通用层/skills/",
-      "能力层/tvbox/skills/probe-hub/",
-      "能力层/tvbox/skills/tvbox-core/",
-      "能力层/tvbox/scripts/"
-    ]
-  },
-  "bootstrap": {
-    "script": "bootstrap.sh",
-    "shapes": "full(默认，全量) / lite(探源司最小可跑集)",
-    "idempotent": "目标已存在且含 MANIFEST.json → 跳过 clone，仅 git pull --ff-only + 重设稀疏",
-    "no_plaintext_token": "token 仅从 $GITHUB_TOKEN / gh auth token 读入内存，apply 后立即 unset，不写任何文件、不打印",
-    "usage": "bash bootstrap.sh <repo_url_or_path> [shape] [target] [--dry-run] [--install]"
-  },
-  "plan_c": "2026-11-12：5 技能合为 2 入口 + 1 库（tvbox-core 无 SKILL.md，不路由）",
-  "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）",
-  "changelog_0_6_0": "space-hub 库务司迁入：tvbox-janitor v1.2.12 去 TVBox 化升级；四层空间解析（init/classify/create-db 三新命令）；坐标修正（空间 RYUDZM，旧 8w5cnq/gZ4x 均亡）；实测建库端到端+回读",
-  "changelog_0_7_0": [
-    "件① secret_scan.py 迁入仓库根（tvbox-eco verify 正本去 kill-switch 改造）：PAT/user:pass/api_key/拼接拆解四类明文 + .git/config 兜底复查；is_placeholder_concat 改整行分段（修中段起匹配截歪引号的漏报，2026-11-12 实测）",
-    "verify.sh 第 27 项：密钥安全扫描，红=发现明文即不绿（落实 core-8 规则 5 零明文凭证）",
-    "件② inspect-hub 巡检司 v1.0.0：8 门（开规则/生技能/杜密钥/景文档/伤结构/死遗留/休新鲜/惊触发词待补码），单文件 dashboard.html 八卦八门面板，造脏五门实测全部抓到、清脏清零",
-    "docs/遗留登记.md 新建：巡检司死门数据源，【待】黄【阻】红，闭环删行自动消色",
-    "旧仓 archive 盘点定案：legacy-diagnostics 化石不迁；tvbox-inspect/legacy-watchdog 原代码死引用不迁、机制（登记册可成长/健康预检/报告环比）由 inspect-hub 继承；ecosys-conductor 仅 secret_scan 迁"
+   }
+  }
+ },
+ "rule_dual_track": {
+  "hard": "平台「设置→给 WorkBuddy 的指令」（账号级，跨设备强注入）",
+  "soft": "~/.codebuddy/rules/core-8.md（本地兜底）"
+ },
+ "channels": {
+  "1_user_rule": "~/.codebuddy/rules/core-8.md",
+  "2_project_shell": "<项目>/.codebuddy/CODEBUDDY.md（必注入）",
+  "3_user_skill": "~/.codebuddy/skills/tvbox-config-sync（★平台注册可路由）",
+  "4_mobile_manual": "手机 App 设置→指令，粘贴 手机指令.md"
+ },
+ "verified_reliability": {
+  "user_level_skill_routing": "真阳性（本环境 ~/.codebuddy/skills 技能均在 active 列表）",
+  "CODEBUDDY_md_injection": "真阳性（368817：仅 CODEBUDDY.md 被注入）",
+  "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
+  "conditional_paths_injection": "真阴性（不注入，仅示例）",
+  "project_level_skill_routing": "真阴性（不进 active 列表）",
+  "user_skill_cross_device_to_new_phone": "分环境：①持久环境（桌面沙箱/云电脑）装一次长期可用，Skill 工具自动发现加载（云电脑 02:01 实证）；②手机普通聊天会话沙箱每次新建，装了即丢，需每次重装或走账号库",
+  "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
+  "probe_hub_without_core": "真阴性（缺 tvbox-source-hub 必报 ModuleNotFoundError: No module named 'core'）",
+  "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）",
+  "phone_channel_account_command": "真阳性·兜底（开场自检自动重装 ~30s + 命令直达；持久环境里 Skill 自动发现是正路）",
+  "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
+  "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 全部消失）",
+  "version_skew_trap": "真阳性教训：方案 C 改造未升版本号，新旧都叫 v1.20.8，手机端误载旧版（probe.py 9,051 行新版 vs 10,319 行旧版，harvest pan 在 9968 行处可判）。已升 probe-hub 1.21.0 / learn-hub 1.2.0 / tvbox-pipeline 1.0.0",
+  "skill_discovery_mechanism": "真阳性·关键修正（2026-11-12 02:31）：Skill 工具扫描的是会话环境里的 ~/.codebuddy/skills/ 目录——文件在就能被发现并加载，不依赖账号技能库。之前『手工件不被检索』的判断错误，真实原因只是沙箱重建后文件消失",
+  "project_rules_always_apply": "真阳性（2026-11-12 03:17 沙箱实测）：项目级 .codebuddy/rules/ + alwaysApply:true，在全新构建的上下文（子代理=新会话等价物）中自动注入，金丝雀 B7X9Q-ALWAYS 被原文引用。此前「项目级规则不注入」的定案作废——旧实验不满足官方两个前置条件（新会话 + 工作目录在项目根）",
+  "project_rules_paths_conditional": "真阳性（2026-11-12 03:18 沙箱实测·含对照组）：paths 命中文件（*.canary）被读取后规则注入；读不匹配文件（README）的对照组无注入。条件机制按官方口径工作。此前「paths 不注入」定案作废",
+  "rules_take_effect_on_new_session": "真阳性（官方文档 + 实测一致）：规则只在会话/上下文构建时注入，本会话中途新建的金丝雀在本会话上下文中不出现——改规则必须新开会话"
+ },
+ "probe_hub": {
+  "display_name": "探源司",
+  "version": "1.20.8",
+  "source": "tvbox342078879/tvbox-skills-eco (master)",
+  "required_set": [
+   "probe-hub",
+   "tvbox-source-hub",
+   "tvbox-interface",
+   "tvbox-source-blacklist"
   ],
-  "changelog_0_7_1": [
-    "inspect-hub v1.1.0：adversarial 对抗自测子命令（临时 clone 逐门造脏断言必翻红，8/8 实测）+ 死门带过执法（待办必须带负责人+期限，复发自动升红，借 tvbox-eco carryover_guard/adversarial_suite 思想）",
-    "secret_scan 自指豁免扩展：inspect_hub.py 对抗用例构造行行级豁免（实测自指误报即修）",
-    "docs/遗留登记.md 四条目补齐负责人+期限（新判据生效基线）",
-    "本轮借鉴范围盘点定案：A(对抗自测)+B(带过执法) 本轮落地；C(脚本冒烟)/E(环境巡检)/G(闸篡改探针)/D(依赖契约) 已评估在案后补；F/H 及 hooks 类明确不借"
+  "entry": "python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py <module> <cmd>",
+  "note": "仓库内无 tvbox CLI 实现，`tvbox probe` 仅为别名壳；真实入口是 probe.py",
+  "modules": {
+   "monitor": [
+    "status",
+    "check",
+    "diff",
+    "forecast",
+    "add",
+    "import",
+    "due",
+    "purge-test"
+   ],
+   "search": [
+    "github",
+    "gitee",
+    "gitlab",
+    "rank",
+    "verify"
+   ],
+   "harvest": [
+    "scan",
+    "pull",
+    "filter",
+    "export",
+    "dispatch"
+   ],
+   "extra": [
+    "forge",
+    "livecheck",
+    "decrypt",
+    "quality",
+    "shellcrack",
+    "self-check"
+   ]
+  }
+ },
+ "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",
+ "verify": "bash verify.sh",
+ "sync_shape": {
+  "full": [
+   "MANIFEST.json",
+   "install.sh",
+   "verify.sh",
+   "VERSION",
+   "secret_scan.py",
+   "README.md",
+   "TEST.md",
+   "手机指令.md",
+   "通用层/",
+   "能力层/",
+   "docs/"
   ],
-  "changelog_0_8_0": [
-    "版本化迁移机制（借 tvbox-eco upgrade.sh 思想）：VERSION 文件 + 本地已部署标记 ~/.codebuddy/.520_state/version + migrate_to_<ver> 一次性动作表（0.6.0/0.7.0/0.7.1/0.8.0），幂等 + dry-run 支持 + VERSION 不可读不瞎迁",
-    "install.sh cp_bak 机制级修复：备份只留最近一份（此前每次安装堆一个 .bak.$TS 永不清理，实测顶层堆 7 个）",
-    "bootstrap 断言补 VERSION 与 inspect-hub/SKILL.md；sync_shape 补 VERSION（稀疏检出集合，缺它断言必失败——实测抓到）",
-    "sync_shape 补 secret_scan.py（v0.7.0 引入仓库根但漏登记稀疏清单，--target 自检会因缺扫描器记红——实测抓到）"
-  ],
-  "changelog_0_8_1": [
-    "修复探源司→清道夫投递链改名断链（实查 2026-11-12）：清道夫改名 space-hub 后，core.py file_to_janitor 仍写死 ~/.codebuddy/skills/tvbox-janitor + import janitor → import 必失败恒返回 False，投递从未成功且 quiet 静默（旁路设计下最危险失效形态）。改为 space-hub 优先/tvbox-janitor 兜底双探测",
-    "probe.py _eco_linked_probe 同步：探针仍探旧路径 → space-hub 装着也报「下游未装」；改新名优先旧名兜底。实测三态：假 id 拒收 ✓ / 投递链路走 space_hub（mock 不动云端）✓ / 探针 (True, None) ✓（None=监察司未迁 520，如实报无法判定）",
-    "bootstrap 迁移表 +migrate_to_0.8.1（同步 tvbox-core/probe-hub 副本）；VERSION 0.8.1"
-  ],
-  "changelog_0_8_2": [
-    "库务司 space-hub v2.1.0：新增 auto_file_local 本地欠账登记（learn-hub 旧门面投本地路径被 S156 node_id 护栏拒收——名义联动，投递从未成功，实证 2026-11-12）；list 本地欠账单独成节（云端陈旧剔除逻辑会误剔本地路径）；local-rm 销账（前缀匹配/未命中拒销 exit 2/纯本地不过空间解析）",
-    "学习工坊 learn-hub v1.3.0：_to_janitor→_to_spacehub 改道本地欠账；解耦能力层 tvbox-core 依赖",
-    "classify_rules +「学习与资料」类：learn-hub 产业认主（云端 dry-run 实测引擎按登记册跑通）",
-    "实测：记账/幂等/空路径拒收/前缀销账/未命中 exit 2/learn 门面全链 ✓；副本陈旧时门面报「需 ≥2.1.0」明确失败而非静默",
-    "bootstrap 迁移表 +0.8.2（同步 space-hub/learn-hub 副本）"
-  ],
-  "changelog_0_8_3": [
-    "core-8 新增 B-09 产物纪律（规则真源 通用层/rules/core-8.md）：产出默认不落产物区，点名例外（落产物/生成文件/拉面板），归宿=文本呈现或经库务司 archive 落库；连带 4 指针点（M4 编号范围 B-01…B-09、tvbox 薄壳、手机指令、MANIFEST role）同步改",
-    "space-hub v2.2.0：archive 落库正门（📦 产物归档夹+📦 产物索引库五字段+本地清理，全步 library 正门+回读）+ products --scan/--search-box（盘点+单文件搜索框）",
-    "实测修三 bug：KS 行空格分隔解析；新建节点目录索引传播延迟（S200 带间隔重试）；_find_parent 残留 ROOT（v2.0.0 漏改）→ NameError 致 add 从未真正投递（今天实测投递现场踩到，历史 add 全部只登记未移动）",
-    "inspect-hub v1.2.0：伤门复合 chk_structure（结构完整性+产物纪律 chk_products），八卦 8 位固定不新增第 9 卦",
-    "bootstrap 迁移表 +0.8.3（同步 space-hub/inspect-hub/rules 副本）"
-  ],
-  "changelog_0_8_4": [
-    "架构重规划 A「总线归目标方」：file_to_janitor 迁入 space-hub v2.3.0（收件方自持，core 中转壳删除，调用方 probe/link/newlib/blk 改 import 来源、调用行零改动）；register_monitor 迁入 inspect-hub v1.3.0（原探旧生态 tvbox-inspect 恒失败，现真登记 monitors.json）",
-    "依赖方向修正：space_hub 核库不再 import 能力层 tvbox-core（就地内联 _run_lib 直调 library 正门）——通用层对能力层零依赖",
-    "实测抓缺陷并修：① 核库对照组硬编码 id 随空间重建失效（permission denied）→ 三级动态解析 + 无对照如实报无法判定；② 生门把运行时数据 findings_history/monitors/*_state 当正本对账 → 永久误报副本漂移，已排除；③ learn-hub learn.py 副本陈旧（v0.8.2 手工同步漏 scripts）已同步",
-    "tvbox-pipeline v1.1.0 清残留：SKILL.md frontmatter YAML 截断致一半触发词未进 description（路由缺陷）已修；SOP 旧身份 frontmatter 改 doc 元信息；死引用 ecosys-conductor/user_habit_brief 改指 core-8；/root/.codebuddy 硬编码 10 处改 $HOME；CHANGELOG-interface.md 合并",
-    "tvbox-core README 定位收窄为「纯 TVBox 数据域共享库」，明确不再中转通用层能力",
-    "bootstrap 迁移表 +0.8.4（同步 tvbox-core/probe-hub/space-hub/inspect-hub/learn-hub/tvbox-pipeline 副本）"
+  "lite": [
+   "MANIFEST.json",
+   "install.sh",
+   "verify.sh",
+   "VERSION",
+   "secret_scan.py",
+   "通用层/rules/",
+   "通用层/skills/",
+   "能力层/tvbox/skills/probe-hub/",
+   "能力层/tvbox/skills/tvbox-core/",
+   "能力层/tvbox/scripts/"
   ]
+ },
+ "bootstrap": {
+  "script": "bootstrap.sh",
+  "shapes": "full(默认，全量) / lite(探源司最小可跑集)",
+  "idempotent": "目标已存在且含 MANIFEST.json → 跳过 clone，仅 git pull --ff-only + 重设稀疏",
+  "no_plaintext_token": "token 仅从 $GITHUB_TOKEN / gh auth token 读入内存，apply 后立即 unset，不写任何文件、不打印",
+  "usage": "bash bootstrap.sh <repo_url_or_path> [shape] [target] [--dry-run] [--install]"
+ },
+ "plan_c": "2026-11-12：5 技能合为 2 入口 + 1 库（tvbox-core 无 SKILL.md，不路由）",
+ "changelog_0_5_0": "learn-hub 迁入（含 pan.py 网盘模块，源自 probe-hub harvest pan，probe.py -1268 行）",
+ "changelog_0_6_0": "space-hub 库务司迁入：tvbox-janitor v1.2.12 去 TVBox 化升级；四层空间解析（init/classify/create-db 三新命令）；坐标修正（空间 RYUDZM，旧 8w5cnq/gZ4x 均亡）；实测建库端到端+回读",
+ "changelog_0_7_0": [
+  "件① secret_scan.py 迁入仓库根（tvbox-eco verify 正本去 kill-switch 改造）：PAT/user:pass/api_key/拼接拆解四类明文 + .git/config 兜底复查；is_placeholder_concat 改整行分段（修中段起匹配截歪引号的漏报，2026-11-12 实测）",
+  "verify.sh 第 27 项：密钥安全扫描，红=发现明文即不绿（落实 core-8 规则 5 零明文凭证）",
+  "件② inspect-hub 巡检司 v1.0.0：8 门（开规则/生技能/杜密钥/景文档/伤结构/死遗留/休新鲜/惊触发词待补码），单文件 dashboard.html 八卦八门面板，造脏五门实测全部抓到、清脏清零",
+  "docs/遗留登记.md 新建：巡检司死门数据源，【待】黄【阻】红，闭环删行自动消色",
+  "旧仓 archive 盘点定案：legacy-diagnostics 化石不迁；tvbox-inspect/legacy-watchdog 原代码死引用不迁、机制（登记册可成长/健康预检/报告环比）由 inspect-hub 继承；ecosys-conductor 仅 secret_scan 迁"
+ ],
+ "changelog_0_7_1": [
+  "inspect-hub v1.1.0：adversarial 对抗自测子命令（临时 clone 逐门造脏断言必翻红，8/8 实测）+ 死门带过执法（待办必须带负责人+期限，复发自动升红，借 tvbox-eco carryover_guard/adversarial_suite 思想）",
+  "secret_scan 自指豁免扩展：inspect_hub.py 对抗用例构造行行级豁免（实测自指误报即修）",
+  "docs/遗留登记.md 四条目补齐负责人+期限（新判据生效基线）",
+  "本轮借鉴范围盘点定案：A(对抗自测)+B(带过执法) 本轮落地；C(脚本冒烟)/E(环境巡检)/G(闸篡改探针)/D(依赖契约) 已评估在案后补；F/H 及 hooks 类明确不借"
+ ],
+ "changelog_0_8_0": [
+  "版本化迁移机制（借 tvbox-eco upgrade.sh 思想）：VERSION 文件 + 本地已部署标记 ~/.codebuddy/.520_state/version + migrate_to_<ver> 一次性动作表（0.6.0/0.7.0/0.7.1/0.8.0），幂等 + dry-run 支持 + VERSION 不可读不瞎迁",
+  "install.sh cp_bak 机制级修复：备份只留最近一份（此前每次安装堆一个 .bak.$TS 永不清理，实测顶层堆 7 个）",
+  "bootstrap 断言补 VERSION 与 inspect-hub/SKILL.md；sync_shape 补 VERSION（稀疏检出集合，缺它断言必失败——实测抓到）",
+  "sync_shape 补 secret_scan.py（v0.7.0 引入仓库根但漏登记稀疏清单，--target 自检会因缺扫描器记红——实测抓到）"
+ ],
+ "changelog_0_8_1": [
+  "修复探源司→清道夫投递链改名断链（实查 2026-11-12）：清道夫改名 space-hub 后，core.py file_to_janitor 仍写死 ~/.codebuddy/skills/tvbox-janitor + import janitor → import 必失败恒返回 False，投递从未成功且 quiet 静默（旁路设计下最危险失效形态）。改为 space-hub 优先/tvbox-janitor 兜底双探测",
+  "probe.py _eco_linked_probe 同步：探针仍探旧路径 → space-hub 装着也报「下游未装」；改新名优先旧名兜底。实测三态：假 id 拒收 ✓ / 投递链路走 space_hub（mock 不动云端）✓ / 探针 (True, None) ✓（None=监察司未迁 520，如实报无法判定）",
+  "bootstrap 迁移表 +migrate_to_0.8.1（同步 tvbox-core/probe-hub 副本）；VERSION 0.8.1"
+ ],
+ "changelog_0_8_2": [
+  "库务司 space-hub v2.1.0：新增 auto_file_local 本地欠账登记（learn-hub 旧门面投本地路径被 S156 node_id 护栏拒收——名义联动，投递从未成功，实证 2026-11-12）；list 本地欠账单独成节（云端陈旧剔除逻辑会误剔本地路径）；local-rm 销账（前缀匹配/未命中拒销 exit 2/纯本地不过空间解析）",
+  "学习工坊 learn-hub v1.3.0：_to_janitor→_to_spacehub 改道本地欠账；解耦能力层 tvbox-core 依赖",
+  "classify_rules +「学习与资料」类：learn-hub 产业认主（云端 dry-run 实测引擎按登记册跑通）",
+  "实测：记账/幂等/空路径拒收/前缀销账/未命中 exit 2/learn 门面全链 ✓；副本陈旧时门面报「需 ≥2.1.0」明确失败而非静默",
+  "bootstrap 迁移表 +0.8.2（同步 space-hub/learn-hub 副本）"
+ ],
+ "changelog_0_8_3": [
+  "core-8 新增 B-09 产物纪律（规则真源 通用层/rules/core-8.md）：产出默认不落产物区，点名例外（落产物/生成文件/拉面板），归宿=文本呈现或经库务司 archive 落库；连带 4 指针点（M4 编号范围 B-01…B-09、tvbox 薄壳、手机指令、MANIFEST role）同步改",
+  "space-hub v2.2.0：archive 落库正门（📦 产物归档夹+📦 产物索引库五字段+本地清理，全步 library 正门+回读）+ products --scan/--search-box（盘点+单文件搜索框）",
+  "实测修三 bug：KS 行空格分隔解析；新建节点目录索引传播延迟（S200 带间隔重试）；_find_parent 残留 ROOT（v2.0.0 漏改）→ NameError 致 add 从未真正投递（今天实测投递现场踩到，历史 add 全部只登记未移动）",
+  "inspect-hub v1.2.0：伤门复合 chk_structure（结构完整性+产物纪律 chk_products），八卦 8 位固定不新增第 9 卦",
+  "bootstrap 迁移表 +0.8.3（同步 space-hub/inspect-hub/rules 副本）"
+ ],
+ "changelog_0_8_4": [
+  "架构重规划 A「总线归目标方」：file_to_janitor 迁入 space-hub v2.3.0（收件方自持，core 中转壳删除，调用方 probe/link/newlib/blk 改 import 来源、调用行零改动）；register_monitor 迁入 inspect-hub v1.3.0（原探旧生态 tvbox-inspect 恒失败，现真登记 monitors.json）",
+  "依赖方向修正：space_hub 核库不再 import 能力层 tvbox-core（就地内联 _run_lib 直调 library 正门）——通用层对能力层零依赖",
+  "实测抓缺陷并修：① 核库对照组硬编码 id 随空间重建失效（permission denied）→ 三级动态解析 + 无对照如实报无法判定；② 生门把运行时数据 findings_history/monitors/*_state 当正本对账 → 永久误报副本漂移，已排除；③ learn-hub learn.py 副本陈旧（v0.8.2 手工同步漏 scripts）已同步",
+  "tvbox-pipeline v1.1.0 清残留：SKILL.md frontmatter YAML 截断致一半触发词未进 description（路由缺陷）已修；SOP 旧身份 frontmatter 改 doc 元信息；死引用 ecosys-conductor/user_habit_brief 改指 core-8；/root/.codebuddy 硬编码 10 处改 $HOME；CHANGELOG-interface.md 合并",
+  "tvbox-core README 定位收窄为「纯 TVBox 数据域共享库」，明确不再中转通用层能力",
+  "bootstrap 迁移表 +0.8.4（同步 tvbox-core/probe-hub/space-hub/inspect-hub/learn-hub/tvbox-pipeline 副本）"
+ ]
 }
