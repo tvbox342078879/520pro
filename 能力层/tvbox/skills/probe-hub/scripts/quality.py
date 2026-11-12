@@ -29,8 +29,13 @@ from urllib.parse import urlparse, urljoin
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
 
-# 广告域名黑名单（可追加；命中只算"疑似"，因为有些站自己也叫 ad）
-AD_HOST_HINTS = ('ads.', 'ad.', 'gg.', 'guanggao', 'advert', 'promo', 'tui.', 'dsp.')
+# 广告域名黑名单：S225 起**不在本文件维护**，统一由 hls_clean.py 载入
+# references/S225_ad_domains.json（61 条实测清单）并做 Allow→Block→启发式三段判定。
+# 原地的 AD_HOST_HINTS 是 8 个子串特征（ads./ad./gg./guanggao…），已废弃，原因：
+#   ① 子串匹配会把正常路径词误命中；
+#   ② 真实统计/广告域名大多是 `mimg.0c1q0l.cn` 这类随机串，语义特征一个都不占；
+#   ③ 单层黑名单没有 Allow 层，公共 CDN 无法正确放行。
+# 保留 AD_HOST_HINTS 这个名字只为兼容旧调用方，读到它应视为过期数据。
 
 # 质量分权重（S110 校准版）
 # ★ 权重为什么这么改（用 111 条成品源库实测校准出来的）：
@@ -154,37 +159,51 @@ def _first_segment(m3u_text, base_url):
 def ad_judgment(m3u_text, seg_urls, play_url):
     """广告判定 → ('无'|'疑似'|'确认', 证据)。
 
-    判据（任一命中即升级，三档保守）：
-      · 域名黑名单命中 → 疑似
-      · 出现 EXT-X-DISCONTINUITY 且分片数很少（插播常见） → 疑似
-      · 播放地址本身含广告域名 → 确认
-    注意：这只是**启发式**，短剧源天然分片短，会误判成广告——
-    所以"疑似"不等于"有广告"，最终要人眼确认。
+    ★ S225 起改为**委托 hls_clean.judge_segment**（三段式 Allow→Block→启发式），
+      本函数只做「多分片 → 单结论」的聚合，不再自己维护域名黑名单。
+      改造理由（两条实测教训）：
+        ① 原来的 `AD_HOST_HINTS = ('ad.', 'gg.', ...)` 是**子串匹配**，
+           会把 `cdn.lziapi.com` 里根本没有的东西误命中，也会漏掉
+           `mimg.0c1q0l.cn` 这类毫无语义特征的统计域名（真实广告域名大多是随机串）；
+        ② 只有一层黑名单，没有 Allow 层，`cdn.bootcss.com` 这种既是公共库
+           又在广告清单里的域名无法正确处理。
+
+    聚合规则（保守，宁可「疑似」不轻易「确认」）：
+      · 任一分片 block 且其域名 ≠ 主 CDN → 确认（跨域广告分片，证据最硬）
+      · 任一分片 block 但同属主 CDN → 疑似（可能是站点自己的推广路径）
+      · hls_clean 判 unsafe_skip（想删但违反 RFC）→ 疑似，并如实写原因
     """
-    low = (play_url or '').lower()
-    host = urlparse(low).netloc
-    for h in AD_HOST_HINTS:
-        if h in host:
-            return '确认', f'播放地址域名命中广告特征：{host}'
-    for u in seg_urls[:20]:
-        h = urlparse(u).netloc.lower()
-        for hint in AD_HOST_HINTS:
-            if hint in h:
-                return '疑似', f'分片域名命中广告特征：{h}'
-    if 'EXT-X-DISCONTINUITY' in (m3u_text or '') and len(seg_urls) < 5:
-        return '疑似', '含 EXT-X-DISCONTINUITY 且分片少于 5 条（疑插播）'
-    # ★ S196 新判据：主清单内多域名分片 —— 贴片/中插广告的典型形态是
-    #   广告分片走另一个 CDN 域名。相对地址按播放地址补全后再比 host。
-    #   只取前 30 条分片（整清单上百条，抽样足够且快）。
-    hosts = set()
-    for u in seg_urls[:30]:
-        absu = urljoin(play_url or '', u)
-        h = urlparse(absu).netloc.lower()
-        if h:
-            hosts.add(h)
-    if len(hosts) > 1:
-        hs = sorted(hosts)
-        return '疑似', f'主清单内分片跨 {len(hs)} 个域名（疑插播）：{"、".join(hs[:3])}'
+    try:
+        from hls_clean import sanitize, judge_segment
+    except Exception as e:                                    # noqa: BLE001
+        return '无', f'hls_clean 不可用（{e}），本次不做广告判定'
+    text = m3u_text or ''
+    if '#EXTM3U' not in text or not seg_urls:
+        return '无', ''
+
+    base = play_url or ''
+    # 主 CDN：分片域名里出现最多的那个
+    from collections import Counter
+    hosts = Counter(urlparse(urljoin(base, u)).netloc.lower()
+                    for u in seg_urls[:60] if u)
+    main = hosts.most_common(1)[0][0] if hosts else ''
+
+    cross, same = [], []
+    for i, u in enumerate(seg_urls[:60]):
+        v, why = judge_segment(urljoin(base, u), seg_index=i, total=len(seg_urls),
+                               baseline_hosts={main}, base_url=base)
+        if v != 'block':
+            continue
+        h = urlparse(urljoin(base, u)).netloc.lower()
+        (same if h == main else cross).append((u, why))
+    if cross:
+        return '确认', f'{len(cross)} 条跨域广告分片，例：{cross[0][0]}（{cross[0][1]}）'
+    if same:
+        return '疑似', f'{len(same)} 条分片命中广告特征但同属主 CDN，例：{same[0][1]}'
+
+    r = sanitize(text, base, dry_run=True)
+    if r.status == 'unsafe_skip':
+        return '疑似', f'有分片命中广告规则但不敢删：{r.blocked_by}'
     return '无', ''
 
 

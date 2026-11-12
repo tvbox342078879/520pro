@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "repair_result 修复结果契约（S222）",
+  "description": "任何修复动作（含 LLM 产出）必须通过本 schema 校验才算修复完成（业内'写入时校验'实践）",
+  "type": "object",
+  "required": ["schema_version", "target", "strategy", "status", "attempts", "backup_path"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "target": {"type": "string", "minLength": 1},
+    "strategy": {"enum": ["domain_fix", "patch", "rewrite", "none"]},
+    "status": {"enum": ["repaired", "verify_failed", "aborted", "not_applicable"],
+      "description": "not_applicable=分型判不需修（如未定·网络）；aborted=写回回读不一致等安全弃单"},
+    "attempts": {"type": "integer", "minimum": 0, "maximum": 5,
+      "description": "小补上限 1 轮；复验上限见 strategies.json"},
+    "backup_path": {"type": "string", "description": "写盘前备份路径；未写盘填空串"},
+    "patch": {
+      "type": "object",
+      "properties": {
+        "edits": {"type": "array", "items": {
+          "type": "object", "required": ["old", "new"],
+          "properties": {
+            "old": {"type": "string", "minLength": 1,
+              "description": "必须是原文逐字存在的片段（AI修源硬约束）"},
+            "new": {"type": "string"}
+          }}}
+      },
+      "description": "strategy=patch 时必填；old 匹配不到原文 → 整单 abort"
+    },
+    "recheck": {
+      "type": "object", "required": ["verdict"],
+      "properties": {
+        "verdict": {"enum": ["通过", "失败", "无法判定"]},
+        "death_cause": {"type": "string"},
+        "evidence": {"type": "string"}
+      },
+      "description": "修复后真跑复验结果（真跑体检，非声明）"
+    },
+    "recon": {
+      "type": "object",
+      "properties": {
+        "home_ok": {"type": ["boolean", "null"]},
+        "hits": {"type": "object"},
+        "nav_categories": {"type": "array"},
+        "page_url_pattern": {"type": "string"},
+        "detail_episode_shape": {"type": "string"},
+        "undetermined": {"type": "array", "items": {"type": "string"}}
+      },
+      "description": "strategy=rewrite 时附带的侦察摘要（batch 4）。侦察不完整时不得出 repaired"
+    },
+    "failure_reason": {"type": "string", "description": "status!=repaired 时的原因，喂给下一轮/人工"}
+  },
+  "additionalProperties": false
+}

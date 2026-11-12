@@ -47,7 +47,14 @@ python3 "$P" monitor status                  # 监测台总览
 python3 "$P" monitor check --repo <URL>       # 单仓三态检查
 python3 "$P" search github --topic tvbox      # 搜新仓库
 python3 "$P" harvest scan --repo <URL>        # 采线路
+R="$HOME/.codebuddy/skills/probe-hub/repair/engine.py"
+python3 "$R" checkup <URL>                    # 死因分型体检（七型 → 五路由）
+python3 "$R" repair <URL> --kind auto          # 自动修源（没验过不许说修好）
+python3 "$HOME/.codebuddy/skills/probe-hub/scripts/forge.py" gate <源.py>  # 写源四门禁
 ```
+
+> 修源结论必须带**死因**（域名层/接口层/内容层/语法层/结构性/未定·网络）与三态；
+> `无法判定` 不等于没好，也不算修好。三态判据单一事实源在 `livecheck.death_cause`。
 
 > ⚠️ 探源司**必须两个目录齐全**（`probe-hub` + `tvbox-core`）。v0.4.0 起不再有四件套，`tvbox-core` 是库不是技能。
 > 只装 probe-hub 会报 `ModuleNotFoundError: No module named 'core'`——这时不要改代码硬修，先补齐 `tvbox-core`。

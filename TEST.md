@@ -45,7 +45,7 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 
 ---
 
-## 3. 探源司四件套（★ 真正的干活能力）
+## 3. 探源司（probe-hub + tvbox-core，★ 真正的干活能力）
 
 > 前提：`probe-hub` + `tvbox-core` 两个目录必须齐全。**只装 probe-hub 必报 `ModuleNotFoundError: No module named 'core'`。**
 
@@ -56,6 +56,12 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | T3.2 | `python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py monitor status` | 输出 `📡 上游仓库监测台（186 个目标）` 表格 |
 | T3.3 | `python3 .../probe.py monitor check --repo https://github.com/xxx/not-exist-999` | 返回 `❌ 未找到目标`（**若编出内容 = 幻觉**） |
 | T3.4 | 新会话说「用探源司看看 hjdhnx/drpy3 还活着吗」 | 命中 probe-hub 技能并调用 |
+| T3.5 | `python3 ~/.codebuddy/skills/probe-hub/scripts/hls_clean.py --selftest` | `✓ 全部通过（6 条判定样本 + 4 个净化场景）`，黑名单载入 61 条 |
+| T3.6 | `python3 ~/.codebuddy/skills/probe-hub/verify/gate_r221_death_taxonomy.py` | `✓ M-R221 分型闸门通过（5 项）`，rc=0 |
+| T3.7 | `python3 ~/.codebuddy/skills/probe-hub/verify/gate_r222_repair_contract.py` | `✓ M-R222 契约闸门通过（6 项）`，rc=0 |
+| T3.8 | `python3 ~/.codebuddy/skills/probe-hub/repair/engine.py checkup https://not-exist-9271.example/` | `verdict=无法判定 / death_cause=未定·网络`，理由写"先复验"——**塌成失败或通过都是缺陷** |
+| T3.9 | `python3 ~/.codebuddy/skills/probe-hub/scripts/forge.py gate <某个源.py> --static-only` | 打印四门禁逐项结果；有门禁不过时 rc=1（**未过禁交付**） |
+| T3.10 | 反证：`mv ~/.codebuddy/skills/probe-hub/repair /tmp/` 后跑 `verify.sh` | `✗ repair/ 修源模块缺失`（删掉就翻红，不装绿）；测完移回 |
 
 **判定要点（四条硬指标，缺一即不可信）**：
 
@@ -106,6 +112,9 @@ bash verify.sh                             # 自检（会打印每个落点 + �
 | 技能 | T2.3 脚本路径适配 | ☐ | ☐ | ☐ |
 | **探源司** | **T3.2 monitor status** | ☐ | ☐ | ☐ |
 | **探源司** | **T3.3 反证不编** | ☐ | ☐ | ☐ |
+| **探源司** | **T3.6 R221 闸门** | ☐ | ☐ | ☐ |
+| **探源司** | **T3.8 死因三态** | ☐ | ☐ | ☐ |
+| **探源司** | **T3.10 删除即翻红** | ☐ | ☐ | ☐ |
 | 脚本 | T5.1 冒烟 | ☐ | ☐ | ☐ |
 | 手机 | T5.3 手机触发 | ☐ | ☐ | ☐ |
 | **换机** | **T6.3 幂等重跑** | ☐ | ☐ | ☐ |

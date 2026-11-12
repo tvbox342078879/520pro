@@ -475,6 +475,56 @@ def check_vod(api, *, timeout=TIMEOUT):
     return '失败', f'无vod_play_url/无XML播放地址（尝试{len(tried)}路，末路HTTP{tried[-1][1] if tried else 0}）'
 
 
+# ═══════════ 死因分型（S221·AI修源四路由的前置判据） ═══════════
+# 立法来源：base(5)壳 AI修源逆向（docs 见 /workspace/base5壳_AI修源深度解剖.md）。
+# 核心论断（业内 Forage Tier3 同源）：**自愈的核心不是 AI，而是失效分型**——
+# 403 ≠ 选择器失效 ≠ 证书过期 ≠ 结构改版，分型错了修复必然瞎打。
+# 三态契约不变（M-R60）：本函数只做"死因归类"，不改判定、不产生新结论。
+# M-R38 单一事实源：repair/engine.py 只消费本函数输出，禁各自重写分型。
+DEATH_CAUSES = ('', '域名层', '接口层', '内容层', '语法层', '结构性', '未定·网络')
+
+# 分型 → 修复路由（对齐 AI修源：换域 / 接口改道 / 小补 / 整站重写 / 复验）
+REPAIR_ROUTE = {
+    '域名层':   '换域修复',
+    '接口层':   '接口改道（按日志判路径/前缀变化，命中采集接口优先）',
+    '内容层':   '接口改道（接口活但字段空/地址拉不动→改走采集接口）',
+    '语法层':   '小补 1 轮（只修报错行，超限升级整站重写）',
+    '结构性':   '整站重写（重新侦察站点→生成整份源码→真跑复验）',
+    '未定·网络': '先复验（网络抖动/证书类不算死，M-R60 三态）',
+}
+
+
+def death_cause(verdict, evidence, kind=''):
+    """判死因分型，返回 DEATH_CAUSES 之一。
+
+    判据顺序（先特殊后一般）：
+      · 通过            → ''（无死因）
+      · 无法判定        → '未定·网络'（不算死，M-R60；证书类已在证据里单独标注）
+      · 失败 + py/js    → '语法层'（源码崩/解析崩，代码补丁可修）
+      · 失败 + 4xx证据   → '接口层'（路径/前缀改版，接口改道可修）
+      · 失败 + 字段空/拉不动 → '内容层'（接口活但内容断，改走采集接口）
+      · 失败 + XML可达无地址 → '结构性'（接口形态存疑，整站重写档）
+      · 其余失败         → '接口层'（兜底：HTTP 层面可判的失败归接口）
+    """
+    if verdict == '通过':
+        return ''
+    ev = evidence or ''
+    if verdict == '无法判定':
+        return '未定·网络'
+    # —— 以下均为"失败" ——
+    if kind in ('py', 'js'):
+        return '语法层'
+    if re.search(r'HTTP 4\d\d|4xx|无地址字段|配置错误', ev):
+        return '接口层'
+    if re.search(r'假活|拉不动|无播放地址|无vod_play_url|无真实播放地址', ev):
+        return '内容层'
+    if 'XML' in ev and ('未取到播放地址' in ev or '未返回' in ev):
+        return '结构性'
+    if re.search(r'不可达|解析失败|证书', ev):
+        return '域名层'
+    return '接口层'
+
+
 def check_m3u8(url, *, timeout=TIMEOUT):
     """直播源真实测活：真拉 m3u8 → 真拉一个分片字节流。三态。"""
     code, body = _curl(url, timeout=timeout)
@@ -997,12 +1047,14 @@ def cmd_one(a):
     else:
         v, ev, k = check_auto(a.url, kind=a.kind)
     if a.json:
-        print(json.dumps({'url': a.url, 'kind': k, 'verdict': v, 'evidence': ev},
-                         ensure_ascii=False))
+        print(json.dumps({'url': a.url, 'kind': k, 'verdict': v, 'evidence': ev,
+                          'death_cause': death_cause(v, ev, k)}, ensure_ascii=False))
     else:
         mark = {'通过': '✅', '完整': '✅', '失败': '❌', '无法判定': '⚠️',
                 '仅父级': '⚠️', '仅子级': '⚠️', '无分类': '⬜'}.get(v, '·')
-        print(f'{mark} [{k}] {v} — {ev}\n   {a.url}')
+        dc = death_cause(v, ev, k)
+        dc_s = f'·死因[{dc}]→{REPAIR_ROUTE[dc]}' if dc else ''
+        print(f'{mark} [{k}] {v} — {ev}{dc_s}\n   {a.url}')
     return 0
 
 
@@ -1028,7 +1080,8 @@ def cmd_batch(a):
         if not url:
             return {'name': it.get('name') or it.get('名称', ''), 'url': '',
                     'kind': '-', 'verdict': '失败',
-                    'evidence': f'条目无地址字段（已有键：{list(it)[:6]}）——测活输入为空，非网络问题'}
+                    'evidence': f'条目无地址字段（已有键：{list(it)[:6]}）——测活输入为空，非网络问题',
+                    'death_cause': '接口层'}
         kind = it.get('kind') or ('m3u8' if '.m3u8' in url.lower() else None)
         if (it.get('kind') or '').lower() == 'parse':
             v, ev = check_parse(url, video=a.video, wait_s=a.wait)
@@ -1036,7 +1089,7 @@ def cmd_batch(a):
         else:
             v, ev, k = check_auto(url, kind=kind)
         return {'name': it.get('name') or it.get('名称', ''), 'url': url, 'kind': k,
-                'verdict': v, 'evidence': ev}
+                'verdict': v, 'evidence': ev, 'death_cause': death_cause(v, ev, k)}
     # ★ M-R114：走统一入口。测活打的是公网站点，归 B 档（上限 6）。
     #   单条异常不拖垮全批（on_error='record'），失败条目会单独列出。
     rep = run_bounded(items, _one, tier=TIER_WEB, workers=a.workers, label='真实测活')
@@ -1051,9 +1104,11 @@ def cmd_batch(a):
     for r in ok:
         print(f'   ✅ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}')
     for r in ng[:20]:
-        print(f'   ❌ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}')
+        print(f'   ❌ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}'
+              f' ·死因[{r.get("death_cause", "")}]')
     for r in un[:20]:
-        print(f'   ⚠️ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}')
+        print(f'   ⚠️ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}'
+              f' ·死因[{r.get("death_cause", "")}]')
     if a.json:
         print(json.dumps(res, ensure_ascii=False))
     out = os.path.join(os.path.dirname(os.path.abspath(a.batch)),

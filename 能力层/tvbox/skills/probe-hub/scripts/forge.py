@@ -376,6 +376,10 @@ def cmd_forge(a):
         return _cmd_profile(a)
     if sub == 'packlocal':
         return _cmd_packlocal(a)
+    if sub == 'gate':
+        return _cmd_gate(a)
+    if sub == 'hook':
+        return _cmd_hook(a)
     print('用法：')
     print('  tvbox probe forge verify <源.py> [--save]   # 验源；--save 通过则留档到 sources/')
     print('  tvbox probe forge list                      # 列出留档的源与最近验证结果')
@@ -383,6 +387,8 @@ def cmd_forge(a):
     print('  tvbox probe forge profile <url>             # ★站点画像：特征→防御等级→推荐命令（S194）')
     print('  tvbox probe forge classify <api|--in 清单.json>  # 实测判定源类型（不猜路径）')
     print('  tvbox probe forge packlocal --dir <目录> [--out x.json]  # ★本地 py/js 扫描→验源→出清单（S204）')
+    print('  tvbox probe forge gate <源.py> [--api URL] [--static-only]  # ★写源四门禁（S223）')
+    print('  tvbox probe forge hook <源.py> [--only flags,pic,inline,aes] [--out x.py] [--gate]  # ★模板库内联（S225）')
     return 1
 
 
@@ -887,6 +893,87 @@ def _cmd_profile(a):
     return 0
 
 
+
+# ---------- S225：模板库内联（hook） ----------
+def _cmd_hook(a):
+    """把 forgekit 模板库内联进单文件源。
+
+    为什么做成独立命令而不是自动改：写源时**不是每个源都需要**这套东西。
+    一个纯 CMS 采集源（接口直接返 vod_play_url）内联内联提取四件套纯属浪费体积；
+    而一个 HTML 站、需要解析线路、需要解 AES 的源则必须要。
+    因此这里给的是「显式按需注入」，注入完还必须过四门禁 v。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    sys.path.insert(0, root)
+    try:
+        from forgekit import builder
+    except Exception as e:                                    # noqa: BLE001
+        print(f'✗ 模板库不可用：{e}')
+        return 1
+
+    path = a.file
+    if not os.path.isfile(path):
+        print(f'✗ 文件不存在：{path}')
+        return 1
+    src = open(path, encoding='utf-8').read()
+    parts = (a.only.split(',') if getattr(a, 'only', None) else None)
+    try:
+        new, rep = builder.hook(src, components=parts)
+    except builder.TemplateError as e:
+        print(f'✗ 内联失败：{e}')
+        return 1
+
+    print(f'模板片段：{rep["components"]}')
+    print(f'模板体积：{rep["kit_lines"]} 行 / {rep["kit_bytes"]} B')
+    for c in rep['changed']:
+        print(f'  ✓ {c}')
+    for s in rep['skipped']:
+        print(f'  ! {s}')
+    if rep.get('bytes_delta') is not None:
+        print(f'  源体积变化：{rep["bytes_delta"]:+d} B')
+
+    if not rep['changed']:
+        print('没有可注入的位置，源未改动。')
+        return 0
+    if getattr(a, 'dry_run', False):
+        print('（dry-run：未写盘）')
+        return 0
+
+    if getattr(a, 'out', None):
+        dst = a.out
+    else:
+        bak = path + '.bak'
+        if not os.path.exists(bak):
+            import shutil as _sh
+            _sh.copy2(path, bak)
+            print(f'  已备份 → {bak}')
+        dst = path
+    with open(dst, 'w', encoding='utf-8') as f:
+        f.write(new)
+    print(f'  已写出 {dst}')
+
+    if getattr(a, 'gate', False):
+        import subprocess
+        print('--- 写源四门禁 ---')
+        return subprocess.run([sys.executable,
+                               os.path.join(here, 'forge_gate.py'), dst]).returncode
+    return 0
+
+
+# ---------- S223：写源四门禁 ----------
+def _cmd_gate(a):
+    """调 forge_gate.py（四门禁独立脚本，便于单独跑/被 hooks 复用）。"""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    cmd = [sys.executable, os.path.join(here, 'forge_gate.py'), a.file]
+    if getattr(a, 'api', None):
+        cmd += ['--api', a.api]
+    if getattr(a, 'static_only', False):
+        cmd += ['--static-only']
+    return subprocess.run(cmd).returncode
+
+
 if __name__ == '__main__':
     # P018③ 修复：补 forge 的等价入口（不接 probe.py 总调度，避免改 484KB 入口破坏其他命令）。
     # 用法：python3 scripts/forge.py <verify|list|classify|audit|profile> ...
@@ -915,6 +1002,17 @@ if __name__ == '__main__':
     _pl.add_argument('--no-flat', dest='flat', action='store_false', default=True,
                      help='关闭 flat 直接全挂形态（默认开）：每个源直接成一个 site 写进 sites，'
                           '不包加载器，对应 ok.json/demo.json 的扁平写法')
+    _pg = _sp.add_parser('gate', help='★写源四门禁：能播放/稳定兜底/内容齐全/精简体积（S223）')
+    _pg.add_argument('file', help='源 .py 路径')
+    _pg.add_argument('--api', help='源接口 URL（stream 真拉流用；不给则判 UNDETERMINED）')
+    _pg.add_argument('--static-only', dest='static_only', action='store_true',
+                     help='跳过真拉流，只跑静态三项')
+    _ph = _sp.add_parser('hook', help='★模板库内联：把内联提取/封面/线路分组/AES兜底打进单文件（S225）')
+    _ph.add_argument('file', help='源 .py 路径（默认就地改写，先自动备份 .bak）')
+    _ph.add_argument('--only', help='只内联指定片段：flags,play_groups,pic,inline,aes')
+    _ph.add_argument('--out', help='另存到新文件（给了就不动原文件）')
+    _ph.add_argument('--dry-run', dest='dry_run', action='store_true', help='只算不写')
+    _ph.add_argument('--gate', action='store_true', help='注入后顺带跑写源四门禁')
     _args = _p.parse_args()
     if not _args.cmd:
         _p.print_help()

@@ -6,7 +6,7 @@
 > 「依据与踩坑全文见 `references/concurrency_M-R114.md`」，但该文件**从未被创建**。
 > 全生态索引体检扫出这条断链时，正文已经这样引用了好几个会话——
 > 读者按图索骥会扑空，而 `docsync` 只查「明细表登记」不查「外置文件是否存在」，一直报绿。
-> 本次补齐：正本建在该技能自己的 `references/` 下（内容归属 tvbox-source-hub，
+> 本次补齐：正本建在该技能自己的 `references/` 下（内容归属 tvbox-core（原 tvbox-source-hub），
 > 与 SKILL.md 同技能，符合 M-R38「正本只在归属地」）。
 
 ---

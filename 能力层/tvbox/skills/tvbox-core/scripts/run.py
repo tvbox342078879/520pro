@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-tvbox-source-hub 一体化入口：扫描 → 去重 → 判体系 → 批量入库 → 读回验证
+tvbox-core 一体化入口：扫描 → 去重 → 判体系 → 批量入库 → 读回验证
+（原名 tvbox-source-hub「源枢库曹」，v0.8.4 起收窄为纯数据域共享库，无 SKILL.md 不路由）
 
 用法:
   python3 run.py --export-only          # 只导出当前库内已有数据到 /tmp/exist_api.txt

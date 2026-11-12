@@ -460,7 +460,15 @@ migrate_to_0_8_7() {
   run "if [ ! -f \"\$HOME/.codebuddy/.520_state/deploy_snapshot.tar.gz\" ]; then mv \"\$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz\" \"\$HOME/.codebuddy/.520_state/deploy_snapshot.tar.gz\" 2>/dev/null || true; else rm -f \"\$HOME/.codebuddy/.520_state/skills_snapshot.tar.gz\"; fi"
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" )
+migrate_to_0_8_8() {
+  say "  · [0.8.8] 探源司 1.26.0 并回（repair/forgekit/hls_clean/forge_gate/verify 闸门）：清旧 pyc，缺件提示重装"
+  run "rm -rf \"\$HOME/.codebuddy/skills/probe-hub/repair/__pycache__\" \"\$HOME/.codebuddy/skills/probe-hub/forgekit/__pycache__\" \"\$HOME/.codebuddy/skills/probe-hub/verify/__pycache__\" 2>/dev/null; true"
+  if [ ! -d "$HOME/.codebuddy/skills/probe-hub/repair" ]; then
+    say "  ⚠ 探源司 repair/ 未落地 → 请重跑 bash install.sh --user-skill"
+  fi
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" "0.8.8" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

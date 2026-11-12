@@ -1,3 +1,220 @@
+## v1.26.0 — 并回旧仓 tvbox-eco 探源司 v1.22~v1.26 能力（2026-11-12）
+
+> **版本撞号说明**：旧仓 v1.21.0 = 修源板块落地；新仓 v1.21.0 = 方案 C 收编 + pan 迁出。
+> 两条 v1.21.0 语义不同，本次一次对齐到 **1.26.0**（与旧仓同号同语义），此后不再分叉。
+
+### 并回清单（逐版来源）
+
+| 旧仓版本 | 能力 | 520 落地位置 |
+|---|---|---|
+| v1.22.0 | LLM 修复通道 + 写源四门禁 + 陷阱库 | `repair/llm.py`、`scripts/forge_gate.py`、`references/S223_陷阱库_py源.md` |
+| v1.22.1 | host 后端：无 Key 也能修（两段式 drafts/apply） | `repair/engine.py` |
+| v1.23.0 | base(5) 二轮深挖 8 项资产 | `references/S224_base5二轮深挖_8项资产.md` |
+| v1.24.0 | 广告治理 HLS 净化 + 模板库内联 | `scripts/hls_clean.py`、`references/S225_*`、`forgekit/`、`forge hook` |
+| v1.25.0 | 整站重写档（侦察 → 生成 → 静态闸门 → 真跑复验） | `repair/recon.py`、`references/S226_整站重写档_侦察与生成.md` |
+| v1.26.0 | R221 / R222 由 SCAN 升 GATE | `verify/gate_r221_death_taxonomy.py`、`verify/gate_r222_repair_contract.py` |
+
+### 与 520 的差异处置（四处不同，均已实测）
+
+- **闸门落点**：旧仓在仓库级 `verify/`（挂 `hooks.json` PreToolUse）；520 无 hooks 体系 → 闸门随技能放
+  `probe-hub/verify/`，由根 `verify.sh` 调用，无参按 `__file__` 自定位。
+- **闸门假绿修复**：原实现「显式传 repo 却找不到 → 回退脚本自身目录」会张冠李戴（用户以为查 A，实际查 B）。
+  改为报「无法判定」`exit 2`，并支持 520 分层布局（`能力层/tvbox/skills/probe-hub`）与旧仓平铺布局。
+- **livecheck 路径**：保留 520 的 `~/.codebuddy/skills/tvbox-core/scripts`；旧仓是 `skills/tvbox-source-hub/scripts`。
+- **pan 不回流**：旧仓 `probe.py` 多出的 1192 行全是网盘取料（百度/迅雷），520 已于 v1.21.0 迁至 learn-hub，
+  本次不带回；`shellcrack.py` 520 版本更新（353 行 vs 233 行），也不覆盖。
+
+### 实测
+
+- `hls_clean.py --selftest`：6 条判定样本 + 4 个净化场景全过，61 个广告域名正常载入。
+- `forge gate`：对样例源正确判 `size` 门禁 FAIL 并返回 rc=1（未过禁交付）。
+- `forge hook --dry-run`：内联 138 行 / 4594 B，不写盘。
+- `quality.ad_judgment`：跨域广告判「确认」，干净清单判「无」（已委托 hls_clean）。
+- `repair/engine.py checkup`：不可达域名报「无法判定 / 未定·网络 / 不算死先复验」——三态未塌陷。
+- `R221`/`R222`：5/6 项全过；变异测试（加第 8 型 / 反向 `import probe` / 删「结构性」策略）全部翻红。
+
+### 以下为旧仓 CHANGELOG v1.22.0~v1.26.0 原文
+
+> 路径按旧仓 `skills/probe-hub/` 记；520 对应 `能力层/tvbox/skills/probe-hub/`。内容未改写，保留原始证据。
+
+### [旧仓原文] v1.26.0 — M-R221 / M-R222 由 SCAN 升 GATE（S227，用户显式授权）
+
+> 兑现 S221/S222 里那句「如实声明：探针是单测级，未挂 hooks 门禁，不包装成 GATE」。
+
+### 新增两道常驻闸门（挂 `hooks.json` PreToolUse）
+- `verify/gate_r221_death_taxonomy.py`（5 项）：七型域固定 / REPAIR_ROUTE 无遗漏 / 三态不塌陷 / 分型唯一事实源 / strategies 可落地
+- `verify/gate_r222_repair_contract.py`（6 项）：隔离面齐备 / 无反向依赖 / 校验器真能拦 / checkup 三态不放宽 / 防造假(缺 backup_path 拒) / 诚实自述
+- 均离线、无参、秒级；实测合计 ≈1.7s（单条上限 30s）
+
+### 变异测试（证明不是摆设）
+- R221：7/7 全拦（删型 / 加型 / 三态塌陷 / 未定走换域 / 漏路由 / 结构性指 patch / 策略漏型）
+- R222：6/6 全拦（反向 import probe / 缺 schema / 放宽 status / 去掉 backup_path 必填 / 放宽 verdict / 硬编码 CAN_REPAIR）
+
+### ★ 变异测试抓出一个真缺陷
+R222 首版反向依赖检查依赖「import engine 失败」暴露，注入 `import probe` 后 engine 自身导入失败，
+闸门退化为 `exit 2 无法判定` 而非 `exit 1 失败` —— **被测对象坏了，闸门却说判不了**。
+改为纯静态 AST 先查、命中即判失败。
+> 教训：三态容易被当免责条款。已拿到证据的缺陷必须判失败；`无法判定` 只留给确实判不了的情况。
+
+### 改册连带面（M-R71 防漂移）
+`registry.json` 两条 SCAN→GATE、warm→hot、landing 改单脚本路径；
+`hot/rules.json` +2(23→25)、`warm/rules.json` −2(62→60)；
+`docs/onboarding-readme.md` 用生成器重出；CODEBUDDY.md / README-HOOKS.md 数字同步。
+
+### 如实声明
+闸门全离线，不验真实站点（分型在真实失败样本上的准确率仍未量化）；
+变异测试脚本写在 /tmp，未固化为常驻测试；`hooks/STRICT` 不开启时仍是观察模式（留痕放行）。
+
+### [旧仓原文] v1.25.0 — batch 4：整站重写档（侦察 → 生成 → 静态闸门 → 真跑复验）（S226）
+
+> 上轮 rewrite 策略只返回 `not_applicable`。本轮做完，核心结论：**rewrite 的难点不是「让模型写一份源」，是「敢不敢信它写的」**。
+
+### 新增 `repair/recon.py`（侦察档，499 行）
+- 12 项特征，每条都对应一个**生成决策**（不做大而全指纹库）
+- 产出：导航分类 / 分类页样例 / 分页形态 / 详情页选集形态 / 接口线索 / **无法判定项**
+- 三态：抓不到 = `home_ok=None` + `undetermined` 有话说（M-R60）
+- 离线自检 14 项全绿（不联网 —— 沙箱出口不稳，联网测试会变成今天绿明天红）
+
+### 侦察阶段三个实测坑
+1. **跳转壳**：`mtosz.com` 首页返 200 + 5556 字节的 `Redirecting...` 单页，拿它做侦察会得出「无特征无分类」的错误结论 —— `抓到了内容 ≠ 抓到了站点`
+2. **JS 挑战**：cookie 值写成 `${btoa(resp)}`，静态取不到。字面量 cookie 提取重试；模板串 cookie **如实返回空**进 undetermined，不猜（猜错全 403）
+3. **分类目录当片单**：列表正则收 `type|vod` → 6 条样例全是「动作片/喜剧片」。修正：排除 `/type/` `/list/` `/show/`
+
+### 新增 `engine.rewrite()` 完整编排
+侦察 → 证据包 → LLM → 静态闸门 → 备份写盘回读 → 真跑复验 → 不过带新死因重来（3 轮）→ verify_failed
+- **侦察不完整就不生成**：有 blocker 直接 `aborted`。没拿到真实结构时生成的源一定是编的，跑起来是「假通过+零播放」，比原坏源更难排查
+- 静态闸门：六接口 / 语法 / 占位符 / `getName` 空串
+- `getName` 那条踩了**假阳性**：全文搜 `return ""` 把 `_get()`/`_fix()` 的空返回全判成 getName 空串，好源被拒 → 改成按函数体 AST 查
+
+### 两种产出形态分离
+patch 走 `reply`（edits 逐字替换），rewrite 走 `reply_code`（整份覆盖）。
+`_system_prompt` 按策略分叉、`apply_draft` 按 strategy 分支 —— 混在一起会把补丁当整份源码写进文件（文件只剩 3 行）。
+
+### 契约
+`repair_result.schema.json` 新增可选 `recon` 块；rewrite 结果过校验 `(True, '')`。
+
+### 实测
+- 守卫：`mtosz.com` → `aborted`「侦察不完整，拒绝生成」
+- 闭环：`cj.lziapi.com/api.php/provide/vod` → 备份 → 写盘 → 复验`通过` → `repaired`
+- 三态：`reply_code` 空 → `not_applicable`；残稿 → `aborted`；合法源码 → `repaired`
+
+### 文档
+`references/S226_整站重写档_侦察与生成.md`（含「边界如实说」：未接真 LLM 跑完整重写、只覆盖 GET 静态 HTML、不处理登录态/验证码）
+
+### [旧仓原文] v1.24.0 — 广告治理落地：HLS 净化引擎 + 模板库内联（S225）
+
+> 用户「在深入看看，都要」——既要业内做法深化，也要把 S224 的 P1-P3 全部落地。
+
+### 业内查证改了三条设计
+1. **RFC 8216 §6.2.2 硬约束**：删分片必须 `MEDIA-SEQUENCE +N`（不得减小/回绕）、剩余时长不得少于 3×TARGETDURATION、删 DISCONTINUITY 要 `DISCONTINUITY-SEQUENCE +1`。天真正则替换三条全破——**去广告把源搞死比有广告更糟**，且用户只看到黑屏。
+2. **判定必须三层 Allow→Block→启发式**：`cdn.bootcss.com` / `raw.githubusercontent.com` 同时是公共库和广告清单项，单层黑名单无解。
+3. **指纹必须 hostname+pathname**：同 CDN 下正片与广告共存是常态。
+
+### 新增 `scripts/hls_clean.py`（纯标准库单文件）
+- 三段判定：Allow（公共 CDN）→ Block（61 条域名 / 15 条规则域名特征）→ 启发式（路径广告词且不在主 CDN）
+- **要么整份改对，要么一个字不改**：删前预检时长，改后回读校验分片数/序列号/总时长，任一不过整体回退为 `unsafe_skip`
+- 五态 status：`cleaned/unchanged/unsafe_skip/master_skip/invalid`（`unsafe_skip ≠ 没广告`，M-R60）
+- 自检：6 条判定样本（含**同站负样本**与**错域负样本**）+ 4 个净化场景
+
+### 新增 `references/S225_ad_domains.json`
+62 条原样收录。**核对更正 S224 两处**：实为 61 条（`xg.huataisangao.cn` 重复）、cnzz 子域 18 个（非 21）。复扫 dex 字符串池与 assets 未发现更大清单。
+
+### 新增 `forgekit/`（构建期内联模板库）
+- `_template_src.py` 模板源 + `builder.py` 构建器；五片段 `inline/pic/play_groups/flags/aes`，合计 308 行 / 10311 B
+- 接入方式**只改一行类头**：`class Spider(Spider)` → `class Spider(ForgeMixin, Spider)`，MRO 兜底不覆盖业务代码
+- 幂等：检测到 `class ForgeMixin` 整体跳过
+- `forge hook <源.py> [--only …] [--out x] [--dry-run] [--gate]`
+
+### 构建器四个坑（全部靠 `--selftest` 的 exec+行为断言抓出，`ast.parse` 一个都抓不到）
+漏搬 import（`NameError: re`）、常量先于函数（`NameError: _build_sbox`）、
+模块级 `for` 循环丢失（`_INV` 全 0 → 解密结果**正好等于 key**）、循环挂不到名字上（只收 Store，`_INV[_v]` 是 Subscript）。
+> 教训：模板产物必须 exec 一遍再断言，**语法合法的代码可以 100% 全错**。
+
+### 改造
+`quality.py` 的 `ad_judgment()` 改为委托 `hls_clean.judge_segment`；原 8 条子串特征 `AD_HOST_HINTS` 作废。
+
+### 文档
+`references/S225_广告治理落地_HLS净化与模板库内联.md`（含「边界如实说」：未做真机验证、规则会过期、CUE-IN 未处理、AES 未做体积分流）。
+
+### [旧仓原文] v1.23.0 — base(5) 二轮深挖：8 项资产（S224），P0 两项已落地
+
+> 用户「再挖挖那个app的价值」。一轮挖的是 AI修源状态机（S221/r146-148），本轮挖 `local_source_defaults.json`(16KB) + `app.imy` 里 6 个 pyc。
+
+### 新发现（一轮完全没有的）
+1. **纯 Python AES 实现**（`base/cipher.pyc`）：现场生成 S-box、只做 AES-128 解密——正好解「羊壳无 Crypto 库」
+2. **内联首屏数据提取四件套**（`_json_block/_inline_state/_inline_walk/_inline_score`）：按字段打分挑片单，打分表 100/40/25/20/10/5
+3. **m3u8 去广告规则库 15 条**（`EXTRA.rules`）：按 CDN 域 + 固定 `#EXTINF` 数值组合识别广告分片
+4. **广告域名黑名单 62 条**（`EXTRA.ads`）：cnzz 全家桶 21 个 + 统计/广告位/劫持三类
+5. **AST 基线豁免校验**（`ai_ast.pyc`）：不是禁一切危险模块，而是**只禁补丁新增**的
+6. flags 别名 33 项（含「优 酷」「腾 讯」空格变体）、`_pic` 兜底顺序、`_play_groups` 实现
+
+### P0 已落地
+- **`repair/ai_ast.py`**：白名单 53 模块 + 禁用 11 模块 + 禁用调用集；`check(new, old)` 只拦增量。**已接入 engine 的 apply_draft 与 repair 两条链**（写盘前拦，不重试）。7 用例全过（基线已有 socket 放行 / 补丁新增 subprocess 拦截）。
+- **`scripts/_aes_fallback.py`**：纯 Python AES-128-CBC 解密。**三重验证**：NIST 官方向量逐字节通过、pycryptodome 交叉对照一致、错 key 必须抛 ValueError（不返回密文）。
+
+### 文档
+`references/S224_base5二轮深挖_8项资产.md`：8 项逐条给出价值/实现特征/探源司落点/优先级 + 边界如实说。
+
+**未落地（P1-P3，需另行排期）**：内联提取四件套、m3u8 去广告规则、62 条广告黑名单、flags 别名、`_pic` 兜底。
+
+### [旧仓原文] v1.22.1 — host 后端：无 Key 也能修（两段式 drafts/apply）
+
+> 起因：用户问「用你的啊，我哪里搞？」——宿主的模型不向会话内代码发放凭据，故"接 Key 才能修源"在无 Key 环境不成立。改为双后端。
+
+### 双后端（`REPAIR_BACKEND=auto|api|host`，缺省 auto：有 Key 走 api，无 Key 走 host）
+- **api**：原全自动链路不变（OpenAI 兼容）
+- **host**：拆两段，宿主模型当修复器，零 Key
+  1. `engine.py drafts <url> --src <源.py>` → 组装证据包 + 策略提示词，落盘 `.drafts/*.draft.json`
+  2. 宿主读草稿、填 `reply`（补丁 JSON）
+  3. `engine.py apply <草稿>` → 应用补丁 → 备份 → 写盘 → 回读 → 真跑复验
+
+### 新增防护
+- **基线漂移检查**：源码在出草稿后被改过（与草稿 `source_code` 不一致）→ `aborted` 拒绝套旧补丁（实测生效）
+- `apply_draft` 结果强制过 `repair_result.schema.json`，不过则 exit 3
+- `.gitignore` 补 `.drafts/`（含源码全文）与 `llm.json`（含密钥）
+
+### 实测（真实源 cj.lziapi.com，真跑不 mock）
+| 步骤 | 结果 |
+|---|---|
+| drafts | 出证据包 892 字符，分型=接口层，策略=patch，源码 26 行 |
+| 宿主填 reply | 按 patch.md 硬约束：只补接口路径斜杠，未动域名/选择器/重命名 |
+| apply | 补丁应用成功、备份生成、复验失败 → 如实 `verify_failed` + 建议升级重写 |
+| 基线漂移 | 改源码后 apply → `aborted`「与草稿基线不一致，拒绝套用旧补丁」 |
+
+**如实声明**：host 后端需宿主在场，非无人值守；本轮补丁是我按规则写的，站点本身仍 404（该接口已不可用），因此**没有观察到 repaired**——这正是不造假的证据。
+
+### [旧仓原文] v1.22.0 — batch 3：LLM 通道 + 四门禁 + 陷阱库（S223）
+
+> 用户 2026-11-03 指定 batch 3 范围。承接 S221/S222 立册。
+
+### ① LLM 通道（repair/llm.py）
+- OpenAI 兼容 `/chat/completions`，配置三件套与 base(5) 壳对齐：`LLM_BASE_URL/LLM_API_KEY/LLM_MODEL` 或 `~/.codebuddy/llm.json`
+- 安全红线：Key 永不入日志/prompt/cases；4xx 不重试（Key 错/模型名错重试无意义）；响应无 `choices` 时给出壳同款分诊（Base URL 少 `/v1` / 模型名错）
+- `wrap_untrusted()` 注入防御：三选一 tag + 截断 + 免责声明后缀，外部内容进 LLM 前强制过闸
+
+### ② repair 修复闭环（engine.py 从"接口位"补成"真链路"）
+- `build_evidence()` 证据包四件套（真跑结果 / 上轮失败原因 / 上一版代码 / 站点片段 6000 字符截断 / 候选域）
+- `apply_patch()` 逐字替换：old 不存在/不唯一/为空 → 整单拒（禁近似替换）
+- `write_with_verify()` 备份→写→回读，不一致自动回滚并返回 aborted
+- `repair()` 全链：分型→策略→LLM→补丁→写盘→真跑复验→不过则带新死因重来
+- **mock LLM 实测闭环**：补丁应用成功、备份生成、复验失败如实返回 `verify_failed` 并建议升级重写，未伪造任何成功
+- 修真实缺陷：`from . import llm` 在脚本直跑时 ImportError → 改为 `from repair import llm` + sys.path 兜底
+
+### ③ 写源四门禁（scripts/forge_gate.py，接入 `forge gate`）
+| 门禁 | 判据 | 与壳的差异（如实） |
+|---|---|---|
+| size | 零注释（解密段豁免）/零docstring/零\_\_main\_\_/空壳方法/六接口齐/≤1200行·80KB | 一致 |
+| filter | 伪分页/裸 int(pg)/年份写死/推荐分类 | 一致（静态半） |
+| release | 发布页特征→域名池+探活+TTL 三件齐 | 一致（静态半） |
+| stream | 静态查内网地址/parse:0 冒充直链 + 复用 livecheck 真拉流 | **壳在真机跑，本实现只判沙箱可判部分；判不了返 UNDETERMINED 不返 PASS** |
+
+### ④ 陷阱库（references/S223_陷阱库_py源.md）
+把 base(5) `traps_py.md` 68 条 + `rules.md` 关键约束按「症状→判据→修法」重排 9 组（封面/黑屏/分页筛选/首屏慢/反爬/壳端/语义/铁律），写源前可 grep 检索。
+
+**如实声明**：环境无 LLM Key，真实模型修复成功率未测；stream 门禁无真机进程，手机端播放器兼容判不了；整站重写档（rewrite）仍为 not_applicable（需重新侦察，batch 4）。
+
+---
+
 ## v1.21.0 — 方案 C 收编 + pan 迁出（2026-11-12）
 - 原因：5 技能合 2 入口 + 1 共享库（tvbox-core）；网盘取料 pan 与 TVBox 零耦合，迁至通用层 learn-hub。
 - 动作：scripts/probe.py 10,319 → 9,051 行（删 pan 实现块 L8464–9653、`harvest pan` 子命令、自检㉓/㉓b）；`_sc_pan_pak`→`_sc_pak`；SKILL.md 同步去 pan、description 标注"pan 已于 2026-11-12 迁至 learn-hub"。

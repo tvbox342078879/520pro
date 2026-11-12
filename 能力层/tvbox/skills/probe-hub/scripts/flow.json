@@ -1,13 +1,17 @@
 {
  "name": "probe-hub-flow",
- "version": "1.20.8",
+ "version": "1.26.0",
  "created": "2026-10-16",
  "source": "规则54四化落地（SKILL.md §1-§7 的机器可读版）；生态第7成员「探源司」立项：上游侦察三模块 monitor/search/harvest",
  "route_decision": {
   "monitor_upstream_repo": "probe.py monitor check/diff/status（上游仓库四类信号·快照对比三态）",
   "search_more_repos": "probe.py search github/gitee/rank/verify（扩充第三方仓库·库容量）",
   "harvest_lines": "probe.py harvest scan/pull/filter/export/dispatch（采集线路→候选→ingest）",
-  "grow_monitor_target": "probe.py monitor add（登记新监测目标，代码零改动）"
+  "grow_monitor_target": "probe.py monitor add（登记新监测目标，代码零改动）",
+  "repair_source": "repair/engine.py checkup/route/drafts/apply/repair/recon/rewrite（死因七型→五路由，S221~S226）",
+  "forge_gate": "scripts/forge_gate.py 或 forge.py gate（写源四门禁：播放/兜底/内容/体积，S223）",
+  "forge_hook": "forge.py hook（forgekit 模板库内联：flags/线路分组/封面/AES兜底，S225）",
+  "ad_clean": "scripts/hls_clean.py（61 域名黑名单 + Allow→Block→启发式三段，S225）"
  },
  "steps": [
   {

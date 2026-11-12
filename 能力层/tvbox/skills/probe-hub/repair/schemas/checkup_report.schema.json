@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "checkup_report 体检报告契约（S222）",
+  "description": "repair/engine.py 体检器产出；LLM 修复路由的唯一输入。字段语义见 references/S221_失效分型与线路判据.md",
+  "type": "object",
+  "required": ["schema_version", "target", "kind", "verdict", "death_cause", "repair_route", "evidence", "checked_at"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "target": {"type": "string", "minLength": 1, "description": "被体检的源地址/文件路径"},
+    "kind": {"enum": ["vod", "m3u8", "py", "js", "class", "parse", "-"]},
+    "verdict": {"enum": ["通过", "失败", "无法判定"], "description": "三态，M-R60"},
+    "death_cause": {"enum": ["", "域名层", "接口层", "内容层", "语法层", "结构性", "未定·网络"]},
+    "repair_route": {"type": "string", "description": "REPAIR_ROUTE 映射的人类可读路由"},
+    "evidence": {"type": "string", "description": "livecheck 原始证据，原样透传不得加工（M-R136）"},
+    "checked_at": {"type": "string", "description": "ISO8601 时间戳"},
+    "untrusted_context": {
+      "type": "array",
+      "items": {"type": "object", "required": ["tag", "content"], "properties": {
+        "tag": {"enum": ["untrusted_log", "untrusted_html", "untrusted_web"]},
+        "content": {"type": "string"}
+      }},
+      "description": "进 LLM 前的外部内容包裹；每段使用时必须附加免责声明后缀"
+    }
+  },
+  "additionalProperties": false
+}

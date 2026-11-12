@@ -82,7 +82,7 @@ S162 实测：12 条记录补 `源类型=js源码`，第一次写成
 **根因**：`源类型` 在 schema 里是 `select` 类型，写入必须用类型键 `select`；
 用 `text` 时平台不报错，只是**忽略**这个值——又一种「success ≠ 落库」。
 
-**正确做法**：不要手写 `{类型键: 值}`，用 `tvbox-source-hub/scripts/build.py` 的
+**正确做法**：不要手写 `{类型键: 值}`，用 `tvbox-core/scripts/build.py` 的
 `_wrap(val, spec, field, dropped)`，它读 schema 自动选对类型键，并在值不在
 options 内时登记到 `dropped`，不会静默吞。
 

@@ -1,6 +1,6 @@
 {
  "ecosystem": "520pro",
- "version": "0.8.7",
+ "version": "0.8.8",
  "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
  "based_on": [
   "WorkBuddy 平台运行时",
@@ -100,12 +100,13 @@
     },
     "tvbox/skills/probe-hub/": {
      "user_install": "~/.codebuddy/skills/probe-hub/",
-     "role": "探源司本体：monitor/search/harvest/forge/shellcrack + 源库查询",
+     "role": "探源司本体：monitor/search/harvest/forge(gate/hook)/shellcrack/quality(hls_clean)/repair + 源库查询",
      "depends_on": [
       "tvbox-core"
      ],
      "entry": "scripts/probe.py",
-     "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'"
+     "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
+     "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/"
     },
     "tvbox/skills/tvbox-pipeline/": {
      "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
@@ -180,7 +181,7 @@
   "project_level_skill_routing": "真阴性（不进 active 列表）",
   "user_skill_cross_device_to_new_phone": "分环境：①持久环境（桌面沙箱/云电脑）装一次长期可用，Skill 工具自动发现加载（云电脑 02:01 实证）；②手机普通聊天会话沙箱每次新建，装了即丢，需每次重装或走账号库",
   "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
-  "probe_hub_without_core": "真阴性（缺 tvbox-source-hub 必报 ModuleNotFoundError: No module named 'core'）",
+  "probe_hub_without_core": "真阴性（缺 tvbox-core 必报 ModuleNotFoundError: No module named core）",
   "probe_hub_single_repo_check_in_sandbox": "无法判定（443 出站受限，单目标常超时无输出）",
   "phone_channel_account_command": "真阳性·兜底（开场自检自动重装 ~30s + 命令直达；持久环境里 Skill 自动发现是正路）",
   "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
@@ -189,17 +190,18 @@
   "skill_discovery_mechanism": "真阳性·关键修正（2026-11-12 02:31）：Skill 工具扫描的是会话环境里的 ~/.codebuddy/skills/ 目录——文件在就能被发现并加载，不依赖账号技能库。之前『手工件不被检索』的判断错误，真实原因只是沙箱重建后文件消失",
   "project_rules_always_apply": "真阳性（2026-11-12 03:17 沙箱实测）：项目级 .codebuddy/rules/ + alwaysApply:true，在全新构建的上下文（子代理=新会话等价物）中自动注入，金丝雀 B7X9Q-ALWAYS 被原文引用。此前「项目级规则不注入」的定案作废——旧实验不满足官方两个前置条件（新会话 + 工作目录在项目根）",
   "project_rules_paths_conditional": "真阳性（2026-11-12 03:18 沙箱实测·含对照组）：paths 命中文件（*.canary）被读取后规则注入；读不匹配文件（README）的对照组无注入。条件机制按官方口径工作。此前「paths 不注入」定案作废",
-  "rules_take_effect_on_new_session": "真阳性（官方文档 + 实测一致）：规则只在会话/上下文构建时注入，本会话中途新建的金丝雀在本会话上下文中不出现——改规则必须新开会话"
+  "rules_take_effect_on_new_session": "真阳性（官方文档 + 实测一致）：规则只在会话/上下文构建时注入，本会话中途新建的金丝雀在本会话上下文中不出现——改规则必须新开会话",
+  "probe_hub_repair_checkup": "真阳性（不可达域名报 无法判定/未定·网络/先复验，三态未塌陷）",
+  "probe_hub_hls_clean": "真阳性（--selftest 6 判定样本 + 4 净化场景全过，61 域名载入）",
+  "probe_hub_forge_gate": "真阳性（样例源正确判 size 门禁 FAIL 且 rc=1）"
  },
  "probe_hub": {
   "display_name": "探源司",
-  "version": "1.20.8",
+  "version": "1.26.0",
   "source": "tvbox342078879/tvbox-skills-eco (master)",
   "required_set": [
    "probe-hub",
-   "tvbox-source-hub",
-   "tvbox-interface",
-   "tvbox-source-blacklist"
+   "tvbox-core"
   ],
   "entry": "python3 ~/.codebuddy/skills/probe-hub/scripts/probe.py <module> <cmd>",
   "note": "仓库内无 tvbox CLI 实现，`tvbox probe` 仅为别名壳；真实入口是 probe.py",
@@ -234,8 +236,37 @@
     "decrypt",
     "quality",
     "shellcrack",
-    "self-check"
+    "self-check",
+    "repair",
+    "gate",
+    "hook"
    ]
+  },
+  "repair": {
+   "entry": "python3 ~/.codebuddy/skills/probe-hub/repair/engine.py <action> <target>",
+   "actions": [
+    "checkup",
+    "route",
+    "drafts",
+    "apply",
+    "repair",
+    "recon",
+    "rewrite"
+   ],
+   "death_causes": [
+    "",
+    "域名层",
+    "接口层",
+    "内容层",
+    "语法层",
+    "结构性",
+    "未定·网络"
+   ],
+   "gates": [
+    "verify/gate_r221_death_taxonomy.py",
+    "verify/gate_r222_repair_contract.py"
+   ],
+   "note": "S221~S227 从旧仓 tvbox-eco 并回；没验过不许说修好；闸门随技能装、进 verify.sh"
   }
  },
  "no_hooks_dependency": "强制逻辑落在薄壳/规则/人工指令，不押 hook；不可逆动作在脚本内做保护闸",

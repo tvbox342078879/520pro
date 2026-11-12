@@ -8,7 +8,7 @@
   learn <关键字>              【开工必做】查台账同类历史: 踩坑/解法/可复用点
   log   --summary .. --pit .. --fix .. --reuse .. [--type ..] [--src N] [--pkg ..]
                              【收工必做】写一条会话台账(含联动状态)
-  sync                       L1: 底包→源库自动提源(调 tvbox-source-hub/run.py)
+  sync                       L1: 底包→源库自动提源(调同目录 run.py)
   brief                      开工速览: 一次打印 三方状态 + 最近踩坑 TOP
 
 原则: 一个命令完成一件事, 不逐步确认, 减少中间环节。

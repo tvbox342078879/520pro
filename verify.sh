@@ -89,6 +89,30 @@ if [ -d "$SK/probe-hub/scripts" ]; then
     *) echo "  · status 未通过 → 记「无法判定」（多为沙箱网络受限，非必失败）" ;;
   esac
 fi
+# 探源司 v1.26.0 能力（2026-11-12 从旧仓 tvbox-eco 并回）：修源 / 写源四门禁 / 广告治理
+if [ -d "$SK/probe-hub/repair" ]; then
+  ok "repair/ 修源模块在位"
+  miss=""
+  for f in engine.py recon.py llm.py ai_ast.py strategies.json \
+           schemas/checkup_report.schema.json schemas/repair_result.schema.json; do
+    [ -f "$SK/probe-hub/repair/$f" ] || miss="$miss $f"
+  done
+  [ -z "$miss" ] && ok "  └ 修源七件套齐全" || no "  └ 修源缺件:$miss"
+  for spec in "r221:gate_r221_death_taxonomy" "r222:gate_r222_repair_contract"; do
+    tag="${spec%%:*}"; g="${spec##*:}"
+    if [ -f "$SK/probe-hub/verify/$g.py" ]; then
+      python3 "$SK/probe-hub/verify/$g.py" >/dev/null 2>&1 \
+        && ok "  └ ${tag^^} 闸门通过" || no "  └ ${tag^^} 闸门未过（见 python3 直跑输出）"
+    else
+      no "  └ verify/$g.py 缺失（规则闸门未装）"
+    fi
+  done
+else
+  no "repair/ 修源模块缺失（探源司自愈能力不可用）"
+fi
+[ -f "$SK/probe-hub/scripts/hls_clean.py" ] && ok "hls_clean.py 广告治理引擎（61 域名黑名单）" || no "hls_clean.py 缺失（广告判定退化）"
+[ -f "$SK/probe-hub/scripts/forge_gate.py" ] && ok "forge_gate.py 写源四门禁" || no "forge_gate.py 缺失（forge gate 不可用）"
+[ -d "$SK/probe-hub/forgekit" ] && ok "forgekit 模板库（forge hook 用）" || no "forgekit 缺失（forge hook 不可用）"
 
 echo
 echo "[TVBox·项目级（--capability-only / all 模式）]"

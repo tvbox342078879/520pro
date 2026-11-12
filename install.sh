@@ -57,9 +57,10 @@ done
 USER_DIR="$HOME/.codebuddy"
 PROJ_DIR="$TARGET/.codebuddy"
 
-# 运行时数据：装在技能 scripts/ 下、随使用增长、不在 git 里。
-# 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/登记册。
-RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json"
+# 运行时数据：装在技能 scripts/ 下、随使用增长。有的不在 git（巡检历史/库务司状态），
+# 有的是「入库的种子 + 现场会增长」（探源司监测台 monitor_*.json、壳源候选 shellcrack_cands.json）。
+# 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/监测目标/候选。
+RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json monitor_targets.json monitor_domains.json monitor_pubsources.json dead_repos.json shellcrack_cands.json"
 
 # 回滚快照：安装前整目录压一次，只留最近一份（v0.8.6）。
 # 替代此前每个目标各留一份 .bak.<TS> —— 2026-11-12 实测 10 份目录合计 13MB，
@@ -128,13 +129,15 @@ cp_bak() {  # cp_bak <src> <dst>
   cp -r "$src" "$dst"
   if [ -n "$tmpdir" ]; then
     mkdir -p "$dst/scripts"
+    local kept=""
     for f in $RUNTIME_FILES; do
       [ -e "$tmpdir/$f" ] || continue
       # 现场优先：仓库工作区里可能残留一份过期的运行时文件，装完不能反把现场盖掉
       cp -a "$tmpdir/$f" "$dst/scripts/$f"
+      kept="$kept $f"
     done
     rm -rf "$tmpdir"
-    echo "  · 已保留运行时数据（$(ls "$dst/scripts" | grep -E '^(findings_history|monitors|space_hub_state)\.json$' | tr '\n' ' ')）"
+    echo "  · 已保留运行时数据（${kept:-无}）"
   fi
   echo "  ✓ $dst"
 }
