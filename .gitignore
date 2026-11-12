@@ -21,6 +21,9 @@ docs/巡检/
 通用层/skills/inspect-hub/scripts/findings_history.json
 通用层/skills/inspect-hub/scripts/monitors.json
 通用层/skills/space-hub/scripts/space_hub_state.json
+# 库务司·数据保全运行时（v2.6.0）：快照与迁移锁属本机状态，不随分发携带
+通用层/skills/space-hub/scripts/snapshots/
+通用层/skills/space-hub/scripts/.ensure.lock
 
 # 探源司·本机运行时数据（v0.8.12：含用户个人采集的监测目标/死册/候选，属私产，不随分发携带）
 # 各留同名 .example.json 作结构模板；新机器首次运行按模板自动建空册

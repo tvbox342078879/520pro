@@ -27,7 +27,7 @@ publish/unpublish）。凡 AI 删不掉的节点 → 本技能**移动**到一�
   · 清单**永不静默丢项**：节点不存在/移动失败 → 显式告警并保留在清单（标"待人工确认"）。
   · 幂等：同一节点重复 add 不重复登记（按 node_id 去重）。
 """
-import os, sys, json, argparse, subprocess, time, re
+import os, sys, json, argparse, subprocess, time, re, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = os.path.expanduser('~/.codebuddy/skills/library')   # 平台标准路径，HOME 自适应
@@ -213,6 +213,193 @@ def _space(api, **kw):
     return None
 
 
+# ══════════════ 数据保全（v2.6.0 · 机制借鉴 Memory Palace snapshot.py / write_lane）══════════════
+# 现场证据（2026-11-12）：
+#   ① 安装副本与仓副本 state 各写各的，无快照无回滚——改坏了只能瞪眼；
+#   ② 两会话并发跑 space-hub 存在 state 竞态；
+#   ③ 产物区合并用了 --force，事后无留痕，谁也不记得当时为什么放行。
+# 四件套：写前快照（幂等）/ 原子写 / 轮换 GC / 索引自愈；外加迁移锁与 force 审计。
+SNAP_DIR = os.path.join(HERE, 'snapshots')
+SNAP_INDEX = os.path.join(SNAP_DIR, 'index.json')
+SNAP_KEEP = max(0, int(os.getenv('SPACE_HUB_SNAPSHOT_KEEP', '20') or '20'))  # 0=关轮换
+_ENSURE_LOCK = os.path.join(HERE, '.ensure.lock')
+_ENSURE_LOCK_TIMEOUT = max(5.0, float(os.getenv('SPACE_HUB_ENSURE_LOCK_TIMEOUT', '60') or '60'))
+_AUDIT_MAX = 50                     # 审计节上限（防 state 无限膨胀）
+_SNAPPED = set()                    # 本进程已拍过的资源名（幂等：同资源同进程只拍一次）
+_CUR_SNAP = None                    # 当前进程刚拍的快照文件名——轮换**绝不碰它**
+
+
+def _atomic_write(path, data_bytes):
+    """原子写：同目录临时文件 + fsync + os.replace（借鉴 MP _write_bytes_atomic）。
+
+    半截写的后果：state 是唯一账本，截断 json 会让下一次 load_state 直接 SystemExit(2)。
+    os.replace 在同一文件系统内是原子的——读者要么看到旧整份，要么看到新整份。
+    """
+    d = os.path.dirname(path) or '.'
+    fd, tmp = tempfile.mkstemp(prefix='.tmp_', dir=d)
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data_bytes)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_json(path, obj):
+    _atomic_write(path, json.dumps(obj, ensure_ascii=False, indent=2).encode('utf-8'))
+
+
+def _load_snap_index():
+    """快照索引：损坏时**从快照文件自愈重建**（MP _rebuild_manifest_from_resources 同构）。
+
+    与 M-R60"状态损坏不折叠"不冲突：那条说**不许把损坏当空**；这里更进一步——
+    索引层坏了就重建索引层，快照数据本体还在，一个都不丢，但必须大声说出来。
+    """
+    os.makedirs(SNAP_DIR, exist_ok=True)
+    try:
+        d = json.load(open(SNAP_INDEX, encoding='utf-8'))
+        if isinstance(d, dict) and isinstance(d.get('entries'), list):
+            return d
+    except FileNotFoundError:
+        return {'entries': []}
+    except Exception:
+        pass
+    print('  ⚠️ 快照索引损坏——已从快照文件自愈重建（数据本体未丢，只修了目录）')
+    entries = []
+    for fn in sorted(os.listdir(SNAP_DIR)):
+        if fn.endswith('.json') and fn != 'index.json':
+            try:
+                entries.append({'file': fn, 'bytes': os.path.getsize(os.path.join(SNAP_DIR, fn))})
+            except OSError:
+                continue
+    return {'entries': entries, 'rebuilt': True}
+
+
+def _snapshot_state(prefix='pre_write'):
+    """写前快照：把**即将被覆盖**的 state 拍进 snapshots/。
+
+    幂等（MP 语义）：同资源同进程只拍一次——一次命令里 save_state 十次，快照只有第一份
+    「写前原貌」，拍多了反而找不到"改动前"的干净基线。
+    """
+    global _CUR_SNAP
+    if _prefix_key(prefix) in _SNAPPED:
+        return None
+    if not os.path.exists(STATE):
+        return None                      # 首次建账，无旧可拍
+    try:
+        data = open(STATE, 'rb').read()
+    except OSError as e:
+        print(f'  ⚠️ 快照读取失败（{e}）——继续写，但本次无快照可回滚')
+        return None
+    fn = f'{time.strftime("%Y%m%d_%H%M%S")}_{os.getpid()}_{_snap_seq()}_{prefix}.json'
+    fp = os.path.join(SNAP_DIR, fn)
+    try:
+        os.makedirs(SNAP_DIR, exist_ok=True)
+        _atomic_write(fp, data)
+    except OSError as e:
+        print(f'  ⚠️ 快照写盘失败（{e}）——继续写，但本次无快照可回滚')
+        return None
+    _SNAPPED.add(_prefix_key(prefix))
+    _CUR_SNAP = fn
+    idx = _load_snap_index()
+    idx['entries'].append({'file': fn, 'bytes': len(data),
+                           'at': time.strftime('%Y-%m-%d %H:%M:%S')})
+    _atomic_json(SNAP_INDEX, idx)
+    _gc_snapshots(idx)
+    return fp
+
+
+def _prefix_key(prefix):
+    return f'{os.getpid()}:{prefix}'
+
+
+_SNAP_SEQ = [0]
+
+
+def _snap_seq():
+    """快照文件名序号：同 pid 同秒多次快照也不重名（实测 T4：同秒覆盖会丢基线）。"""
+    _SNAP_SEQ[0] += 1
+    return f'{_SNAP_SEQ[0]:02d}'
+
+
+def _gc_snapshots(idx=None):
+    """机会式轮换（MP _garbage_collect_sessions 同构）：超 KEEP 删最旧。
+
+    · KEEP=0 → 轮换关闭（一个不删）；
+    · 当前进程刚拍的快照**绝不碰**（GC 撞上正在用的快照等于自毁回滚能力）；
+    · 只删快照文件本身，索引条目同步摘除。
+    """
+    if SNAP_KEEP <= 0:
+        return
+    idx = idx if isinstance(idx, dict) else _load_snap_index()
+    try:
+        files = sorted(fn for fn in os.listdir(SNAP_DIR)
+                       if fn.endswith('.json') and fn != 'index.json')
+    except OSError:
+        return
+    excess = len(files) - SNAP_KEEP
+    if excess <= 0:
+        return
+    removed = set()
+    for fn in files:
+        if excess <= 0:
+            break
+        if fn == _CUR_SNAP:
+            continue                     # 当前会话快照永不清
+        try:
+            os.unlink(os.path.join(SNAP_DIR, fn))
+            removed.add(fn)
+            excess -= 1
+        except OSError:
+            continue
+    if removed:
+        idx['entries'] = [e for e in idx['entries'] if e.get('file') not in removed]
+        _atomic_json(SNAP_INDEX, idx)
+
+
+def _ensure_lock():
+    """迁移锁（借鉴 MP DB_MIGRATION_LOCK）：跨进程 flock，超时报**结构化**错误。
+
+    为什么不报通用错：调用方（install.sh / 手机指令）需要按机器码分支处理，
+    'ensure_lock_timeout' 是契约，不是给人看的散文（E9 错误 reason 机器码）。
+    """
+    import fcntl
+    f = open(_ENSURE_LOCK, 'w')
+    deadline = time.time() + _ENSURE_LOCK_TIMEOUT
+    while True:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return f
+        except OSError:
+            if time.time() >= deadline:
+                f.close()
+                raise SystemExit(json.dumps(
+                    {'error': 'ensure_lock_timeout', 'lock': _ENSURE_LOCK,
+                     'timeout_sec': _ENSURE_LOCK_TIMEOUT}, ensure_ascii=False))
+            time.sleep(0.5)
+
+
+def _audit_force(action, detail, reason):
+    """--force 审计留痕：谁在何时对什么强行绕过了什么护栏、凭什么理由。
+
+    只写最后 _AUDIT_MAX 条，防 state 无限膨胀。
+    """
+    st = load_state()
+    st.setdefault('audit', []).append({
+        'at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'action': action, 'detail': detail,
+        'reason': (reason or '').strip() or '（未注明）',
+    })
+    st['audit'] = st['audit'][-_AUDIT_MAX:]
+    save_state(st)
+
+
 def load_state():
     if os.path.exists(STATE):
         try:
@@ -235,10 +422,13 @@ def save_state(d):
 
     三态（M-R60）：写入失败 / 回读解析失败 / 回读条目数不符 —— 分别报原因并**抛错退出**，
     绝不静默继续（继续就会拿"假状态"去决定删不删节点）。
+
+    v2.6.0 增补：写前快照（可回滚）+ 原子写（tmpfile+fsync+os.replace，半截写不可能落盘）。
     """
+    _snapshot_state('pre_write')
+    payload = json.dumps(d, ensure_ascii=False, indent=2).encode('utf-8')
     try:
-        with open(STATE, 'w', encoding='utf-8') as f:
-            json.dump(d, f, ensure_ascii=False, indent=2)
+        _atomic_write(STATE, payload)
     except Exception as e:
         raise SystemExit(f'❌ 收件箱状态写入失败（{type(e).__name__}: {str(e)[:100]}）——'
                          f'拒绝继续（后续动作会基于错误状态决定删不删节点）')
@@ -355,6 +545,11 @@ def cmd_inbox(a):
 
 
 def cmd_add(a):
+    # ★ v2.6.0（A6）：--force 必须带 reason——绕护栏是要留痕的（放在**一切云端调用之前**，
+    #   参数校验不过连空间都不用碰）。无 reason 的 force 等于"偷偷绕闸"，直接拒绝。
+    if getattr(a, 'force', False) and not (getattr(a, 'reason', '') or '').strip():
+        print('  ❌ --force 必须配 --reason：绕过护栏的动作要写进审计，后人要能查到"当时为什么放行"')
+        return 2
     st = load_state()
     iid = st.get('inbox') or _find_inbox()[0]
     if not iid:
@@ -410,6 +605,8 @@ def cmd_add(a):
         'origin_parent': origin,
     })
     save_state(st)
+    if getattr(a, 'force', False):
+        _audit_force('add --force', f'{title}（{nid}）', a.reason)
     print(f'  {"✅ 已移入收件箱" if ok else "⚠️ 移动失败（清单仍登记）"}：{title}（{nid}）')
     if not ok and mv:
         print(f'     原因：{str(mv.get("error"))[:120]}')
@@ -2456,18 +2653,42 @@ def adopt(dry=False, quiet=False, space_title=None, force=False):
 
 
 def cmd_adopt(a):
+    # ★ v2.6.0（A6）：adopt --force 同样必须带 reason——强行接管是本脚本最大的写动作，必须留痕。
+    if getattr(a, 'force', False) and not (getattr(a, 'reason', '') or '').strip():
+        print('  ❌ adopt --force 必须配 --reason：强行接管要写进审计，后人要能查到"当时为什么放行"')
+        return 2
+    rc = 0
     try:
         adopt(dry=a.dry_run, space_title=a.space_title, force=a.force)
     except SystemExit as e:
-        return e.code if isinstance(e.code, int) else 2
+        rc = e.code if isinstance(e.code, int) else 2
+    if getattr(a, 'force', False):
+        try:
+            _audit_force('adopt --force', f'space_title={a.space_title or "(动态发现)"}', a.reason)
+        except SystemExit:
+            pass                      # 审计写不进去不改变主流程结果，但主流程自己已报过
+    return rc
     return 0
 
 
 def cmd_ensure(a):
+    # ★ v2.6.0（A5）：迁移锁——两会话并发跑 ensure 会撞出半成品蓝图（MP DB_MIGRATION_LOCK 形态）。
+    try:
+        _lock = _ensure_lock()
+    except SystemExit as e:
+        print(f'  ⛔ 另一个 ensure/adopt 正在执行（锁超 {_ENSURE_LOCK_TIMEOUT:.0f}s）——已拒绝：{e}')
+        return 2
     try:
         ensure_library(dry=a.dry_run, space_title=a.space_title)
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 2
+    finally:
+        try:
+            import fcntl
+            fcntl.flock(_lock, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        _lock.close()
     return 0
 
 
@@ -2756,6 +2977,7 @@ def main(argv=None):
     ad_ = sub.add_parser('adopt', help='★账号接管：判 fresh/hybrid/foreign → 建齐 或 接管存量（登记不搬）')
     ad_.add_argument('--dry-run', action='store_true', help='只报告，不写入（不建夹/不建库/不登记）')
     ad_.add_argument('--force', action='store_true', help='空间不像本生态时仍强行接管（默认拒绝）')
+    ad_.add_argument('--reason', default='', help='--force 时必填：强行接管的理由，写进审计')
     ad_.add_argument('--space-title', default='', help='蓝图缺省空间标题（仅自动建空间时用）')
     eg = sub.add_parser('evolve-log', help='★演化记账：写一条版本演化记录（版本/日期/类型/新增能力/摘要/证据）')
     eg.add_argument('--version', default='', help='版本号（缺省读部署标记/VERSION）')

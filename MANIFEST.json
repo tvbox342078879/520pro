@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.12",
+  "version": "0.8.13",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -370,5 +370,12 @@
     "★修复 v0.8.11 潜伏缺陷：archive_out 在「当天已自举」分支跳过空间解析，新进程里 SPACE=None，建夹时 subprocess 收到 None 抛 TypeError 导致归档全挂；现入口显式 resolve_space，_create_folder 加 None 守卫",
     "★classify 落点统一：登记册 target 由根层级旧名（归档·报告与交付）改为路径（📦 产物归档/文档），与 archive 共用 _ensure_path；实测 10 项存量归入 2 个夹，根层级不再新建同名夹",
     "实测修：drive 上传 md 被拒（按类型分流已在上版）、doc 标题曾用文件名致云端一堆「index」文档（改用记录名）、索引「类别」写入业务分类导致清一色「其他」（改为按节点类型：doc→文档/web→面板/database→数据）"
+  ],
+  "changelog_0_8_13": [
+    "★库务司数据保全四件套（space-hub v2.6.0，机制借鉴 Memory Palace）：①state 写前快照（同资源同进程幂等，snapshots/ 目录，gitignore 不随分发）；②原子写 tmpfile+fsync+os.replace（半截写不可能落盘）；③轮换 GC KEEP=20（env SPACE_HUB_SNAPSHOT_KEEP 可调，当前进程快照绝不删）；④快照索引自愈（损坏从快照文件重建，数据本体不丢）",
+    "★ensure 迁移锁：flock 跨进程互斥，超时报结构化 {\"error\":\"ensure_lock_timeout\"}——两会话并发自举不再撞半成品蓝图",
+    "★--force 审计留痕：add/adopt 的 --force 必须配 --reason（校验在一切云端调用之前），绕行动作写进 state audit 节（上限 50 条）",
+    "修复：快照文件名同秒相撞（加 pid+序号唯一化，实测 T4 用例发现）",
+    "实测：正向 11/11（隔离环境）；反向变异 V1-V5 全翻红；verify.sh 48✓0✗ 零回归"
   ]
 }

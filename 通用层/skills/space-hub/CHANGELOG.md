@@ -1,6 +1,24 @@
 # space-hub · 库务司 CHANGELOG
 
-## v2.5.0 — 账号接管 adopt（新账号建齐 / 老账号接住 / 别人空间不碰）（2026-11-12）
+## v2.6.0 — 数据保全四件套：快照/原子写/轮换/自愈 + 迁移锁 + force 审计（2026-11-12）
+
+机制借鉴 Memory Palace（snapshot.py / write_lane / DB_MIGRATION_LOCK），逐条对应本日三次现场事故。
+
+- **★ 写前快照（幂等）**：每次 save_state 前把"即将被覆盖的 state"拍进 `snapshots/`；
+  同资源同进程只拍一次（MP 语义），改坏了有干净基线可回滚。
+- **原子写**：state 落盘改 tmpfile+fsync+os.replace——半截写不可能落盘，
+  杜绝"截断后恰好还能解析、没人知道少哪几条"的暗坑。
+- **轮换 GC**：`snapshots/` 保留 KEEP=20（env `SPACE_HUB_SNAPSHOT_KEEP`，0=关），
+  机会式触发；**当前进程刚拍的快照绝不碰**。
+- **索引自愈**：`snapshots/index.json` 损坏时从快照文件自愈重建（数据本体不丢），
+  重建必打日志——比"损坏即报错"（M-R60）更进一步的"可自愈"。
+- **ensure 迁移锁**：flock 跨进程互斥，超时报结构化错误
+  `{"error":"ensure_lock_timeout"}`——两会话并发自举不再撞出半成品蓝图。
+- **--force 审计留痕**：`add --force` / `adopt --force` 必须配 `--reason`
+  （参数校验放在一切云端调用之前），绕行动作写进 state `audit` 节（上限 50 条）。
+  现场依据：01·数据源总库 force 放行无留痕案例。
+
+## v2.5.0 — 账号接管 adopt（新账号建齐 / 老账号接住 / 别人空间不碰）（2026-11-12） — 账号接管 adopt（新账号建齐 / 老账号接住 / 别人空间不碰）（2026-11-12）
 
 - **★ `adopt` 三态接管（本版核心）**：
   | 形态 | 判据（可实证） | 动作 |
