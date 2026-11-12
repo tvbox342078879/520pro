@@ -1425,8 +1425,6 @@ def _archive_file(p, category='', source='', note='', keep=False, quiet=False):
     cat = category or rule.get('category') or _guess_cat(name)
     source = source or rule.get('source') or '（未注明）'
     note = note or ''
-    if rule and not category and rule.get('_from'):
-        pass  # 命中声明：来源已由 rule.source 提供
     fid = _ensure_archive_folder()
     if not fid:
         return False, '产物归档夹不可用'
