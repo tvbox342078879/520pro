@@ -385,6 +385,32 @@ def _ensure_lock():
             time.sleep(0.5)
 
 
+_JSON_MODE = os.environ.get('SPACE_HUB_JSON', '') not in ('', '0', 'false', 'False')
+
+
+def _reject(code, reason, target='', method='', human=''):
+    """★ E3/E9（工程E）：拒收/失败的**结构化契约**——`{error, reason, target, method}`。
+
+    为什么必须结构化：调用方（上层技能、子代理、手机通道）拿到的如果只有一句
+    "🛑 拒收"，它唯一能做的动作是**换个参数重试**——而重试同一道闸正是 B-10 禁的事。
+    给出四个字段，动作才能从"猜"变成"按提示走"：
+      - `error`  机器码，可被分支（如 guard_nonempty_container / target_not_folder）
+      - `reason` 人读原因（为什么拦）
+      - `target` 建议去哪儿（下一步该做什么，不是"目标节点"）
+      - `method` 具体能跑的命令模板（含占位符，不许含糊说"请人工处理"）
+
+    两种输出形态：
+      - 默认：人类文案 + 末行 `↳ {json}`（grep '↳ {' 即可取）
+      - `SPACE_HUB_JSON=1`：人类文案走 stderr，stdout **只有**一行 JSON（供程序解析）
+    """
+    payload = {'error': code, 'reason': reason, 'target': target, 'method': method}
+    if human:
+        print(human, file=sys.stderr) if _JSON_MODE else print(human)
+    print(json.dumps(payload, ensure_ascii=False) if _JSON_MODE
+          else '     ↳ ' + json.dumps(payload, ensure_ascii=False))
+    return payload
+
+
 def _audit_force(action, detail, reason):
     """--force 审计留痕：谁在何时对什么强行绕过了什么护栏、凭什么理由。
 
@@ -548,12 +574,22 @@ def cmd_add(a):
     # ★ v2.6.0（A6）：--force 必须带 reason——绕护栏是要留痕的（放在**一切云端调用之前**，
     #   参数校验不过连空间都不用碰）。无 reason 的 force 等于"偷偷绕闸"，直接拒绝。
     if getattr(a, 'force', False) and not (getattr(a, 'reason', '') or '').strip():
-        print('  ❌ --force 必须配 --reason：绕过护栏的动作要写进审计，后人要能查到"当时为什么放行"')
+        _reject(
+            'force_requires_reason',
+            '--force 必须配 --reason：绕过护栏的动作要写进审计，后人要能查到"当时为什么放行"',
+            target='补上原因再重跑；不愿写原因说明这个绕行本身没想清楚',
+            method=f'add --node {getattr(a, "node", "<ID>")} --force --reason "<为什么该投>"',
+            human='  ❌ --force 必须配 --reason：绕过护栏的动作要写进审计，后人要能查到"当时为什么放行"',
+        )
         return 2
     st = load_state()
     iid = st.get('inbox') or _find_inbox()[0]
     if not iid:
-        print('❌ 收件箱未建，先跑 janitor inbox'); return 1
+        _reject('inbox_missing', '收件箱未建，投递无处可去',
+                target='先建收件箱（幂等，重复跑不会建第二个）',
+                method='space_hub.py inbox',
+                human='❌ 收件箱未建，先跑 janitor inbox')
+        return 1
     nid = a.node
     # 校验节点存在 + 取标题
     info = _space('space.workspace.node-info', node_id=nid)
@@ -574,14 +610,26 @@ def cmd_add(a):
         _kids_now = _kids(nid)
         _name_hit = any(k in title for k in ('备份', 'backup', '归档', '快照', '库'))
         if _kids_now:
-            print(f'  🛑 拒收：{title}（{nid}）**非空**（{len(_kids_now)} 个子节点）——'
-                  f'收件箱是待删暂存，非空容器进去就有被整批删掉的风险')
-            print('     → 真要投递请先手动清空，或加 --force 明确承担后果')
+            _reject(
+                'guard_nonempty_container',
+                f'非空容器（{len(_kids_now)} 个子节点）不得进待删收件箱：收件箱会被整批删',
+                target='先人工确认内容归属；确认整夹该删再加 --force 承担后果',
+                method=f'add --node {nid} --force --reason "<为什么整夹该删>"',
+                human=(f'  🛑 拒收：{title}（{nid}）**非空**（{len(_kids_now)} 个子节点）——'
+                       f'收件箱是待删暂存，非空容器进去就有被整批删掉的风险\n'
+                       f'     → 真要投递请先手动清空，或加 --force 明确承担后果'),
+            )
             return 4
         if _name_hit:
-            print(f'  🛑 拒收：{title}（{nid}）空夹但名字像备份/库——**空不等于该删**'
-                  f'（可能正在写入或内容在别处）')
-            print('     → 确认真的废弃再加 --force')
+            _reject(
+                'guard_container_like_name',
+                '空夹但名字含备份/库/归档类词：空不等于该删（可能正在写入，或内容在别处）',
+                target='确认真的废弃再加 --force；只是位置不对则走 classify 归位（不删）',
+                method=f'add --node {nid} --force --reason "<为什么该删>"  ｜  classify --dry-run',
+                human=(f'  🛑 拒收：{title}（{nid}）空夹但名字像备份/库——**空不等于该删**'
+                       f'（可能正在写入或内容在别处）\n'
+                       f'     → 确认真的废弃再加 --force'),
+            )
             return 4
     # 幂等
     if any(x['id'] == nid for x in st['items']):
@@ -608,8 +656,13 @@ def cmd_add(a):
     if getattr(a, 'force', False):
         _audit_force('add --force', f'{title}（{nid}）', a.reason)
     print(f'  {"✅ 已移入收件箱" if ok else "⚠️ 移动失败（清单仍登记）"}：{title}（{nid}）')
-    if not ok and mv:
-        print(f'     原因：{str(mv.get("error"))[:120]}')
+    if not ok:
+        _reject(
+            'move_rejected',
+            f'服务端拒绝移动：{str((mv or {}).get("error"))[:120] or "无响应"}',
+            target='清单仍保留该行（"该删"这个事实为真）；查权限/节点状态后重试，或改用 move 指定父夹',
+            method=f'move --node {nid} --to {iid}',
+        )
     # **S156 修：返回码必须反映「移动」有没有真成，不能一律 0。**
     # 事故：旧版无论成败都 return 0 → `auto_file`(→True) → `core.file_to_janitor`(→True)
     # → 调用方以为投递成功。而清单里躺着的是 `moved=False` 的记录：
@@ -1163,20 +1216,33 @@ def cmd_move(a):
     node = ((info or {}).get('data') or {}).get('node') or {}
     title = node.get('title') or ''
     if not title:
-        print(f'❌ 节点不存在或不可读（{nid}）——不移动（M-R60 如实报）')
+        _reject('node_unreadable', f'节点不存在或不可读（{nid}）',
+                target='先确认节点 id 与当前空间归属（换空间后 id 会失效）',
+                method='census --json  ｜  init --list',
+                human=f'❌ 节点不存在或不可读（{nid}）——不移动（M-R60 如实报）')
         return 1
     tinfo = _space('space.workspace.node-info', node_id=target) if target else None
     tnode = ((tinfo or {}).get('data') or {}).get('node') or {}
     if not tnode.get('id') and not tnode.get('title'):
-        print(f'❌ 目标父节点不存在（{target}）——不移动')
+        _reject('target_missing', f'目标父节点不存在（{target}）',
+                target='先枚举目标父夹确认 id；不要用标题猜 id',
+                method='census --json',
+                human=f'❌ 目标父节点不存在（{target}）——不移动')
         return 1
     if tnode.get('kind') and tnode.get('kind') != 'folder':
-        print(f'❌ 目标不是文件夹（{target} kind={tnode.get("kind")}）——不移动')
+        _reject('target_not_folder', f'目标不是文件夹（{target} kind={tnode.get("kind")}）',
+                target='换成目标节点的**父文件夹** id 再移',
+                method=f'move --node {nid} --to <父文件夹ID>',
+                human=f'❌ 目标不是文件夹（{target} kind={tnode.get("kind")}）——不移动')
         return 1
     src = _node_parent(nid)
     mv = _space('space.workspace.move-node', node_id=nid, target_parent_id=target)
     if not mv or mv.get('error'):
-        print(f'❌ 移动失败：{str((mv or {}).get("error"))[:160] or "无响应"}')
+        _reject('move_rejected',
+                f'服务端拒绝移动：{str((mv or {}).get("error"))[:160] or "无响应"}',
+                target='查目标夹权限与节点状态；同名/跨空间限制也会走到这里',
+                method=f'move --node {nid} --to {target}',
+                human=f'❌ 移动失败：{str((mv or {}).get("error"))[:160] or "无响应"}')
         return 1
     data = mv.get('data') or {}
     st = data.get('status') or ''
@@ -1188,8 +1254,12 @@ def cmd_move(a):
     # 移后回读：目标下确有该节点
     landed = any((n.get('id') or n.get('nodeId')) == nid for n in _kids(target))
     if not landed:
-        print(f'⚠️ 服务端回报成功，但目标文件夹 {target} 下**未枚举到** {nid}'
-              f'——疑似索引延迟或移动未落地，请复核（不当作成功）')
+        _reject('readback_mismatch',
+                f'服务端回报成功，但目标文件夹 {target} 下未枚举到 {nid}',
+                target='疑似索引延迟：等 1-2 分钟再用 census/node-info 复核；仍不符按"未落地"处理',
+                method=f'census --json  ｜  move --node {nid} --to {target}  # 复核后重试',
+                human=(f'⚠️ 服务端回报成功，但目标文件夹 {target} 下**未枚举到** {nid}'
+                       f'——疑似索引延迟或移动未落地，请复核（不当作成功）'))
         return 3
     print(f'✅ 已移动：{title}（{nid}）\n   从 {src or "（未知，全树未反查到）"} → {target}')
     return 0
@@ -1200,22 +1270,37 @@ def cmd_rename(a):
     nid = a.node
     new = (a.title or '').strip()
     if not new:
-        print('❌ 新标题不能为空'); return 1
+        _reject('empty_title', '新标题不能为空',
+                target='给出非空标题；只是想去掉空格不算改名',
+                method=f'rename --node {nid} --title "<新标题>"',
+                human='❌ 新标题不能为空')
+        return 1
     info = _space('space.workspace.node-info', node_id=nid)
     node = ((info or {}).get('data') or {}).get('node') or {}
     old = node.get('title') or ''
     if not old:
-        print(f'❌ 节点不存在或不可读（{nid}）——不改名')
+        _reject('node_unreadable', f'节点不存在或不可读（{nid}）',
+                target='先确认节点 id 与当前空间归属',
+                method='census --json',
+                human=f'❌ 节点不存在或不可读（{nid}）——不改名')
         return 1
     r = _space('space.workspace.rename-node', node_id=nid, title=new)
     if not r or r.get('error'):
-        print(f'❌ 改名失败：{str((r or {}).get("error"))[:160] or "无响应"}')
+        _reject('rename_rejected',
+                f'服务端拒绝改名：{str((r or {}).get("error"))[:160] or "无响应"}',
+                target='查重名/权限限制；同名节点改名可能被拒',
+                method=f'rename --node {nid} --title "{new}"',
+                human=f'❌ 改名失败：{str((r or {}).get("error"))[:160] or "无响应"}')
         return 1
     back = _space('space.workspace.node-info', node_id=nid)
     now = (((back or {}).get('data') or {}).get('node') or {}).get('title') or ''
     if now != new:
-        print(f'⚠️ 服务端未报错，但回读标题仍是「{now}」（期望「{new}」）'
-              f'——不当作成功，请复核')
+        _reject('readback_mismatch',
+                f'服务端未报错，但回读标题仍是「{now}」（期望「{new}」）',
+                target='不当作成功：稍后回读复核，仍不符就重跑一次或人工确认',
+                method=f'rename --node {nid} --title "{new}"',
+                human=(f'⚠️ 服务端未报错，但回读标题仍是「{now}」（期望「{new}」）'
+                       f'——不当作成功，请复核'))
         return 3
     print(f'✅ 已改名：{old} → {now}（{nid}）')
     return 0

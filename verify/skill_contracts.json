@@ -61,7 +61,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/skill-evolution",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -104,7 +104,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/space-hub",
-      "version": "2.6.1",
+      "version": "2.7.0",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",

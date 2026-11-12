@@ -1,5 +1,20 @@
 # space-hub · 库务司 CHANGELOG
 
+## v2.7.0 — 拒收结构化三元组 + 写前必读（工程E，2026-11-12）
+机制借鉴 Memory Palace 的 guard 三元组（`{reason, target, method}`）与"写前必读目标"。
+
+- **★ 拒收/失败统一结构化**：新增 `_reject(code, reason, target, method)`，`add`/`move`/`rename` 的
+  护栏与失败路径全部接入。人读文案之后追加一行 `↳ {json}`；`SPACE_HUB_JSON=1` 时 stdout 只出 JSON。
+  机器码：`force_requires_reason` / `inbox_missing` / `guard_nonempty_container` /
+  `guard_container_like_name` / `node_unreadable` / `target_missing` / `target_not_folder` /
+  `move_rejected` / `rename_rejected` / `empty_title` / `readback_mismatch`。
+  **为什么**：调用方拿到的只有一句"🛑 拒收"时，唯一动作是换参数重试——而重试同一道闸正是
+  core-8 B-10 禁止的。给 `target`（建议去哪）+ `method`（怎么去），动作才能从"猜"变成"按提示走"。
+- **★ 铁律 +2 条**：第 11 条「写前必读」（写动作前回读目标父容器与目标节点，禁止拿旧清单标题下刀）、
+  第 12 条「拦截即停止」（按 reason/target/method 决策，绕行必须 --force + --reason）。
+- 实测：离线 mock 正反向 10 项全过（非空拒收 / 名字像库拒收 / 正常不误拦 / 移动失败带码）；
+  变异测试（吞掉结构化输出）5 项翻红，恢复后 10 ✓。
+
 ## v2.6.1 — 触发样本集 + 文档断链修复（2026-11-12）
 - 新增 `references/trigger-samples.md`：T10/N6/B5，T 组均带「预期第一动作」、N 组均带「应归谁」。B01 直接采用 2026-11-12 真实案例（01·数据源总库 名字带库但内容已移空，该不该 force 删）
 - 样本强调三条现场教训：先 init 解析空间、AI 无删除权只投收件箱、unknown 不折叠成 fresh

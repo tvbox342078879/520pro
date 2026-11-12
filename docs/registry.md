@@ -19,7 +19,7 @@
 
 | 事实类别 | 唯一真源 | 说明 |
 |---|---|---|
-| 通用铁律 B-01…B-09 | `通用层/rules/core-8.md`（正文九条，每条带 B-xx 标注） | 别的文件只写"见 B-05"这类指针 |
+| 通用铁律 B-01…B-10 | `通用层/rules/core-8.md`（正文十条，每条带 B-xx 标注 + `｜验证 V-xxx` 尾注） | 别的文件只写"见 B-05"这类指针 |
 | 元规则 M1…M7 | `通用层/rules/core-8.md`（开头"元规则"节） | 口径统一纪律 |
 | 中文风格约束 | `通用层/rules/zh-style.md` | 语言/排版口径 |
 | TVBox 领域风格 | `能力层/tvbox/rules/tvbox-style.md` | 仅 TVBox 域 |
@@ -52,7 +52,9 @@
 |---|---|---|
 | 验收判据 | `verify.sh`（全量判据 + 分级 ✓/✗/⚠） | 判据数量与红绿是这个脚本的输出，不许手工报 |
 | 技能契约判据代码 | `verify/skill_contract_check.py` | 只读 contracts.json，不在脚本里写死技能清单 |
-| 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链（CHANGELOG/测试记录不查） |
+| 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链 + 规则↔验证器互引（CHANGELOG/测试记录不查） |
+| 规则↔验证器映射 | `verify/rule_map.json` | 每条 B-xx 的判据号/入口/锚点；T4 双向核，锚点漂移即红 |
+| 交付报告与派活模板 | `docs/模板_阶段完工交付报告.md`、`docs/派活提示模板.md` | 回执含「回滚路径」必填；派活含五段固定基线 |
 | 密钥与卫生扫描 | `secret_scan.py` | 九类凭证 + 个人绝对路径 + 本地 endpoint + 模板真值 |
 
 ---
@@ -68,4 +70,5 @@
 
 ## 变更记录
 
+- 2026-11-12 工程E：core-8 扩到 B-01…B-10（新增 B-10 拦截即停止）；新增 `verify/rule_map.json`（规则↔验证器映射，T4 双向核）；交付报告模板与派活模板进仓。
 - 2026-11-12 建立：`verify/terminology_check.py` 首跑发现 core-8 M1 声称"登记表见 `docs/registry.md`"但本仓无此文件（悬空指针），按 M6 回真源建表。

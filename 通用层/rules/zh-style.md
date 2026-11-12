@@ -1,5 +1,5 @@
 ---
-description: 项目级规则：项目专属契约 + §8 本地轻量纪律（防手机卡顿）。跨项目通用 8 条铁律由用户级 base/rules/core-8.md 强制，本文件不重复。
+description: 项目级规则：项目专属契约 + §8 本地轻量纪律（防手机卡顿）。跨项目通用铁律（B-01…B-10）由用户级 base/rules/core-8.md 强制，本文件不重复。
 alwaysApply: true
 enabled: true
 ---
@@ -12,13 +12,13 @@ enabled: true
 
 ## 0. 规则分层声明（三维度 · SOP 20.9）
 
-> 通用 8 条铁律的**唯一真源**是用户级 `base/rules/core-8.md`（装到 `~/.codebuddy/rules/` 后跨项目生效）。本文件是**项目级**规则，§1–7 不重复铁律全文、只留指针，换项目无需复制（去重复 + 省 context，呼应 20.7/20.8）。
+> 通用铁律（B-01…B-10）的**唯一真源**是用户级 `base/rules/core-8.md`（装到 `~/.codebuddy/rules/` 后跨项目生效）。本文件是**项目级**规则，§1–7 不重复铁律全文、只留指针，换项目无需复制（去重复 + 省 context，呼应 20.7/20.8）。
 
 | 维度 | 用户级基座 `base/rules/core-8.md` | 本文件 `.codebuddy/rules/zh-style.md` | 条件规则 `*.paths.md` | 台账 `docs/*.md` |
 |---|---|---|---|---|
 | 作用域 | 跨所有项目 | 仅本生态 | 仅本生态 | 不加载 |
 | 触发 | `alwaysApply:true` 常驻 | `alwaysApply:true` 常驻 | `alwaysApply:false` + `paths` 命中才注入 | 不进 context |
-| 内容 | 8 条通用铁律 | 项目专属契约 + §8 工程纪律 | 情境契约（如文档同步） | schema/去重/降级/owner/探针 |
+| 内容 | 10 条通用铁律（B-01…B-10） | 项目专属契约 + §8 工程纪律 | 情境契约（如文档同步） | schema/去重/降级/owner/探针 |
 | 强制力 | 软声明（三通道叠加） | 软声明 | 软声明 | — |
 
 > 强制力梯度：`软声明 → config → permissions.deny → hook`。本生态**不押 hook**（手机不跑钩子，第 19 章），不可逆动作改在技能内设"删除前确认"闸。已弃用 tvbox-eco 的 `hot/warm/cold` 冷热分层，改由上表三维度决定加载。

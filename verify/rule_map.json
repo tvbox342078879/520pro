@@ -1,0 +1,69 @@
+{
+  "_schema": "规则↔验证器映射表 v1（E10）——唯一真源。每条基座规则必须有一个可执行的验证入口，或显式登记为人工判据。",
+  "_check_ref": "verify/terminology_check.py 的 T4 项逐条核：①映射与 core-8 的 B-xx 集合完全一致；②machine 项 check 文件存在且 anchor 在该文件里出现；③manual 项 how 非空；④core-8 每条尾注的 V-xxx 与本表 verify_id 一致（双向互引）；⑤verify_id 全局唯一。",
+  "_kind": {
+    "machine": "有自动脚本入口；anchor 是脚本里稳定存在的字符串（改实现时它会一起变，T4 负责在漂移时翻红）",
+    "manual": "行为纪律，无可靠机器判据；how 写的是「怎么问才算做到」，只作交接/复盘口径，**不算机检通过**"
+  },
+  "_why": "规则写着「必须做 X」但没有任何入口能验证 X，等于规则只存在于文案里。本表把每条规则钉到一个入口上；钉不住的诚实标 manual，不假装有判据。",
+  "rules": {
+    "B-01": {
+      "verify_id": "V-MANUAL-01",
+      "kind": "manual",
+      "how": "开场第一条回复是否为简体中文；切换模型/压缩/新开会话后是否仍为中文。英文仅限术语原词。"
+    },
+    "B-02": {
+      "verify_id": "V-TRIPLE",
+      "kind": "machine",
+      "check": "verify.sh",
+      "anchor": "三态判定塌陷",
+      "how": "verify.sh 的「三态判定正确（枚举失败=unknown≠fresh）」判据；另核任何报告不得把「未测/无法判定」写成通过。"
+    },
+    "B-03": {
+      "verify_id": "V-MANUAL-03",
+      "kind": "manual",
+      "how": "开工前是否出现 pwd -P + git log --oneline -1（+ VERSION）三条实证；没有就先补再动手。"
+    },
+    "B-04": {
+      "verify_id": "V-MANUAL-04",
+      "kind": "manual",
+      "how": "同一消息里独立动作是否并行发出；同一 state/云端库/受管文件的并发写是否串行（有锁或排队）。"
+    },
+    "B-05": {
+      "verify_id": "V-SECRET",
+      "kind": "machine",
+      "check": "secret_scan.py",
+      "anchor": "PATTERNS =",
+      "how": "secret_scan.py 九类凭证模式 + 个人路径 + endpoint 扫描；verify.sh 汇总为红/黄两级。"
+    },
+    "B-06": {
+      "verify_id": "V-MANUAL-06",
+      "kind": "manual",
+      "how": "每个前提断言能否给出「文件 + 行号」；给不出就应标「无法判定」，不得用记忆顶替。"
+    },
+    "B-07": {
+      "verify_id": "V-MANUAL-07",
+      "kind": "manual",
+      "how": "新会话/新模型接手后，交接摘要是否含当前主线、版本、术语；过期任务是否已清除。"
+    },
+    "B-08": {
+      "verify_id": "V-MANUAL-08",
+      "kind": "manual",
+      "how": "动手前是否查过现成入口；同类试错第 2 次后是否停下来查入口而不是继续试。"
+    },
+    "B-09": {
+      "verify_id": "V-PRODUCT",
+      "kind": "machine",
+      "check": "通用层/skills/space-hub/scripts/space_hub.py",
+      "anchor": "def archive_out",
+      "how": "落库正门 archive_out 存在且带回读；verify.sh 另查自举/跟随/台账/接管入口齐全。"
+    },
+    "B-10": {
+      "verify_id": "V-REJECT",
+      "kind": "machine",
+      "check": "通用层/skills/space-hub/scripts/space_hub.py",
+      "anchor": "def _reject",
+      "how": "拒收输出含 {error,reason,target,method} 四字段；变异测试：吞掉结构化输出后用例必须翻红。"
+    }
+  }
+}

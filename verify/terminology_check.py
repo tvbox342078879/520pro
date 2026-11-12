@@ -7,11 +7,13 @@
 「收尾跑 verify/terminology_check.py（C5）」——但 2026-11-12 实查发现**这个脚本根本不存在**，
 属于规则被引用、入口是空的（文档断链）。
 
-本脚本先只做**能可靠机检的两类**，宁可少判也不误判（误报一多，人就会整体忽略它）：
+本脚本做**能可靠机检的三类**，宁可少判也不误判（误报一多，人就会整体忽略它）：
 
-  ① 编号越界：core-8 里 B-01…B-09、M1…M7 必须连续、不重号、不跳号（M4）
+  ① 编号越界：core-8 里 B-01…B-10、M1…M7 必须连续、不重号、不跳号（M4）
   ② 引用断链：文档中明确指向**本仓内**的路径（verify/ 通用层/ 能力层/ docs/ 开头），
      文件不存在即报（M2/M5）
+  ③ 规则↔验证器互引（E10）：verify/rule_map.json 与 core-8 双向一致；machine 项的锚点
+     必须真实存在（防实现漂移后映射还在假装有效）；manual 项必须写清怎么问，且不计为通过
 
 **故意不做的**（做不好会误报，留给人工/其他工具）：
   - 词表语义误用（M3）：需要理解上下文，关键词匹配必然误报
@@ -21,7 +23,7 @@
 
 用法:
   python3 verify/terminology_check.py [--repo <仓库根>] [--json]
-退出码: 0 全绿 / 2 有红项 / 3 有红项但均为豁免登记（不，豁免也照常 0）
+退出码: 0 全绿 / 2 有红项（豁免项按 M7 登记后照常 0）
 """
 import os
 import re
@@ -181,6 +183,84 @@ def check_links(repo):
         rec('T3', '✓', f'引用无断链（查了 {checked} 处仓内路径引用）')
 
 
+def check_rule_map(repo):
+    """T4（E10）：规则 ↔ 验证器**双向互引**——规则说它有判据，判据真的存在。
+
+    为什么要有：core-8 每条都写着"必须做 X"，但在此之前**没有任何入口能验证 X**；
+    规则与验证器各写各的，改了一边另一边照样绿（假绿）。本项查四件事：
+      ① 映射表与 core-8 的 B-xx 集合完全一致（多一条少一条都红）；
+      ② core-8 每条尾注 `｜验证 V-xxx`，且与映射表的 verify_id 一致（双向）；
+      ③ machine 项的 check 文件存在，且 anchor 字符串在该文件里真的出现（防锚点漂移）；
+      ④ manual 项必须写明 how（怎么问才算做到），**但不计为机检通过**（三态不折叠）。
+
+    只查"入口在不在、指得对不对"，不查"行为有没有发生"——后者机器判不了。
+    """
+    c8 = os.path.join(repo, '通用层', 'rules', 'core-8.md')
+    rmp = os.path.join(repo, 'verify', 'rule_map.json')
+    if not os.path.exists(c8):
+        rec('T4', '·', '未找到 core-8.md——规则↔验证器映射无法判定')
+        return
+    if not os.path.exists(rmp):
+        rec('T4', '✗', 'verify/rule_map.json 缺失（每条规则都声称有验证入口，但映射表不存在）')
+        return
+    try:
+        rmap = json.load(open(rmp, encoding='utf-8')).get('rules') or {}
+    except Exception as e:
+        rec('T4', '✗', f'rule_map.json 无法解析（{type(e).__name__}）——映射等于没有')
+        return
+    t = read(c8)
+    rows = re.findall(r'(?m)^\d+\.\s+\*\*(B-\d{2})[^*]*\*\*(.*)$', t)
+    core = {}
+    for bid, rest in rows:
+        m = re.search(r'｜验证\s*(V-[A-Za-z0-9-]+)', rest)
+        core[bid] = m.group(1) if m else None
+    problems = []
+    only_core = sorted(set(core) - set(rmap))
+    only_map = sorted(set(rmap) - set(core))
+    if only_core:
+        problems.append(f'规则无映射：{", ".join(only_core)}')
+    if only_map:
+        problems.append(f'映射无规则：{", ".join(only_map)}')
+    no_tag = [k for k, v in core.items() if not v]
+    if no_tag:
+        problems.append(f'规则缺「｜验证 V-xxx」尾注：{", ".join(no_tag)}')
+    seen = {}
+    machine = manual = 0
+    for bid in sorted(set(core) & set(rmap)):
+        r = rmap[bid] or {}
+        vid = (r.get('verify_id') or '').strip()
+        if not vid:
+            problems.append(f'{bid} 缺 verify_id')
+            continue
+        if vid in seen:
+            problems.append(f'verify_id 重号：{vid}（{seen[vid]} 与 {bid}）')
+        seen[vid] = bid
+        if core.get(bid) and core[bid] != vid:
+            problems.append(f'{bid} 尾注 {core[bid]} ≠ 映射 {vid}')
+        kind = r.get('kind')
+        if kind == 'machine':
+            machine += 1
+            cp = r.get('check') or ''
+            anchor = r.get('anchor') or ''
+            fp = os.path.join(repo, cp)
+            if not cp or not os.path.exists(fp):
+                problems.append(f'{bid} 指向的验证文件不存在：{cp or "(空)"}')
+            elif not anchor or anchor not in read(fp):
+                problems.append(f'{bid} 锚点「{anchor}」在 {cp} 里找不到（实现已漂移，映射过期）')
+        elif kind == 'manual':
+            manual += 1
+            if not (r.get('how') or '').strip():
+                problems.append(f'{bid} 标 manual 但没写 how（怎么问才算做到）')
+        else:
+            problems.append(f'{bid} 的 kind 必须是 machine 或 manual（当前 {kind!r}）')
+    if problems:
+        rec('T4', '✗', '规则↔验证器互引断裂：' + '；'.join(problems[:6])
+            + (f'（共 {len(problems)} 处）' if len(problems) > 6 else ''))
+    else:
+        rec('T4', '✓', f'规则↔验证器双向一致：{len(core)} 条规则 = {machine} 条机检 + '
+                       f'{manual} 条人工判据（人工项**不算机检通过**，只保证口径可交接）')
+
+
 def main(argv):
     repo = DEFAULT_REPO
     as_json = False
@@ -197,6 +277,7 @@ def main(argv):
             print(f'未知参数: {a}'); return 1
     check_numbering(repo)
     check_links(repo)
+    check_rule_map(repo)
     if as_json:
         print(json.dumps([{'id': c, 'level': l, 'msg': m} for c, l, m in results],
                          ensure_ascii=False, indent=2))
@@ -211,7 +292,7 @@ def main(argv):
         if fails:
             print('✗ 有口径问题（断链→回真源补文件或改指针；跳号→按 M4 补号）')
             return 2
-        print('✓ 口径机检通过（编号连续、引用无断链）')
+        print('✓ 口径机检通过（编号连续、引用无断链、规则↔验证器双向一致）')
     return 0 if not any(l == '✗' for _, l, _ in results) else 2
 
 

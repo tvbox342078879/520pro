@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -22,7 +22,7 @@
         "rules/core-8.md": {
           "install_to": "~/.codebuddy/rules/core-8.md",
           "alwaysApply": true,
-          "role": "9 条通用铁律（B-01~B-09 + M1–M7）"
+          "role": "10 条通用铁律（B-01~B-10 + M1–M7）"
         },
         "rules/zh-style.md": {
           "install_to": "<项目>/.codebuddy/rules/zh-style.md",
@@ -31,7 +31,7 @@
         },
         "skills/skill-evolution/SKILL.md": {
           "role": "复发问题固化成技能",
-          "version": "1.0.1"
+          "version": "1.1.0"
         },
         "skills/feature-gate/SKILL.md": {
           "role": "特性开关+绞杀者切流",
@@ -57,8 +57,8 @@
         },
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
-          "role": "库务司·云端库总管 v2.6.1（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号",
-          "version": "2.6.1"
+          "role": "库务司·云端库总管 v2.7.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号，拒收带结构化三元组",
+          "version": "2.7.0"
         },
         "skills/space-hub/scripts/space_hub.py": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
@@ -414,5 +414,14 @@
     "★修 install.sh 分发净化遗漏（工程A 补）：RUNTIME_DIRS=snapshots。快照是 state 写前回滚基线，属本机运行时数据；原先只顾「文件」不顾「目录」，安装时整目录被 cp 进装副本（C5 镜像闸报「装副本多余」抓出）。空机实测：源仓造 2 份快照 → 装完装副本 0 份；拆掉清理分支 → 泄露 2 份（分支承载证实）",
     "★contracts.json 加 runtime_dirs + verify.sh 同源判据扩为「文件+目录」，两处清单漂移即红（M5）；C5 从契约读跳过目录，不硬编码在脚本里",
     "实测：契约 58✓0✗0⚠；全程变异 8 项全翻红（C6 四项：删第一动作/删归属/减条数/删样本；口径四项：删 B 标注/序号跳号/造假引用/删 core-8 记无法判定）；verify.sh 52✓0✗1⚠"
+  ],
+  "changelog_0_8_17": [
+    "★工程E 行为规则补丁（借鉴 Memory Palace AGENTS.md / 9 条 Non-negotiable / guard 三元组）：",
+    "core-8 扩到 B-01…B-10——新增 B-10「拦截即停止」（拒收/NOOP/UPDATE 是停止信号，绕行必须 --force+reason；降级必须报因，静默降级按隐藏故障处理）；B-04 补「同一 state/云端库/受管文件的写入属共享资源，跨会话串行」；每条尾注 ｜验证 V-xxx（E10）",
+    "space-hub v2.7.0：拒收/失败统一 _reject 输出 {error,reason,target,method}（11 个机器码），add/move/rename 全接入；SPACE_HUB_JSON=1 时 stdout 只出 JSON；铁律 +2 条（写前必读 / 拦截即停止）",
+    "skill-evolution v1.1.0：经验入库三问（更新/NOOP/新增+既有条目指针）；脚手架降级必须列 degrade_reasons",
+    "新增 verify/rule_map.json（10 条规则 → 4 机检 + 6 人工判据）与 terminology_check.py T4 双向互引判据（映射缺项/锚点漂移/尾注缺失/kind 错 四类翻红）",
+    "新增 docs/模板_阶段完工交付报告.md（九节，含「回滚路径」必填）与 docs/派活提示模板.md（子代理五段固定基线）；手机指令补第 9 条拦截即停止",
+    "实测：space_hub 拒收 mock 正反向 10/10；变异（吞结构化输出）5 项翻红；T4 四类破坏全红、恢复全绿；口径机检 4✓，引用 155 处无断链"
   ]
 }
