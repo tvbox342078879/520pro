@@ -118,7 +118,7 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/probe-hub",
-      "version": "1.26.4",
+      "version": "1.26.5",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",

@@ -115,7 +115,7 @@
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
           "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/",
-          "version": "1.26.4"
+          "version": "1.26.5"
         },
         "tvbox/skills/tvbox-pipeline/": {
           "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
@@ -427,6 +427,7 @@
   "changelog_0_8_18": [
     "★工程F-0 卫生清理（A 口径）：活文档 22 处改文本（个人绝对路径→中性表述/占位；本地端点→<壳端口>占位并保留\"默认 9978\"信息），历史档案 23 处按 M7 登记豁免",
     "secret_scan.py 新增 HYGIENE_EXEMPT（只按文件名模式：CHANGELOG.md / legacy_ / references/S，各带理由）+ 豁免计数可见输出；活文档埋点仍 WARN，--strict 仍 rc=2（正反向 4 项实测）",
-    "实测：verify.sh 首次 51✓ 0✗ 0⚠ 3·（此前 45 处 WARN 全部有去向：22 改 + 23 豁免，无\"没管\"项）；契约 58✓"
+    "实测：verify.sh 首次 51✓ 0✗ 0⚠ 3·（此前 45 处 WARN 全部有去向：22 改 + 23 豁免，无\"没管\"项）；契约 58✓",
+    "★工程F-5 测活报告「怎么读这组数据」：livecheck 每条加 elapsed_ms；汇总后固定输出 通过率(分母只算有结论条数)/p95与中位/死因分布 三句人话；样本<5 不报 p95、全无法判定不说 0%；probe-hub v1.26.5 + SKILL §3.11.1 对照表；回归 verify/tests/test_reading_guide.py 7 项，变异(分母含无法判定) 2 项翻红"
   ]
 }

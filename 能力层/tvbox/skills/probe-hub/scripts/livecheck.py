@@ -1058,6 +1058,53 @@ def cmd_one(a):
     return 0
 
 
+def _pct(vals, p):
+    """取分位数（nearest-rank）。样本不足时如实返回 None，不硬凑一个数。"""
+    vals = sorted(v for v in vals if isinstance(v, (int, float)))
+    if not vals:
+        return None
+    k = max(0, min(len(vals) - 1, int(round((p / 100.0) * (len(vals) - 1)))))
+    return vals[k]
+
+
+def _print_reading_guide(ok, ng, un, res):
+    """★ 工程F-5：测活报告「怎么读这组数据」——三个指标各一句人话。
+
+    为什么要有：报告给的是数字（通过率/死因/p95），但**数字本身会被误读**：
+      · 通过率的分母含不含"无法判定"？含了就把网络抖动算成源的质量；
+      · p95 高不代表全都慢，只代表最慢那 5% 很慢；
+      · 死因是"接口层"时换源是错的（该改接口）。
+    这一节就是防这三种误读。数字还是那些数字，但读法写死在报告里。
+    """
+    judged = len(ok) + len(ng)          # 有结论的条数：无法判定**不进分母**
+    rate = (100.0 * len(ok) / judged) if judged else None
+    ms = [r.get('elapsed_ms') for r in res if isinstance(r.get('elapsed_ms'), int)]
+    p50, p95 = _pct(ms, 50), _pct(ms, 95)
+    causes = {}
+    for r in list(ng) + list(un):
+        c = r.get('death_cause') or ''
+        if c:
+            causes[c] = causes.get(c, 0) + 1
+    print('📖 怎么读这组数据（3 句人话）')
+    if rate is None:
+        print('   · 通过率：本批**没有一条测出结论**（全在"无法判定"）——不是 0%，是判不了，先复测')
+    else:
+        print(f'   · 通过率 {rate:.0f}%（{len(ok)}/{judged}）：分母只算有结论的条数；'
+              f'它只说明"此刻这条地址能出流"，不代表画质、内容全、长期可用')
+    if p95 is None:
+        print('   · 响应：本批未采集到耗时，p95 无从计算（不编数）')
+    elif len(ms) < 5:
+        print(f'   · 响应 中位 {p50}ms / 最快-最慢 {min(ms)}-{max(ms)}ms：样本 <5，p95 不具代表性')
+    else:
+        print(f'   · 响应 p95 {p95}ms（中位 {p50}ms）：p95 由最慢的 5% 决定；'
+              f'p95 远高于中位 = 少数源很慢，别看平均值')
+    if causes:
+        top = '、'.join(f'{k}×{v}' for k, v in sorted(causes.items(), key=lambda x: -x[1]))
+        print(f'   · 死因分布：{top}（"接口层"该改接口、"域名层"该换域、"未定·网络"先复测再判死）')
+    else:
+        print('   · 死因分布：本批无死因归类（全通过，或判据未产生分型）')
+
+
 def cmd_batch(a):
     items = json.load(open(a.batch, encoding='utf-8'))
     if isinstance(items, dict):
@@ -1075,13 +1122,14 @@ def cmd_batch(a):
         return ''
 
     def _one(it):
+        _t0 = time.time()                       # ★ 工程F-5：单条耗时，供报告算 p50/p95
         url = _pick(it)
         # 空 URL 不许"照样测活"——直接标成配置错误，别让它伪装成网络失败
         if not url:
             return {'name': it.get('name') or it.get('名称', ''), 'url': '',
                     'kind': '-', 'verdict': '失败',
                     'evidence': f'条目无地址字段（已有键：{list(it)[:6]}）——测活输入为空，非网络问题',
-                    'death_cause': '接口层'}
+                    'death_cause': '接口层', 'elapsed_ms': 0}
         kind = it.get('kind') or ('m3u8' if '.m3u8' in url.lower() else None)
         if (it.get('kind') or '').lower() == 'parse':
             v, ev = check_parse(url, video=a.video, wait_s=a.wait)
@@ -1089,7 +1137,8 @@ def cmd_batch(a):
         else:
             v, ev, k = check_auto(url, kind=kind)
         return {'name': it.get('name') or it.get('名称', ''), 'url': url, 'kind': k,
-                'verdict': v, 'evidence': ev, 'death_cause': death_cause(v, ev, k)}
+                'verdict': v, 'evidence': ev, 'death_cause': death_cause(v, ev, k),
+                'elapsed_ms': int((time.time() - _t0) * 1000)}
     # ★ M-R114：走统一入口。测活打的是公网站点，归 B 档（上限 6）。
     #   单条异常不拖垮全批（on_error='record'），失败条目会单独列出。
     rep = run_bounded(items, _one, tier=TIER_WEB, workers=a.workers, label='真实测活')
@@ -1101,6 +1150,7 @@ def cmd_batch(a):
     ng = [r for r in res if r['verdict'] == '失败']
     un = [r for r in res if r['verdict'] == '无法判定']
     print(f'🔎 真实测活 {len(res)} 条：✅通过 {len(ok)} / ❌失败 {len(ng)} / ⚠️无法判定 {len(un)}')
+    _print_reading_guide(ok, ng, un, res)
     for r in ok:
         print(f'   ✅ [{r["kind"]}] {r["name"][:30]:30} {r["evidence"]}')
     for r in ng[:20]:
