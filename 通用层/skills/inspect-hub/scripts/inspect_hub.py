@@ -31,6 +31,9 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REG_PATH = os.path.join(SCRIPT_DIR, 'inspect_registry.json')
 HIST_PATH = os.path.join(SCRIPT_DIR, 'findings_history.json')
+MON_PATH = os.path.join(SCRIPT_DIR, 'monitors.json')
+RUNTIME_FILES = {'findings_history.json', 'monitors.json'}   # 运行时数据，不参与副本对账
+# 另：*_state.json（各技能运行态登记，如 space_hub_state.json）同样排除——机制级规则，防新技能重复踩   # 运行时监测登记（与正本登记册分离：登记是运行态，不是正本知识，避免生门误报副本漂移）
 
 ST_ORDER = {'red': 0, 'yellow': 1, 'unknown': 2, 'green': 3, 'pending': 4}
 ST_LABEL = {'red': '🔴 有事', 'yellow': '🟡 观察', 'green': '🟢 正常',
@@ -128,6 +131,10 @@ def chk_skills(target, cfg, ctx):
             idir = os.path.join(root, name, 'scripts')
             for f in os.listdir(sdir):
                 if not f.endswith(('.py', '.json')):
+                    continue
+                # 运行时数据不入对账（每台机器各自演化，与正本必然不同）：
+                # 否则生门永久误报「副本漂移」，真漂移被假黄淹没
+                if f in RUNTIME_FILES or f.endswith('_state.json'):
                     continue
                 a, b = os.path.join(sdir, f), os.path.join(idir, f)
                 if not os.path.isfile(b) or md5f(a) != md5f(b):
@@ -418,6 +425,41 @@ def cmd_run(target, out_dir):
     print('面板:', dp)
     print('提醒: 行为生效层（本会话技能/规则自报）须由 AI 对账，见 SKILL.md')
     return 0 if n_red == 0 else 1
+
+
+def register_monitor(risk_face, check_type, desc='', quiet=True):
+    """★ 生态监测登记门面（v0.8.4 起由本技能自持；原 tvbox-core 中转壳已删除）。
+
+    任何技能一行调用，把「新风险面」登记进巡检登记册（登记制，先登记后补码）：
+        from inspect_hub import register_monitor
+        register_monitor('上游新失效模式', 'naming_compliance', '原监测四信号未覆盖时接手跟踪')
+
+    - 幂等：同一 risk_face 重复登记不新增条目（更新描述与时间）。
+    - **只写登记册，不动引擎**——登记册是成长面，补码由人决定（沿用监察司机制）。
+    - 永不抛异常（登记是旁路，绝不阻断上游主流程）；quiet=True 完全静默。
+    - 落点：本技能目录 `monitors.json`（**运行时数据，独立于正本登记册**——登记每台机器各自
+      演化，若写进 inspect_registry.json 会让生门「副本 md5 对账」永久误报漂移）。
+      需要长期保留的登记请回写仓库正本或巡检登记册。
+    """
+    try:
+        reg = {'monitors': json.load(open(MON_PATH, encoding='utf-8'))} if os.path.exists(MON_PATH) else {'monitors': []}
+        mons = reg['monitors']
+        hit = [m for m in mons if m.get('face') == risk_face]
+        if hit:
+            hit[0].update({'type': check_type, 'desc': desc,
+                           'updated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')})
+        else:
+            mons.append({'face': risk_face, 'type': check_type, 'desc': desc,
+                         'status': 'registered',
+                         'at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')})
+        json.dump(mons, open(MON_PATH, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+        if not quiet:
+            print(f'  📋 监测面已登记巡检司：{risk_face}（{check_type}）')
+        return True
+    except Exception as e:
+        if not quiet:
+            print(f'  ⚠️ 巡检司登记失败（{type(e).__name__}）：风险面「{risk_face}」未登记')
+        return False
 
 
 def cmd_selfcheck():

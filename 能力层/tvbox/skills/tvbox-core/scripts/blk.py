@@ -31,8 +31,13 @@ UA='okhttp/3.12.0'
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 from core import (rows_of, add_records, add_records_parallel,
 
-                  invalidate, file_to_janitor, register_monitor,
+                  invalidate,
                   SRC_DBS, src_rows, src_rows_t, http_get)  # noqa: E402  S159：源库联合
+# ★ v0.8.4 总线归目标方：投递→库务司、监测登记→巡检司（不再经 core 中转）
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/space-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/inspect-hub/scripts'))
+from space_hub import file_to_janitor  # noqa: E402
+from inspect_hub import register_monitor  # noqa: E402
 
 # ---------- M-R114 统一并发入口（S110） ----------
 # 本文件原先就地写死 max_workers=N，数字无依据。改为按档位表取上限。
@@ -43,8 +48,8 @@ from concurrency import run_bounded as _run_bounded, TIER_WEB  # noqa: E402
 
 
 # ★ 生态联动（S106 补接门面）：
-#   · 拉黑确认后，源总库里对应的「失效孤儿节点」AI 删不掉 → core.file_to_janitor 投递清道夫
-#   · 黑名单出现新拦截类型（新失效模式）→ core.register_monitor 登记监察司，下轮 scan 自动接手
+#   · 拉黑确认后，源总库里对应的「失效孤儿节点」AI 删不掉 → space_hub.file_to_janitor 投递库务司
+#   · 黑名单出现新拦截类型（新失效模式）→ inspect_hub.register_monitor 登记巡检司，下轮 scan 自动接手
 def _eco_linked_probe():
     """自证已接门面：返回 (清道夫, 监察司) 可达性，供 inspect 联动覆盖判据与自检。"""
     return (callable(file_to_janitor), callable(register_monitor))

@@ -497,7 +497,7 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
                                        └─► 用户据成品源库给 **直链系线路池**换路线（三系口径 1025；D 包=历史别名）
 ```
 
-- **上游**：`/root/.codebuddy/skills/library`（云读写）+ `tvbox-core/scripts/core.py`（共享效率核心）
+- **上游**：`~/.codebuddy/skills/library`（云读写）+ `tvbox-core/scripts/core.py`（共享效率核心）
 - **下游**：`tvbox-core/scripts/blk.py`（第一道闸·guard 拦截）→ `tvbox-core/scripts/link.py`（ingest 入库）
 - **横向**：`legacy-watchdog`（遗迹哨·监测上游遗留）、`ecosys-conductor`（总指挥·信号源18 守护）
 
@@ -511,7 +511,7 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 
 | 项 | 值 |
 |---|---|
-| 共享核心 | `/root/.codebuddy/skills/tvbox-core/scripts/core.py`（同 §5 上游） |
+| 共享核心 | `~/.codebuddy/skills/tvbox-core/scripts/core.py`（同 §5 上游） |
 | 源库 DB_SRC | 已收口至 `core.SRC_DBS`（**本技能不读源库**；线路源库 `pNwZ9uBOTz6FzRuvu8nryI` / 成品源库 `8JBrhSwsJ3pnPYtoGLo9XV`） |
 | 成品源库 DB_PROD | `8JBrhSwsJ3pnPYtoGLo9XV`（S160 由「成品源库」更名；取自 core，勿写死） |
 | 失效源库 DB_DEAD | `92dSuG6uUbxitGuyx4Saaf` |

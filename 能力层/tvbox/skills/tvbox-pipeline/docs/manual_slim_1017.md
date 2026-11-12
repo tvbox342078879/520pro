@@ -1,4 +1,4 @@
-# tvbox-interface 外置细则（2026-10-17 · M-R77⑥ 法③）
+# tvbox-pipeline 外置细则（2026-10-17 · M-R77⑥ 法③）
 
 > 由 `slim_master.py --apply` 自动外置。**权威性不变**：正文以本文件为准，
 > SKILL.md 对应位置只保留索引行。修改这三类内容请直接改本文件。

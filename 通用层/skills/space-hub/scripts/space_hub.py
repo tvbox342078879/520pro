@@ -132,7 +132,7 @@ TERRITORY = {
     'T4kODtANe7rSrtZTu4sIND': ('ecosys-conductor', '🧩 TVBox技能生态登记库'),
     'XTuuj8mKtqnZSolDdeDxkq': ('unfinished-audit', '📚 资料库操作经验库'),
     # ── 收件箱 ──
-    'tBlgSL4SPEFMrsyTBTg03c': ('tvbox-janitor', '🗑 待删收件箱'),
+    'tBlgSL4SPEFMrsyTBTg03c': ('space-hub', '🗑 待删收件箱'),  # 历史名 tvbox-janitor，S104 建
 }
 # 空间根与收件箱不在 census 里当"缝"统计：前者是全体，后者是待删暂存
 _NOT_GAP = {'', 'tBlgSL4SPEFMrsyTBTg03c'}
@@ -631,7 +631,7 @@ def _parent_of(node_id):
     return False, None, '未返回 JSON'
 
 
-def _probe_empty_databases(items, control_id='Xjqn2Wf5EKPSGIXqQ2K6Dc'):
+def _probe_empty_databases(items, control_id=None):
     """对清单里的 database 项逐个直连核实：真的空，还是只是读不到。
 
     返回 {'lines': [头部说明行], 'by_id': {id: 每项结论短语}}
@@ -647,22 +647,30 @@ def _probe_empty_databases(items, control_id='Xjqn2Wf5EKPSGIXqQ2K6Dc'):
     out = {'lines': [], 'by_id': {}}
     if not dbs:
         return out
-    try:
-        # ★ 显式路径，不靠调用者预先污染 sys.path。
-        #   实测教训：经 `tvbox janitor list` 跑时成功，直接 `import janitor` 调则
-        #   ModuleNotFoundError——因为 core 在 source-hub/scripts，而 tvbox 入口
-        #   恰好先 import 过它。**依赖调用者的副作用 = 换个入口就变行为**。
-        _hub_scripts = os.path.expanduser('~/.codebuddy/skills/space-hub/scripts')  # 旧 tvbox-source-hub 已并入 tvbox-core/库务司
-        if _hub_scripts not in sys.path:
-            sys.path.insert(0, _hub_scripts)
-        import core as _core
-    except Exception as e:
-        out['lines'] = [f'> ⚠️ 数据库核实跳过：无法加载 library core（{type(e).__name__}）——'
-                        f'**下列数据库是否为空未经验证**，删除前请自行确认。']
-        return out
+    # ★ v0.8.4：对照组不再硬编码（旧 id `Xjqn2Wf5…` 随空间重建失效，实测 permission denied）。
+    #   解析顺序：显式入参 → 环境变量 SPACE_HUB_CONTROL_DB → state.control_db → 无对照。
+    #   无有效对照组时**绝不把"读不到"当"空库"**（M-R60），全项如实标无法判定。
+    if not control_id:
+        control_id = (os.environ.get('SPACE_HUB_CONTROL_DB') or '').strip() \
+            or (load_state().get('control_db') or '').strip()
+    def _run_lib(script, *args):
+        """直调 library 正门（v0.8.4 解耦）：不再 import 能力层 tvbox-core 的 _run_lib。
+
+        原实现借 core._run_lib——通用层技能依赖能力层库，方向反了；
+        此处就地内联等价逻辑（缺失/异常/超时都返回三态可分辨的 (ok, out, err)）。
+        """
+        p = os.path.join(LIB, script)
+        if not os.path.exists(p):
+            return False, '', f'library 脚本缺失：{script}（预期 {p}）'
+        try:
+            r = subprocess.run([sys.executable, p, *args],
+                               capture_output=True, text=True, cwd=LIB, timeout=120)
+            return r.returncode == 0, r.stdout, (r.stderr or '')[:200]
+        except Exception as e:
+            return False, '', f'子进程异常（{type(e).__name__}: {str(e)[:70]}）'
 
     def _rows(did):
-        ok, so, se = _core._run_lib('database/get_database_content.py', '--database-id', did)
+        ok, so, se = _run_lib('database/get_database_content.py', '--database-id', did)
         if not ok:
             return None, (se or 'run_lib 失败')[:80]
         try:
@@ -671,16 +679,26 @@ def _probe_empty_databases(items, control_id='Xjqn2Wf5EKPSGIXqQ2K6Dc'):
             return None, f'返回解析失败 {type(e).__name__}'
         return len([x for x in c.split('\n') if x.strip()]), ''
 
-    ctl, ctl_err = _rows(control_id)
-    trusted = bool(ctl and ctl > 1)
-    if trusted:
-        out['lines'] = [f'> **数据库类 {len(dbs)} 项已逐个直连核实**（对照组 `账房·总账` 读出 '
-                        f'{ctl - 1} 条记录，证明该通路能读到数据，不是"读不到一律算空"）。'
-                        f'删库**不可逆**，故单列依据。']
+    if not control_id:
+        ctl, ctl_err = None, ''
+        out['lines'] = ['> ⚠️ **未配置对照组数据库**：显式传 control_id 或设 '
+                        '`SPACE_HUB_CONTROL_DB`（一个已知有数据的库 id）后才可核实。'
+                        '无对照的"全为空"不可采信（读失败与真空长得一样）——'
+                        '下方各库一律标「无法判定」，删库前请手工确认。']
+        trusted = False
     else:
-        out['lines'] = [f'> ⚠️ **数据库核实不可信**：对照组只读出 {ctl} 行（应为 >1），'
-                        f'{ctl_err or "通路可能读不到数据"}——'
-                        f'下方各库的"空"**不能作为删除依据**，请手工确认。']
+        ctl, ctl_err = _rows(control_id)
+        trusted = bool(ctl and ctl > 1)
+        if trusted:
+            out['lines'] = [f'> **数据库类 {len(dbs)} 项已逐个直连核实**（对照组 `{control_id[:10]}…` 读出 '
+                            f'{ctl - 1} 条记录，证明该通路能读到数据，不是"读不到一律算空"）。'
+                            f'删库**不可逆**，故单列依据。']
+        elif ctl is None:
+            out['lines'] = [f'> ⚠️ **数据库核实不可信**：对照组 `{control_id[:10]}…` 读取失败'
+                            f'（{ctl_err or "通路异常"}）——下方各库的"空"**不能作为删除依据**，请手工确认。']
+        else:
+            out['lines'] = [f'> ⚠️ **数据库核实不可信**：对照组只读出 {ctl} 行（应为 >1，'
+                            f'该库可能已清空或 id 已失效）——下方各库的"空"**不能作为删除依据**，请手工确认。']
 
     empty_n = unk_n = data_n = 0
     for x in dbs:
@@ -693,7 +711,8 @@ def _probe_empty_databases(items, control_id='Xjqn2Wf5EKPSGIXqQ2K6Dc'):
                 out['by_id'][x['id']] = '（✅ 已核实：仅表头，0 条记录）'
                 empty_n += 1
             else:
-                out['by_id'][x['id']] = '（⚠️ 读到 0 条，但对照组也读不到，**无法判定**）'
+                _why = '未配置对照组，无对照的"空"不可采信' if not control_id else '对照组未证明通路可用'
+                out['by_id'][x['id']] = f'（⚠️ 读到 0 条，但{_why}，**无法判定**）'
                 unk_n += 1
         else:
             out['by_id'][x['id']] = f'（🔴 **有 {n - 1} 条记录**，不是空的，删前务必确认）'
@@ -1110,6 +1129,43 @@ def auto_file_local(path, reason, quiet=False):
         if not quiet:
             print(f'  ⚠️ 本地欠账登记失败（{type(e).__name__}）：{path} 未记账，请人工处理')
         return False
+
+
+# 云端 node id 形态：16–32 位 base62（实测如 tBlgSL4SPEFMrsyTBTg03c = 22 位）
+_NODE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{16,32}$')
+
+
+def file_to_janitor(node_id, reason='', quiet=True):
+    """★ 生态投递门面（v2.3.0 起由本技能自持；原 tvbox-core 中转壳已删除）。
+
+    任何技能一行调用（投递是旁路，永不阻断主流程）：
+        from space_hub import file_to_janitor
+        file_to_janitor(nid, '建库失败残留节点')
+
+    **为什么门面住这里**（v0.8.4 架构重规划）：投递目标就是本技能的收件箱/欠账清单，
+    门面与收件箱同一文件——改名/换目录一起走，从结构上消灭「改名断链」这类事故
+    （2026-11-12 实查：清道夫改名 space-hub 后 core 中转壳仍写死旧名，import 必失败，
+    投递恒 False 且静默）。
+
+    **入参分流**（S156 护栏保留）：
+      · 真云端 node_id（16–32 位 base62）→ auto_file，移入「🗑 待删收件箱」
+      · 本地路径（/ 或 ~ 开头，或绝对路径）→ auto_file_local，登记本地欠账
+      · 其他（描述文字、数据库记录）→ **拒收并显式告警**，绝不记假账
+        （事故：blk.py 曾传 '源总库·整域拉黑孤儿 host=x' → 清单虚高 40 项、收件箱只有 18 个）
+    """
+    nid = str(node_id or '').strip()
+    if not nid:
+        print('  ❌ 投递被拒：入参为空')
+        return False
+    if nid.startswith(('/')) or nid.startswith('~'):
+        return bool(auto_file_local(nid, reason, quiet=quiet))
+    if not _NODE_ID_RE.match(nid):
+        # 不是 node id 就别记假账——记了只会让清单虚高、掩盖"没投递"这件事实。
+        # quiet 也拦不住：**参数错了是调用方的 bug，必须先让人看见**。
+        print(f'  ❌ 投递被拒：入参不是云端 node_id 也不是本地路径 → {nid[:70]!r}')
+        print('     （node_id 形如 tBlgSL4SPEFMrsyTBTg03c；数据库记录/描述文字请走数据库删除或登记欠账）')
+        return False
+    return bool(auto_file(nid, reason, quiet=quiet))
 
 
 def cmd_local_rm(a):

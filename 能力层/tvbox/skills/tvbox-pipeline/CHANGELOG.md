@@ -152,7 +152,18 @@ health → A + 静态推断提示正常。配套文档：标准1015 体系文档
 - **铁律坐标**：flow.json 新增 `iron_rules`（守护 M-R32/38/57 + P-R1 共 4 条）；self_check 7 项补铁律标注；
   flow.json 版本对齐 SKILL.md（1.2.0→1.2.3，M-R40）。
 
-# tvbox-interface CHANGELOG
+# tvbox-pipeline CHANGELOG
+
+## 1.1.0 — 清迁移残留（2026-11-12）
+
+- **SKILL.md frontmatter 修复**：`version` 原插在 description 多行块中间，YAML 截断导致
+  **一半触发词没进 description**（路由靠它）——重排为 name→description→version。
+- 触发词瘦身：删「采集/解析/去重」泛词（与探源司重叠），保留加工域专词。
+- SOP_整包加工.md 旧 frontmatter（tvbox-interface v1.3.7 全文）改为 doc 元信息 + 迁移痕迹行。
+- 死引用 `ecosys-conductor/references/user_habit_brief.md` → 改指 core-8；`/root/.codebuddy`
+  硬编码 5 处 → `$HOME`；CHANGELOG-interface.md 合并为本文件。
+
+> v1.3.7 及以前为 tvbox-interface 时期记录，原样保留作历史。
 
 ## 2026-10-16 v1.2.3 经验对照·规则57（方法极联动 · S107）
 - **经验对照留痕**：按 `evolve lend tvbox-interface --own` 逐条确认——

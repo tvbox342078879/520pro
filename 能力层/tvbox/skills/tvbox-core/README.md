@@ -1,8 +1,14 @@
-# tvbox-core · TVBox 共享代码库
+# tvbox-core · TVBox 域共享库
 
 > **这不是技能。没有 `SKILL.md`，平台不注册、不路由、不进上下文。**
-> 它是被 `probe-hub` 与 `tvbox-pipeline` 共同 import 的代码库：库坐标、测活判据、去重、拉黑闸门。
-> 改动这里 = 改动全生态的判据，**改之前先确认没有第二份实现**。
+> **定位（v0.8.4 收窄）：纯 TVBox 数据域共享库**——源库坐标（SRC_DBS）、读写缓存（rows_of/add_records）、
+> 测活判据、去重、拉黑闸门、调度器（link/blk/newlib）。被 `probe-hub` 等能力层技能 import。
+>
+> **不含通用基建**：投递门面在 `space_hub.file_to_janitor`（库务司），监测登记在
+> `inspect_hub.register_monitor`（巡检司）——2026-11-12 架构重规划「总线归目标方」迁出，
+> 依赖方向固定为 能力层 → 通用层 → library 正门，本库不得反向依赖或中转通用层能力。
+>
+> 改动这里 = 改动 TVBox 域的判据，**改之前先确认没有第二份实现**。
 >
 > 原 `tvbox-source-hub`（源枢库曹）的技能说明保留在本文档，作为库的**参考手册**阅读，不再作为触发词注册。
 
@@ -146,7 +152,7 @@ S160 起了真实分级：对含 `api.php` / `provide` 的 CMS 接口，现场�
 **一体化入口**（推荐，幂等，可反复跑）：
 
 ```bash
-cd /root/.codebuddy/skills/tvbox-core/scripts
+cd ~/.codebuddy/skills/tvbox-core/scripts
 python3 run.py               # 全流程并写入主库
 python3 run.py --dry-run     # 只算不写，先看清楚再决定
 python3 run.py --dirs /path  # 追加扫描目录
@@ -413,7 +419,7 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 > 联动机制本身也要进化。规则 48 是 45/46/47 的**元规则**：技能初始形成后持续进化，
 > 进化来源 = 历史经验(③+④) + 新任务发现 + 自身判断；同一问题复发 ≥3 次 → **自动立项成可升级技能**。
 
-**落地引擎**：全局元技能 **`skill-evolution`**（`/root/.codebuddy/skills/skill-evolution`）
+**落地引擎**：全局元技能 **`skill-evolution`**（`~/.codebuddy/skills/skill-evolution`）
 - `evolve.py recurring --min 3` —— 扫描 ③台账+④经验库，聚类复发问题，列「应技能化」候选
 - `evolve.py create <name> --trigger .. --desc ..` —— 脚手架式生成可升级技能（自带 version/CHANGELOG/扩展点）
 - 周期性系统整理（去重/简化/强化逻辑/复盘/升级）六步法，见该技能 SKILL.md
@@ -425,7 +431,7 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 ## 7. 查询用法（回答用户"某源能在哪些体系用"）
 
 ```bash
-export SID=/root/.codebuddy/skills/library
+export SID=~/.codebuddy/skills/library
 # ① 查某条源（S160 起 py/csp 同库，**一次查完**，不必分别查）
 python3 $SID/database/query_database_record.py --database-id pNwZ9uBOTz6FzRuvu8nryI \
   --filter '{"conditions":[{"field":"api接口","operator":"contains","value":"<关键字>"}]}'

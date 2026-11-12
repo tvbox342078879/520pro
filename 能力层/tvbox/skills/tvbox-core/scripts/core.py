@@ -272,81 +272,12 @@ def query_all(db, page_size=100, max_pages=50, fields=None):
                                f'按读失败处理，勿当全表')
 
 
-# 云端 node id 形态：16–32 位 base62（实测如 tBlgSL4SPEFMrsyTBTg03c = 22 位）
-_NODE_ID_RE = __import__('re').compile(r'^[A-Za-z0-9_-]{16,32}$')
-
-
-def file_to_janitor(node_id, reason='', quiet=True):
-    """★ 生态联动门面（S104）：把"AI 删不掉的节点"投递进清道夫收件箱。
-
-    任何技能 import core 后即可一行调用（清理是旁路，永不阻断主流程）：
-        core.file_to_janitor(nid, '建库失败残留节点')
-
-    - 失败不抛异常（返回 False），仅打印告警（quiet=True 时完全静默）。
-    - 收件箱：space-hub（库务司，原清道夫 tvbox-janitor）「🗑 待删收件箱」，用户一处按单删。
-
-    **S156 修：入参必须是真 node_id，否则一律拒收并告警。**
-    事故：`blk.py` 长期调用 `file_to_janitor(f'源总库·整域拉黑孤儿 host={h}', ...)`
-    ——传的是**描述文字**，不是节点 id。后果链（三重静默，无人察觉）：
-      ① `node-info` 查不到 → janitor 把标题写成「（节点不可读）」；
-      ② `move-node` 必然失败 → **节点从未进入收件箱**；
-      ③ 但 janitor 仍把它**登记进清单** → 清单显示 40 项，收件箱实际 18 个。
-    **看起来在跑、有调用、有记录，核心动作一次都没成功**——典型的名义联动。
-    更根本的问题：「拉黑孤儿」是**数据库记录**，压根不是云端节点，
-    它该走数据库删除/登记欠账，不该走清道夫（清道夫只管云端节点）。
-    """
-    nid = str(node_id or '').strip()
-    if not _NODE_ID_RE.match(nid):
-        # 不是 node id 就别记假账——记了只会让清单虚高、掩盖"没投递"这件事实。
-        # quiet 也拦不住：**参数错了是调用方的 bug，必须先让人看见**。
-        print(f'  ❌ 清道夫投递被拒：入参不是云端 node_id → {nid[:70]!r}')
-        print('     （node_id 形如 tBlgSL4SPEFMrsyTBTg03c；数据库记录/描述文字请走数据库删除或登记欠账）')
-        return False
-    # ★2026-11-12 修（实证）：清道夫已改名 space-hub（库务司），此处仍写死 tvbox-janitor
-    #   → import janitor 必失败 → file_to_janitor 恒返回 False，投递链路静默断裂
-    #   （投递是旁路永不阻断主流程，断了也没人看见——正是最危险的失效形态）。
-    #   现按新名优先、旧名兜底探测（旧机器未升级 bootstrap 前仍装着 tvbox-janitor）。
-    for _d, _m in (('~/.codebuddy/skills/space-hub/scripts', 'space_hub'),
-                   ('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor')):
-        _JAN = os.path.expanduser(_d)
-        if not os.path.isdir(_JAN):
-            continue
-        try:
-            if _JAN not in sys.path:
-                sys.path.insert(0, _JAN)
-            import importlib as _il
-            _jan = _il.import_module(_m)
-            if callable(getattr(_jan, 'auto_file', None)):
-                return bool(_jan.auto_file(node_id, reason, quiet=quiet))
-        except Exception as e:
-            if not quiet:
-                print(f'  ⚠️ 清道夫联动失败（{_m}，{type(e).__name__}）：节点 {node_id} 未投递，请人工删')
-    if not quiet:
-        print('  ⚠️ 清道夫未安装（space-hub/tvbox-janitor 均未找到）：节点未投递，请人工删')
-    return False
-
-
-def register_monitor(risk_face, check_type, desc='', quiet=True):
-    """★ 生态联动门面（S105）：把"新风险面"登记进监察司监测册。
-
-    任何技能 import core 后即可一行调用（登记是旁路，永不阻断主流程）：
-        core.register_monitor('废弃节点堆积', 'naming_compliance', '库根下废弃节点超阈值即报')
-
-    - 失败不抛异常（返回 False），仅打印告警（quiet=True 时完全静默）。
-    - 加监测项只改 monitors.json 登记册不改引擎代码；未实现的 check 类型允许先登记后补。
-    - 门面：tvbox-inspect（监察司）「monitors.json 登记册」，新风险自动被接手。
-    """
-    try:
-        INS = os.path.expanduser('~/.codebuddy/skills/tvbox-inspect/scripts')
-        if INS not in sys.path:
-            sys.path.insert(0, INS)
-        import inspect_engine
-        return bool(inspect_engine.register_monitor(risk_face, check_type, desc, quiet=quiet))
-    except Exception as e:
-        if not quiet:
-            print(f'  ⚠️ 监察司联动失败（{type(e).__name__}）：风险面「{risk_face}」未登记，请手动 tvbox inspect add-monitor')
-        return False
-
+# ── 生态联动门面已迁出（v0.8.4 总线归目标方）────────────────────────────
+# file_to_janitor / register_monitor 原住此处，现由收件方自持：
+#   · 投递 → space_hub.file_to_janitor（库务司，含 S156 护栏与本地/云端分流）
+#   · 监测登记 → inspect_hub.register_monitor（巡检司，登记册制）
+# 调用方直接 from space_hub import file_to_janitor / from inspect_hub import register_monitor。
+# 本库只保留 TVBox 数据域（源库坐标/读写缓存/测活判据/黑名单），不再中转通用层能力。
 
 def fanout(*tasks):
     """并发执行若干零参可调用，按入参顺序返回结果。空/单任务退化为直接调用。
@@ -392,6 +323,9 @@ def http_get(url, timeout=15, ua=None, max_bytes=None, as_text=True,
              headers=None, method='GET', data=None, ssl_verify=True,
              return_status=False, err_body=False):
     """统一 HTTP 取数入口（M-R38 单一事实源 / M-R213 共享核心）。
+
+    **正本在此**；learn-hub/pan.py 内联了一份自包含实现（有意为之：学习工坊不依赖能力层），
+    两处改动需同步（M-R213 记录）。
 
     带 SSRF 防护（拦截私有/环回/链路本地/保留/组播地址，含 169.254.169.254 元数据）、
     超时、三态返回。纯新增函数，零影响现有调用（core 原无 http 能力）。

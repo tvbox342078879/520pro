@@ -1,13 +1,14 @@
 ---
-version: "1.3.7"
-name: tvbox-interface
-description: "TVBox 接口/本地包的自动处理流水线。**只要用户消息中出现"接口地址（http/https://...）"或"本地包文件（.json/.txt/.m3u）」与 TVBox 语境（接口/底包/lives/直播源/配置/json/入库/线路），无需用户明说，立即自动加载本技能并执行——不要等用户说"用规则"，不要先反问，直接开工。** **本流程与模型无关：无论当前是什么模型（GPT/Claude/Gemini/豆包/混元/本地模型等），都必须按本技能同一套 SOP 执行，禁止因换模型而走偏(§0.3)。** 触发即自动执行全链路：**体系识别(§2.5，收到json第一动作，决定成品名 `<体系><日期>_<站数>站`)**→开工前三问(§1.1)→抓取→体检→**直播类/py类/采集类/直链类全部自动拆分成单独json(§4.1/4.2)，且采集与直链分开归类入库**→**自动提取有效解析归相应库(§4.3)**→**全量去重(§4.5，入库前必做)**→全量测有效(§5)→自动归类入库(§4.4/§6)→登记→强制复盘(§8)。铁律顺序：**拆分 → 全量去重 → 全量测活 → 纯可用版 → 入库**。 【边界·S136】手上**已有**接口URL/本地包文件、要把它"做成可用json并入库"时走本技能；缺源请先走 probe-hub。 触发词：这个接口做个json / 接口发你了 / 把这个包做成能用的 / 处理一下这个接口 / 这个地址能用吗 / 帮我做个能用的包 / 这个配置能用吗 / 把接口整理一下 / 发来一个接口URL / 在线接口 / 配置地址 / 底包 / lives / 直播源 / 接口入库 / 本地包 / json包 / py线 / 采集 / 解析 / 去重 / 接口地址 / 拆分 / 入库 / 测活 / 可用版 / 做成json / 处理接口 / 直链做成json / 直链入库 / 直链拆分 / 轻量json怎么做 / 要轻量版 / 做json / json能用 / json用不了 / 发json / 整包做json / 体系划分 / 体系识别 / jar系 / 直链系 / 内置系 / 直链线路 / 相对路径 / 绝对路径。"
+doc: SOP_整包加工（tvbox-pipeline A 入口外置细则）
+version: "1.1.0"
 ---
+
+> 2026-11-12 自 tvbox-interface v1.3.7 合并改版为 tvbox-pipeline A 入口细则，变更见 CHANGELOG.md。
 
 > **🗣 语言铁律（M-R110 · 全模型适用）**：本技能所有输出——正文、思考过程、进度播报、
 > 工具调用说明、报错与澄清提问——**一律简体中文**。切换模型（快速/Hy3/深度思考等）、
 > 新会话、恢复会话、压缩上下文后**均不得回退英文**。用户明确要求中文时尤须遵守。
-> 完整习惯快照见 `ecosys-conductor/references/user_habit_brief.md`。
+> 通用铁律真源见 `~/.codebuddy/rules/core-8.md`（B-01~B-09）。
 
 # TVBox 接口/本地包 → 可用 json 流水线
 
@@ -104,7 +105,7 @@ python3 scripts/pipeline.py <命令>
 ## 2. 抓取
 
 ```bash
-/usr/bin/curl -s -L -m 30 -A "okhttp/3.12.0" "<URL>" -o /root/.codebuddy/artifact/xxx_raw.bin
+/usr/bin/curl -s -L -m 30 -A "okhttp/3.12.0" "<URL>" -o $HOME/.codebuddy/artifact/xxx_raw.bin
 ```
 - **必须用绝对路径 `/usr/bin/curl`**（shell 里 `curl` 偶发 not found）。
 - 存到 `artifact/` 下，扩展名统一 `.bin`，先看首字节判断真身：
@@ -396,21 +397,21 @@ c=$(/usr/bin/curl -s -o /dev/null -w "%{http_code}" -m 6 -A "okhttp/3.12.0" -r 0
 ```bash
 SID=8w5cnqCqQJ0wNoF2Hb6efH
 # 1) 取凭证
-python3 /root/.codebuddy/skills/library/space_api.py space.importer.get-upload-credential \
+python3 $HOME/.codebuddy/skills/library/space_api.py space.importer.get-upload-credential \
   --file-name "<名>" --file-size $(stat -c%s "<本地路径>") --parent-id "<父文件夹id>"
 #    → { uploadUrl, headers{...}, confirmKey, taskId }
 # 2) curl PUT 到 uploadUrl（带 headers 全部键值）
 # 3) 导入（cos-key = uploadUrl 的 path 部分，去掉开头 /）
-python3 /root/.codebuddy/skills/library/space_api.py space.importer.import-local-file \
+python3 $HOME/.codebuddy/skills/library/space_api.py space.importer.import-local-file \
   --space-id $SID --parent-id "<父文件夹id>" --cos-key "<path>" \
   --file-name "<名>" --title "<标题>" --confirm-key "<confirmKey>" --task-id "<taskId>"
 #    → { nodeBlockId, url }
 ```
-封装脚本：`/root/.codebuddy/artifact/hzm/upload_lib.sh <本地路径> <sid> <parent-id> <标题>`
+封装脚本：`$HOME/.codebuddy/artifact/hzm/upload_lib.sh <本地路径> <sid> <parent-id> <标题>`
 
 **B) `.md` 型** —— 结构不同（无 headers，走普通 COS），直接转 doc：
 ```bash
-python3 /root/.codebuddy/skills/library/space_api.py space.importer.create-doc \
+python3 $HOME/.codebuddy/skills/library/space_api.py space.importer.create-doc \
   --space-id $SID --parent-id "<父文件夹id>" --title "<标题>" --markdown "$(cat <本地md>)"
 #    → { nodeBlockId, url }（kind=doc）
 ```
@@ -478,7 +479,7 @@ python3 /root/.codebuddy/skills/library/space_api.py space.importer.create-doc \
 ### 8.2 复盘记录（写入 EXPERIENCE.log）
 
 ```bash
-cat >> /root/.codebuddy/skills/tvbox-interface/EXPERIENCE.log <<'EOF'
+cat >> ~/.codebuddy/skills/tvbox-pipeline/EXPERIENCE.log <<'EOF'
 [YYYY-MM-DD] <接口> 
 - 策略: 整包/拆lives/可增删json
 - 返工次数: N (若>0 记录根因)

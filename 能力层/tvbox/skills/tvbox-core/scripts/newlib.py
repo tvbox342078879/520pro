@@ -40,7 +40,7 @@ IDS_FILE = os.path.join(HERE, 'newlib_ids.json')
 
 sys.path.insert(0, HERE)
 try:
-    from core import (rows_of, invalidate, file_to_janitor,
+    from core import (rows_of, invalidate,
                       rows_of_t, SRC_DBS)          # S159：源库联合所需
 except Exception:
     # ⚠️ 降级实现**故意让 rows_of_t 返回 ok=False**，而不是 (True, [])。
@@ -50,6 +50,13 @@ except Exception:
     def rows_of_t(db): return (False, [])
     SRC_DBS = [('线路源库', ''), ('成品源库', '')]   # S160：与 core.SRC_DBS 保持同名同序
     def invalidate(db=None): pass
+
+# ★ v0.8.4 总线归目标方：投递门面在库务司。
+#   独立 try——**门面缺失不得连带 core 降级**（否则 space-hub 未装会把"读不到"伪装成"库为空"）
+try:
+    sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/space-hub/scripts'))
+    from space_hub import file_to_janitor  # noqa: E402
+except Exception:
     def file_to_janitor(node_id, reason='', quiet=True): return False
 
 # 复用源枢库曹的内容分级判据（M-R38 单一事实源）

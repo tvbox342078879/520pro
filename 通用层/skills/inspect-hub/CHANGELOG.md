@@ -1,5 +1,13 @@
 # inspect-hub CHANGELOG
 
+## v1.3.0 — 监测登记门面 + 生门对账口径修复（2026-11-12）
+
+- **register_monitor 迁入本技能**（原 tvbox-core 门面探旧生态 tvbox-inspect，在 520 恒失败）：
+  真写入 `monitors.json`（运行时数据，独立于正本登记册），幂等、纯登记不动引擎。
+- **生门对账排除运行时数据**：`findings_history.json` / `monitors.json` / `*_state.json`
+  不参与副本 md5 对账——否则每台机器运行时演化都会误报「副本漂移」，真漂移被假黄淹没。
+- 实测自举：抓到 space-hub 副本 state 与 learn-hub 脚本陈旧两处真漂移（同步后转绿）。
+
 ## 1.1.0 · 2026-11-12
 - **对抗自测 `adversarial` 子命令**（借 tvbox-eco adversarial_suite，去旧生态化）：临时 clone 逐门造脏（7 门用例 + 无脏对照），断言「篡改必翻红」，任一未翻红 exit 2；8/8 实测通过。改检查器后必跑。
 - **死门带过执法**（借 carryover_guard 思想）：【待】缺负责人或期限 → 红；同一主题 ≥2 次 → 复发红。遗留登记.md 四条目已补齐负责人+期限。

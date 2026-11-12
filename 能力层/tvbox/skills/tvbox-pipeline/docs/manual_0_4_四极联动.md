@@ -1,4 +1,4 @@
-# tvbox-interface 外置细则 · 0.4 四极联动
+# tvbox-pipeline 外置细则 · 0.4 四极联动
 
 > 来源：`SKILL.md` §0.4 原正文，2026-10-17（S135）按 M-R77⑥ 法③外置。
 

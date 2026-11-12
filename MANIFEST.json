@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -314,5 +314,13 @@
     "实测修三 bug：KS 行空格分隔解析；新建节点目录索引传播延迟（S200 带间隔重试）；_find_parent 残留 ROOT（v2.0.0 漏改）→ NameError 致 add 从未真正投递（今天实测投递现场踩到，历史 add 全部只登记未移动）",
     "inspect-hub v1.2.0：伤门复合 chk_structure（结构完整性+产物纪律 chk_products），八卦 8 位固定不新增第 9 卦",
     "bootstrap 迁移表 +0.8.3（同步 space-hub/inspect-hub/rules 副本）"
+  ],
+  "changelog_0_8_4": [
+    "架构重规划 A「总线归目标方」：file_to_janitor 迁入 space-hub v2.3.0（收件方自持，core 中转壳删除，调用方 probe/link/newlib/blk 改 import 来源、调用行零改动）；register_monitor 迁入 inspect-hub v1.3.0（原探旧生态 tvbox-inspect 恒失败，现真登记 monitors.json）",
+    "依赖方向修正：space_hub 核库不再 import 能力层 tvbox-core（就地内联 _run_lib 直调 library 正门）——通用层对能力层零依赖",
+    "实测抓缺陷并修：① 核库对照组硬编码 id 随空间重建失效（permission denied）→ 三级动态解析 + 无对照如实报无法判定；② 生门把运行时数据 findings_history/monitors/*_state 当正本对账 → 永久误报副本漂移，已排除；③ learn-hub learn.py 副本陈旧（v0.8.2 手工同步漏 scripts）已同步",
+    "tvbox-pipeline v1.1.0 清残留：SKILL.md frontmatter YAML 截断致一半触发词未进 description（路由缺陷）已修；SOP 旧身份 frontmatter 改 doc 元信息；死引用 ecosys-conductor/user_habit_brief 改指 core-8；/root/.codebuddy 硬编码 10 处改 $HOME；CHANGELOG-interface.md 合并",
+    "tvbox-core README 定位收窄为「纯 TVBox 数据域共享库」，明确不再中转通用层能力",
+    "bootstrap 迁移表 +0.8.4（同步 tvbox-core/probe-hub/space-hub/inspect-hub/learn-hub/tvbox-pipeline 副本）"
   ]
 }

@@ -174,12 +174,18 @@ def _parse_ts(s):
 
 # 共享效率核心（S123 收窄：仅同一进程内与 link/blk/evolve 共享 core 模块实例→缓存/并行池复用；跨技能 CLI 单命令调用时各自独立实例，无跨进程复用）
 sys.path.insert(0, HUB)
-from core import (rows_of, rows_of_t, api, add_records, invalidate,
-                  file_to_janitor, register_monitor)  # noqa: E402
+from core import (rows_of, rows_of_t, api, add_records, invalidate)  # noqa: E402
+# ★ 生态联动门面（v0.8.4 总线归目标方）：不再经 core 中转，直连收件方。
+#   投递 → 库务司 space_hub.file_to_janitor（含 S156 护栏 + 本地/云端分流）
+#   监测登记 → 巡检司 inspect_hub.register_monitor（登记册制）
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/space-hub/scripts'))
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/inspect-hub/scripts'))
+from space_hub import file_to_janitor  # noqa: E402
+from inspect_hub import register_monitor  # noqa: E402
 
 # ★ 生态联动（S106 补接门面）：
-#   · harvest prune 剔除的失效候选集/废弃中间产物 AI 删不掉 → core.file_to_janitor 投递清道夫
-#   · 上游侦察发现新失效模式（新停更原因/新仓库类型）→ core.register_monitor 登记监察司
+#   · harvest prune 剔除的失效候选集/废弃中间产物 AI 删不掉 → space_hub.file_to_janitor 投递库务司
+#   · 上游侦察发现新失效模式（新停更原因/新仓库类型）→ inspect_hub.register_monitor 登记巡检司
 def _eco_linked_probe():
     """探联动门面是否**真的能到下游**。True=可达／False=装了但导入失败／None=下游未装。
 
@@ -205,13 +211,13 @@ def _eco_linked_probe():
 
     # ★2026-11-12 修：清道夫已改名 space-hub（库务司），探针仍探 tvbox-janitor 旧路径
     #   → space-hub 装着也报「下游未装·无法判定」，自检永远过不去。新名优先、旧名兜底。
-    _jan = _probe('~/.codebuddy/skills/space-hub/scripts', 'space_hub', 'auto_file')
+    _jan = _probe('~/.codebuddy/skills/space-hub/scripts', 'space_hub', 'file_to_janitor')
     if _jan is None:
         _jan = _probe('~/.codebuddy/skills/tvbox-janitor/scripts', 'janitor', 'auto_file')
-    # ★ 监察司：tvbox-inspect（旧生态）未迁入 520，inspect-hub（巡检司）无 register_monitor
-    #   接口——登记面暂无承接方，探针按「未装=无法判定」如实上报，不折叠成通过也不混入失败。
+    # ★2026-11-12 v0.8.4：巡检司已提供 register_monitor（真登记，非空挂）——
+    #   原探 tvbox-inspect 旧生态恒 None，现探 inspect-hub。
     return (_jan,
-            _probe('~/.codebuddy/skills/tvbox-inspect/scripts', 'inspect_engine', 'register_monitor'))
+            _probe('~/.codebuddy/skills/inspect-hub/scripts', 'inspect_hub', 'register_monitor'))
 
 
 # ══════════════════ 三态原语（M-R55~M-R60：禁裸 except 折叠成空） ══════════════════
@@ -7930,9 +7936,9 @@ def _sc_forge_shell(results):
     if _janitor_ok is None or _monitor_ok is None:
         _miss = []
         if _janitor_ok is None:
-            _miss.append('清道夫 tvbox-janitor')
+            _miss.append('库务司 space-hub')
         if _monitor_ok is None:
-            _miss.append('监察司 tvbox-inspect')
+            _miss.append('巡检司 inspect-hub')
         # 5 元组：全 None + 原因 → 汇总按「无法判定」处理，不计入通过也不计入失败
         results.append(('生态联动门面可达', None, None, None,
                         '下游未装：' + '、'.join(_miss)))

@@ -425,7 +425,23 @@ migrate_to_0_8_3() {
   fi
 }
 
-MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" )
+migrate_to_0_8_4() {
+  say "  · [0.8.4] 总线归目标方：投递门面迁库务司、登记门面迁巡检司，core 中转壳删除——同步 6 个技能副本"
+  for _s in tvbox-core probe-hub tvbox-pipeline; do
+    if [ -d "能力层/tvbox/skills/$_s" ]; then
+      run "cp -r 能力层/tvbox/skills/$_s/. \"\$HOME/.codebuddy/skills/$_s/\""
+    fi
+  done
+  for _s in space-hub inspect-hub learn-hub; do
+    if [ -d "通用层/skills/$_s" ]; then
+      run "cp -r 通用层/skills/$_s/. \"\$HOME/.codebuddy/skills/$_s/\""
+    fi
+  done
+  # 旧版残留：pipeline 旧 CHANGELOG 名（已并入 CHANGELOG.md）
+  run "rm -f \"\$HOME/.codebuddy/skills/tvbox-pipeline/CHANGELOG-interface.md\""
+}
+
+MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" )
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then

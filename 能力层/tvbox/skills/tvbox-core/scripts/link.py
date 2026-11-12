@@ -64,10 +64,12 @@ DOC_RULES='isuY4U01Me0kUggpMN5RfX'   # 规则总览文档（资料库侧的规�
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import (rows_of, api, add_records, fanout,
                   add_records_parallel, invalidate, rows_of_failed,
-                  file_to_janitor,
                   # S159：源库坐标与联合读的**唯一事实源**（详见 core.py 顶部注释）
                   SRC_DBS, DB_SRC_LEGACY, DB_BAK_LEGACY,
                   src_rows, src_rows_t)  # noqa: E402
+# ★ v0.8.4 总线归目标方：投递门面在库务司（收件方），不再经 core 中转
+sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/space-hub/scripts'))
+from space_hub import file_to_janitor  # noqa: E402
 
 # S159：源库坐标一律取自 core（单一事实源），本文件不再写死库 id。
 #   · 读：`src_rows()` / `src_rows_t()`（源库联合）
