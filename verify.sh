@@ -147,6 +147,13 @@ if [ -d "$SK/probe-hub/scripts" ]; then
     [ -f "$SK/probe-hub/scripts/$f.example.json" ] || miss_tpl="$miss_tpl $f"
   done
   [ -z "$miss_tpl" ] && ok "五册模板齐全（新机器可建空册）" || no "模板册缺失：$miss_tpl"
+  # 安装器必须剥离"源目录里的运行时私产"：gitignore 只挡 clone，挡不住从仓库目录 cp 过去。
+  # 2026-11-12 实测过一次泄露（空机装完出现 185 个监测目标），这条防它回归。
+  if [ -f "$TARGET/install.sh" ]; then
+    grep -q 'rm -f "\$dst/scripts/\$f"' "$TARGET/install.sh" \
+      && ok "安装器剥离源里的运行时私产（空机不会带出监测目标）" \
+      || no "安装器未剥离源里的运行时私产（从仓库目录安装会泄露个人资产）"
+  fi
 fi
 # 探源司 v1.26.0 能力（2026-11-12 从旧仓 tvbox-eco 并回）：修源 / 写源四门禁 / 广告治理
 if [ -d "$SK/probe-hub/repair" ]; then

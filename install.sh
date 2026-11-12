@@ -127,6 +127,15 @@ cp_bak() {  # cp_bak <src> <dst>
   fi
   if [ -e "$dst" ]; then rm -rf "$dst"; fi
   cp -r "$src" "$dst"
+  # ★ 源目录里的运行时文件是**本机私产**（186 条监测目标 / 死册 / 候选册 / state），
+  #   绝不能随安装漏到目标机：gitignore 只挡 git clone，挡不住"从仓库目录 cp 过去"。
+  #   2026-11-12 实测：HOME=/tmp/blank 空机安装后探源司里出现 185 个目标——就是这一步漏的。
+  #   所以 cp 完先删源带来的那份，再回填现场那份（若有）。
+  if [ -d "$dst/scripts" ]; then
+    for f in $RUNTIME_FILES; do
+      [ -e "$dst/scripts/$f" ] && rm -f "$dst/scripts/$f"
+    done
+  fi
   if [ -n "$tmpdir" ]; then
     mkdir -p "$dst/scripts"
     local kept=""

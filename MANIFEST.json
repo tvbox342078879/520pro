@@ -365,7 +365,7 @@
   ],
   "changelog_0_8_12": [
     "★账号接管 adopt（space-hub v2.5.0）：三态判定 fresh/hybrid/foreign/unknown——空空间按蓝图建 17 单元；老账号认领已有+登记存量（**只登记不搬**，15 条历史进索引，业务分类写说明、类别按节点类型）；别人的空间拒绝接管（exit 3，需 --force）；枚举失败报 unknown，绝不折叠成 fresh 去乱建",
-    "★分发净化：探源司 5 个运行时刻度册（monitor_targets 186 条/domains/pubsources/dead_repos/shellcrack_cands）退出 git 并 gitignore，各留 .example.json 模板；新机器首次运行自动建空册，shellcrack 缺件不再抛 FileNotFoundError（实测 rc=0 并给出 --in 用法）",
+    "★分发净化：探源司 5 个运行时刻度册（monitor_targets 186 条/domains/pubsources/dead_repos/shellcrack_cands）退出 git 并 gitignore，各留 .example.json 模板；新机器首次运行自动建空册，shellcrack 缺件不再抛 FileNotFoundError（实测 rc=0 并给出 --in 用法）。**安装器同步剥离**：gitignore 只挡 git clone，挡不住\"从仓库目录 cp 到别人机器\"——实测空机安装后探源司出现 185 个目标，故 cp_bak 拷完即删源带来的运行时文件，再回填现场那份（实测：空机 0 目标自建空册 / 本机 5 册 sha 不变）",
     "★学习资料出口接线（learn-hub v1.4.0）：learn store put 收尾自动进「📚 学习资料/成品」——主文档（index.md>README.md>唯一 md）单建文档节点可读可检索，整目录打 zip 兜底；索引只记一条（zip 走 write_index=False），说明含「N 文件｜主文档｜整包名」；无主文档时如实写「未识别到主文档」并改走整包",
     "★修复 v0.8.11 潜伏缺陷：archive_out 在「当天已自举」分支跳过空间解析，新进程里 SPACE=None，建夹时 subprocess 收到 None 抛 TypeError 导致归档全挂；现入口显式 resolve_space，_create_folder 加 None 守卫",
     "★classify 落点统一：登记册 target 由根层级旧名（归档·报告与交付）改为路径（📦 产物归档/文档），与 archive 共用 _ensure_path；实测 10 项存量归入 2 个夹，根层级不再新建同名夹",
