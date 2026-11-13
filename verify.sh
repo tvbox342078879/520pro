@@ -95,6 +95,15 @@ if [ "$SELFTEST" = 1 ]; then
   exit "$_sf"
 fi
 
+# ★ v0.8.21（S228 落地）：推送安全包装——向 GitHub 推送必须走 hooks/git_push_safe.sh，
+#   禁止裸 `git push`。这里只验"执行体在、语法通"，不发起任何网络动作。
+#   脚本自带三态退出码与 rev-parse 终验，是推送纪律的正本入口。
+if [ -f "$TARGET/hooks/git_push_safe.sh" ] && bash -n "$TARGET/hooks/git_push_safe.sh" 2>/dev/null; then
+  ok "hooks/git_push_safe.sh（推送安全包装在位，语法过）"
+else
+  no "hooks/git_push_safe.sh 缺失或语法错误——推送纪律没有执行体"
+fi
+
 echo
 # ★ H4（v0.8.20）：--repo-only 只验仓库自身（检出完整性 + 契约 + 口径 + 回归），
 #   不验安装落点。给 bootstrap.sh 用——它只负责"检出完整"，还没装到 ~/.codebuddy。

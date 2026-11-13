@@ -44,3 +44,8 @@
   所以不是体积问题，是协议层握手挂起。
 - **别做**：不要在 `gh api` 显示远端 sha 没变之前就 `git push --force`——
   万一那头其实已经收到了，force 会把别人的提交覆盖掉。也**别**在同一个卡住的进程上反复敲回车。
+- **正本入口（v0.8.21 起）**：别手敲上面这些——520pro 仓库自带
+  `hooks/git_push_safe.sh`（S228 落地：5 次指数退避 + jitter + 只重试瞬时错误 +
+  单次限时 + rev-parse 终验 + SSH over 443 兜底）。推送一律
+  `bash hooks/git_push_safe.sh [remote] [branch]`，结果用
+  `bash hooks/git_push_safe.sh --status` 事后确认（三态）。本条保留手工步骤作原理说明。

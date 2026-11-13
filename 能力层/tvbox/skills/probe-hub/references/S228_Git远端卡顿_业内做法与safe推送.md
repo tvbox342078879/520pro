@@ -1,5 +1,12 @@
 # S228 · Git 远端卡顿：业内做法与本仓 safe 推送落地
 
+> **★ 520pro 落地登记（v0.8.21，2026-11-13）**：本文描述的方案已有执行体——
+> `hooks/git_push_safe.sh`（自旧生态随迁适配，含 5 次指数退避 + jitter + 瞬时错误白名单 +
+> per-attempt timeout + rev-parse 终验 + SSH over 443 兜底 + 平台降级，三态退出码）。
+> 推送纪律：**向 GitHub 推送一律走该脚本，禁止裸 `git push`**；
+> `verify.sh` 检查其存在与语法（缺失即红），检出清单（MANIFEST `sync_shape`）已含它。
+> 本文保留为**业内依据真源**，参数与理由只读这里，不在脚本注释里复制全文（M2）。
+
 > 起因：S227 推送时连续 `Failed to connect to github.com port 443`（133s 超时），
 > 出口网络抖动（同一地址 25s 超时与 200 交替）。用户明令：**遇到新问题先看业内，别自己瞎琢磨**。
 

@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.20",
+  "version": "0.8.21",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -299,7 +299,10 @@
       "通用层/",
       "能力层/",
       "docs/",
-      "verify/"
+      "verify/",
+      "hooks/git_push_safe.sh",
+      "hooks/pre-commit",
+      ".github/workflows/verify.yml"
     ],
     "lite": [
       "MANIFEST.json",
@@ -313,7 +316,8 @@
       "能力层/tvbox/skills/probe-hub/",
       "能力层/tvbox/skills/tvbox-core/",
       "能力层/tvbox/scripts/",
-      "verify/"
+      "verify/",
+      "hooks/git_push_safe.sh"
     ]
   },
   "bootstrap": {
@@ -470,5 +474,11 @@
     "新增回归 4 个：test_triggers(13)/test_docsync(8)/test_skill_cards(16)/test_node_parent(6)/test_verify_exit(5，不挂 verify.sh 防递归)；verify.sh 扩展回归 8 项全跑",
     "实测：verify.sh 65✓ 0✗ 0⚠ 2·（rc=0）；契约 58✓；口径机检 5✓；巡检健康分 84、红门 0、八门无在册待补",
     "遗留登记 4 条 → 2 条：惊门闭环删除；tvbox-inspect 瘦身移除（520 本体无此物，存于旧仓 archive，属旧仓事项）；2 个测试库已投收件箱（待用户手动删）；手机端导入材料已备（App 内导入格式仍待确认）"
+  ],
+  "changelog_0_8_21": [
+    "★S228 落地（用户指令：把 git 推送规则从文档变成执行体）。hooks/git_push_safe.sh 自旧生态 tvbox-eco 随迁适配：5 次指数退避(3s/factor=2)+jitter、瞬时错误白名单(443/SSL/RPC/429/503,认证类不重试)、per-attempt timeout 300s(超时=未确认不算成功)、rev-parse 终验(退出码不可信)、SSH over 443 兜底、GitHub 平台降级、三态退出码+--status。",
+    "推送纪律成文：向 GitHub 推送一律走 hooks/git_push_safe.sh，禁止裸 git push。S228 调研件头部加落地登记（M2 引用不复制）；machine-bootstrap TROUBLESHOOTING 第 6 条补正本入口指针；verify.sh 新增脚本在位+语法检查（缺失即红）。",
+    "sync_shape 补 hooks/ 与 .github/workflows/verify.yml（否则换机副本缺推送工具与远端闸）。",
+    "反向实测：假仓地址→第1次 port 443 判瞬时退避重试、第2次 repository not found 判非瞬时拒绝重试（✗ 不再尝试），行为与 S228 设计一致；--status 无记录 rc=2 三态不折叠。测试命令自身一处测量笔误（$? 误当 $rc）如实记录，脚本无缺陷。"
   ]
 }
