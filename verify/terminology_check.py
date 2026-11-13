@@ -85,7 +85,13 @@ def check_numbering(repo):
     """
     p = os.path.join(repo, '通用层', 'rules', 'core-8.md')
     if not os.path.exists(p):
-        rec('T1', '·', '未找到 通用层/rules/core-8.md——编号无法判定（不算通过）')
+        # v0.8.36：规则目录在、core-8 没了 = 真源丢失（✗，这是真问题）；
+        # 整个规则目录不在 = lite 形状/不是完整仓（·，不该管）。
+        # 原先一律记 '·'，等于把「真源被删」和「这个仓本来就没有」折叠进同一个数。
+        if os.path.isdir(os.path.dirname(p)):
+            rec('T1', '✗', '通用层/rules/ 存在但 core-8.md 缺失——真源丢失，编号无从校验')
+        else:
+            rec('T1', '·', '通用层/rules/ 不存在——lite 形状无规则真源，不适用')
         return
     t = read(p)
     # 只认正文条款行："1. **B-01 语言**：" 或（缺标注时）"1. **语言**："
@@ -212,7 +218,10 @@ def check_rule_map(repo):
     c8 = os.path.join(repo, '通用层', 'rules', 'core-8.md')
     rmp = os.path.join(repo, 'verify', 'rule_map.json')
     if not os.path.exists(c8):
-        rec('T4', '·', '未找到 core-8.md——规则↔验证器映射无法判定')
+        if os.path.isdir(os.path.dirname(c8)):
+            rec('T4', '✗', '通用层/rules/ 存在但 core-8.md 缺失——真源丢失，规则映射无从校验')
+        else:
+            rec('T4', '·', '通用层/rules/ 不存在——lite 形状无规则真源，不适用')
         return
     if not os.path.exists(rmp):
         rec('T4', '✗', 'verify/rule_map.json 缺失（每条规则都声称有验证入口，但映射表不存在）')

@@ -532,8 +532,12 @@ if [ -f "$TARGET/verify/skill_contract_check.py" ]; then
   cok=$(printf '%s\n' "$cout" | grep -c '  ✓ \[' || true)
   cno=$(printf '%s\n' "$cout" | grep -c '  ✗ \[' || true)
   cwarn=$(printf '%s\n' "$cout" | grep -c '  ⚠ \[' || true)
+  # v0.8.36：◐=环境欠账（该装没装），·=结构性不适用（lib 类/本机不装）。两者都不阻断，
+  # 但看输出要能分清「去装一下」和「这本来就不该管」——原先都记 ·，分不出来。
+  cpart=$(printf '%s\n' "$cout" | grep -c '  ◐ \[' || true)
+  cskip=$(printf '%s\n' "$cout" | grep -c '  · \[' || true)
   if [ "$cstat" -eq 0 ]; then
-    ok "技能契约 $cok 项通过（$cwarn 项 WARN 不阻断）"
+    ok "技能契约 $cok 项通过（$cwarn WARN / $cpart 环境欠账 / $cskip 不适用，均不阻断）"
   else
     no "技能契约 $cno 项失败（$cok 项通过）——详情: python3 verify/skill_contract_check.py"
     printf '%s\n' "$cout" | grep '  ✗ \[' | head -6 | sed 's/^/     /'
@@ -583,7 +587,12 @@ if [ -f "$TARGET/verify/lib_refs_check.py" ]; then
     fi
   fi
   if [ "$lrc" -eq 2 ]; then
-    opt "$(printf '%s' "$lout" | sed 's/^  · 无法判定：//')"
+    # v0.8.36：◐=环境欠账（library 没装，该装）→ 黄色提醒；·=无法判定 → 灰色可选项
+    if printf '%s' "$lout" | grep -q '◐'; then
+      warn "$(printf '%s' "$lout" | sed 's/^  ◐ 环境欠账：//' | head -1)"
+    else
+      opt "$(printf '%s' "$lout" | sed 's/^  · 无法判定：//' | head -1)"
+    fi
   elif [ "$lrc" -ne 0 ]; then
     no "外部引用失配——详情: python3 verify/lib_refs_check.py --strict"
     printf '%s\n' "$lout" | grep '↳' | head -3 | sed 's/^/     /'
@@ -654,7 +663,8 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
          test_linkage_notice test_secret_scan_size test_trigger_frontload \
-         test_artifact_scan test_lib_refs_probe; do
+         test_artifact_scan test_lib_refs_probe \
+         test_skill_contract_mutants test_partial_level test_terminology_mutants; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
@@ -668,7 +678,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
 done
 
 echo "============================================"
-printf '汇总：✓ 通过 ／ ✗ 失败 %d ／ · 无法判定 %d\n' "$FAILS" "$UNKNOWNS"
+printf '汇总：✓ 通过 ／ ✗ 失败 %d ／ · 不适用或无法判定 %d\n' "$FAILS" "$UNKNOWNS"
 if [ "$FAILS" -gt 0 ]; then
   echo "✗ 自检未通过（退出码 2）——红项在上方，逐条处置后重跑"
   exit 2

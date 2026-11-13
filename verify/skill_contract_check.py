@@ -26,9 +26,12 @@
   C10 样本词桥   触发样本 T 组每条须能在 description 里找到词桥（非泛用二字词 / 英文词）——
                  找不到说明"样本说会触发、描述里根本没这说法"，路由无依据（v0.8.31）
 
-【三态纪律（core-8 第 2 条）】
-  安装目录不存在 = 「无法判定」（SKIP），既不记通过也不记失败；
-  绝不把"没装/没测"折叠成"通过"。
+【状态五档（v0.8.36 起）】
+  ✓ 通过 / ✗ 契约失败 / ⚠ 已登记的待办（如样本集待补）/ 
+  ◐ PARTIAL 环境欠账（该修：装根在、这个技能漏装）/ 
+  · SKIP 结构性不适用（lib 类无 SKILL.md、本机压根不装技能）——永远如此，不该管
+  区分 ◐ 与 · 的理由：两者原先都记 '·'，看输出分不清「我该去装一下」和「这本来就不适用」。
+  退出码只看 ✗：◐ 与 · 都不阻断，但它们指向的下一步动作完全不同。
 
 用法:
   python3 verify/skill_contract_check.py [--repo <仓库根>] [--install <安装根>] [--require-mirror] [--json]
@@ -57,14 +60,18 @@ SKIP_EXT = {'.pyc', '.pyo', '.swp'}
 USE_COLOR = sys.stdout.isatty() and not os.environ.get('NO_COLOR')
 
 results = []   # (check_id, skill, level, msg)   level: ✓ / ✗ / ⚠ / ·
-counts = {'ok': 0, 'fail': 0, 'warn': 0, 'skip': 0}
+# 五档（v0.8.36）：✓ 通过 / ✗ 契约失败 / ⚠ 已登记的待办 / ◐ PARTIAL（环境欠账，该修）/
+# · SKIP（结构性不适用，永远如此，不该管）。原来是四档，'·' 同时承担「没装」和
+# 「lib 类不适用」——看输出分不清是欠账还是本就不该管，等于把两类结论折叠成一个数。
+counts = {'ok': 0, 'fail': 0, 'warn': 0, 'partial': 0, 'skip': 0}
 
 
 def rec(cid, skill, level, msg):
     results.append((cid, skill, level, msg))
-    counts['ok' if level == '✓' else 'fail' if level == '✗' else 'warn' if level == '⚠' else 'skip'] += 1
+    counts[{'✓': 'ok', '✗': 'fail', '⚠': 'warn', '◐': 'partial', '·': 'skip'}[level]] += 1
     icon = {'✓': '\033[32m✓\033[0m', '✗': '\033[31m✗\033[0m',
-            '⚠': '\033[33m⚠\033[0m', '·': '\033[90m·\033[0m'}[level] if USE_COLOR else level
+            '⚠': '\033[33m⚠\033[0m', '◐': '\033[36m◐\033[0m',
+            '·': '\033[90m·\033[0m'}[level] if USE_COLOR else level
     print(f'  {icon} [{cid}] {skill}: {msg}')
 
 
@@ -253,8 +260,12 @@ def check_mirror(name, spec, base, install_root, runtime, required=False, skip_d
         if required:
             # 变异测试实证：整块 SKIP 时若仍 exit 0，在未安装的机器上就是假绿。
             rec('C5', name, '✗', f'安装副本不存在（{dst}）——--require-mirror 下记失败（未装或装错位置）')
+        elif os.path.isdir(install_root):
+            # 装根在、这个技能不在 = 漏装了一件。这是「该修」，不是「不该管」。
+            rec('C5', name, '◐', f'安装副本缺失（{dst}）——装根存在但本技能未装，属漏装')
         else:
-            rec('C5', name, '·', f'安装副本不存在（{dst}）——无法判定，不折算通过')
+            # 装根整体不存在 = 这台机器压根不装技能（CI / 换机检出 / --repo-only）。
+            rec('C5', name, '·', f'安装根不存在（{install_root}）——本机不装技能，不适用')
         return
     src_files = walk_files(base, runtime, skip_dirs)
     dst_files = walk_files(dst, runtime, skip_dirs)
@@ -501,9 +512,12 @@ def main(argv):
         print()
 
     print('─' * 60)
-    print(f'结果：{counts["ok"]} ✓ ｜ {counts["fail"]} ✗ ｜ {counts["warn"]} ⚠ ｜ {counts["skip"]} ·（无法判定）')
+    print(f'结果：{counts["ok"]} ✓ ｜ {counts["fail"]} ✗ ｜ {counts["warn"]} ⚠ ｜ '
+          f'{counts["partial"]} ◐（环境欠账）｜ {counts["skip"]} ·（不适用）')
+    if counts['partial']:
+        print(f'◐ {counts["partial"]} 项环境欠账（该修：漏装副本等），不计入通过也不算仓库坏')
     if counts['skip']:
-        print(f'· {counts["skip"]} 项「无法判定」（安装副本不存在或 lib 类不适用）——不计入通过')
+        print(f'· {counts["skip"]} 项结构性不适用（lib 类无 SKILL.md / 本机不装技能）——永远如此，不该管')
     if counts['fail']:
         print('✗ 存在契约失败项（见上）；修完重跑，全绿才算完成')
     elif counts['warn']:

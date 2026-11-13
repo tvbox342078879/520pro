@@ -459,12 +459,29 @@ def _report_probe(refs, units, alive, ambiguous, strict):
     return hard, len({r for r, _ in unknown})
 
 
+def _refs_guess():
+    """library 未安装时的轻量预扫：只跑正则，不起进程、不探活。
+
+    为什么要有：未安装时若只说「未安装」，用户不知道该不该在意。
+    报出「有 N 类引用正等着校验」才能判断这是欠账还是无事可做。
+    只跑 collect_refs 的第一段（纯正则），成本是毫秒级。
+    """
+    try:
+        refs, _units, _amb = collect_refs()
+        return refs
+    except Exception:
+        return {}
+
+
 def main():
     argv = sys.argv[1:]
     strict = '--strict' in argv
     probe = '--probe' in argv
     if not os.path.isdir(LIB):
-        print(f'  · 无法判定：library 技能未安装（{LIB} 不存在），本机不校验外部引用')
+        # v0.8.36：这是 PARTIAL（环境欠账，该装），不是 SKIP（结构性不适用）。
+        # 两者原先都打 '·' 都返回 2，看输出分不清「我该去装一下」和「这本来就不该管」。
+        print(f'  ◐ 环境欠账：library 技能未安装（{LIB} 不存在）——'
+              f'装好 library 才能校验 {len(_refs_guess())} 类外部引用（本机不计通过）')
         return 2
 
     refs, units, ambiguous = collect_refs()
