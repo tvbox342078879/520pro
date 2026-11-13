@@ -47,9 +47,11 @@ FACTOR="${GIT_PUSH_DELAY_FACTOR:-2}"        # 指数退避倍数（0=线性 1=�
 ATTEMPT_TIMEOUT="${GIT_PUSH_ATTEMPT_TIMEOUT:-300}"  # 每次尝试单独限时（nick-fields/retry 设计：per-attempt，非整体）
 VERBOSE="${GIT_PUSH_VERBOSE:-0}"            # 1=GIT_TRACE 全开（业内调试模式）
 
-# 已知瞬时错误（对齐 git_retry 的 shouldRetry 思路，按本仓实测错误文本扩充；
-# 失败分类学：429/503/限流可重试；401/403 认证类、OOM(137)、磁盘满绝不在此列）
-TRANSIENT_RE='Could not (resolve host|connect)|Connection (reset|timed out)|port 443|Connection refused|SSL_|GnuTLS|RPC failed|early EOF|index-pack failed|the remote end hung up|Failed to connect|HTTP (429|503)|rate limit|too many requests|i/o timeout|Exit code 124'
+# 已知瞬时错误（对齐 git_retry 的 shouldRetry 思路，按实测错误文本扩充；
+# 失败分类学：429/503/限流可重试；401/403 认证类、OOM(137)、磁盘满绝不在此列。
+# 2026-11-13 520pro 实测新增 Empty reply from server——服务器空响应=链路抖动，
+# 狗粮测试首推即撞上，旧白名单漏了它导致误判非瞬时。）
+TRANSIENT_RE='Could not (resolve host|connect)|Connection (reset|timed out)|port 443|Connection refused|SSL_|GnuTLS|RPC failed|early EOF|index-pack failed|the remote end hung up|Failed to connect|HTTP (429|503)|rate limit|too many requests|i/o timeout|Exit code 124|Empty reply from server|Connection was reset by peer|connection closed by remote'
 
 log() { echo "[push-safe] $*" | tee -a "$LOG_FILE" >&2; }
 
