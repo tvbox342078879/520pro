@@ -6,13 +6,13 @@
 
 ## 1. 当前主线（一句话）
 
-工程 J（三源纪律合并 × 机检化）施工中：core-8 从 10 条扩到 **B-16**，新增「后台与落盘 / 回合收敛 / 完成态凭落点 / 账目三齐 / 孤例还是模式 / 双核必保」；能机检的两条已落地（B-14 进 `test_handoff.py`、B-16 进 `verify.sh`），SKILL.md 体积 40KB 上限进契约检查（probe-hub 现 52KB 记 WARN）。**本批改动尚未推送**，正反向验证通过后才推。
+工程 J（三源纪律合并 × 机检化）已完成并推送：core-8 从 10 条扩到 **B-16**，新增「后台与落盘 / 回合收敛 / 完成态凭落点 / 账目三齐 / 孤例还是模式 / 双核必保」；B-14 进 `test_handoff.py`、B-16 进 `verify.sh`，SKILL.md 体积 40KB 上限进契约检查（probe-hub 50.8KB 记 WARN）。**远端 008c1e2，CI 七步全绿**；本机安装副本已同步。
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
 - 版本：0.8.22
-- 远端：本批**未推**；推送必须走 `hooks/git_push_safe.sh`，推完用 `git rev-parse origin/main` 回读 sha 核对（不凭"命令没报错"）
+- 远端：`origin/main` 与本地 HEAD 一致（008c1e2，回读 sha 核对过）；推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
 
 ## 3. 习惯快照指针（只指，不抄）
@@ -30,7 +30,6 @@
 
 | 事项 | owner | next | due |
 |---|---|---|---|
-| 工程 J 批次 2–4：机检收尾 + 正反向验证 + 推送 | 助手 | 跑 verify/变异测试 → 同步安装副本 → 走 git_push_safe 推送 | `bash verify.sh` 0 ✗ 且远端 sha 回读一致 |
 | 云端收件箱 2 个测试库待删 | 用户 | 在资料库 App 内手动点删 | 用户确认删除即完 |
 | 手机端规则硬轨更新到 B-16 | 用户 | 重新粘贴 `手机指令.md` 的粘贴区 | 粘贴后回一条「已更新」 |
 | GitHub 账号双因子 | 用户 | 在账号安全设置里开启 2FA | 2026-12-08 前 |
