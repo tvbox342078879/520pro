@@ -14,6 +14,7 @@
 | 生态版本号 | `VERSION`（首行） | install.sh / verify.sh / bootstrap.sh 读；**不许**在别处写死版本 |
 | 分发清单与变更记录 | `MANIFEST.json`（`version` + `changelog_0_x_y`） | 安装范围、各技能登记版本（C4 第四方对账来源） |
 | 换机稀疏检出集合 | `MANIFEST.json` 的 `sync_shape` | `bootstrap.sh` 读；不可读时回退脚本内置清单 |
+| 手机指令云端副本（nodeId + 内容 sha） | `docs/手机指令云端副本.json` | 由 `sync_phone_directive.py` 写；`verify.sh` 用它离线判「副本是否过期」。**手改这个文件等于伪造"已同步"**，比对 sha 只能由脚本算 |
 
 ## 二、规则层
 

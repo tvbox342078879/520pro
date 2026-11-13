@@ -21,7 +21,23 @@ if ! python3 secret_scan.py --strict >>"$LOG" 2>&1; then
   exit 1
 fi
 
-echo "[pre-commit] ② 仓库级自检（--repo-only：不依赖安装副本）"
+echo "[pre-commit] ② 手机指令云端副本同步"
+# 只在「手机指令.md 进本次提交」时跑：其它改动不该被网络请求拖慢。
+# 同步失败不在这里硬拦（网络/库环境可能真不可用），但下面的 verify.sh 会因判据红而拒提交，
+# 也就是"改了粘贴区就必須同步成功"这条约束仍然成立，只是失败原因由判据统一报。
+if git diff --cached --name-only --diff-filter=ACMR | grep -qx '手机指令.md'; then
+  if python3 sync_phone_directive.py --repo "$ROOT" >>"$LOG" 2>&1; then
+    git add docs/手机指令云端副本.json 2>/dev/null || true
+    echo "  ✓ 粘贴区有变更，已同步云端副本（回读通过）"
+  else
+    echo "  ⚠ 同步未成功（网络或资料库环境不可用）；判据会因此变红并拒提交"
+    tail -3 "$LOG" | sed 's/^/   /'
+  fi
+else
+  echo "  · 本次提交未改 手机指令.md，跳过"
+fi
+
+echo "[pre-commit] ③ 仓库级自检（--repo-only：不依赖安装副本）"
 if ! bash verify.sh --repo-only --target "$ROOT" >>"$LOG" 2>&1; then
   echo "✗ 提交被拒：仓库级自检未通过"
   grep -E '  ✗' "$LOG" | head -8 | sed 's/^/   /'

@@ -447,6 +447,26 @@ PYEOF
 else
   no "手机指令.md 缺失（手机通道断：手机端不读项目薄壳）"
 fi
+
+# ★ v0.8.26：手机指令云端副本新鲜度
+#   起因：手机打不开本地路径、GitHub raw 在手机 App 里也不稳，所以硬轨正文另存了一份
+#   云端 doc 供直接复制。但镜像靠人手动更新必然过期——过期后手机上粘的是旧规则，
+#   而且没有任何信号。这里只判「有没有过期」（离线，断网也能判），同步动作在
+#   sync_phone_directive.py，触发出现在 hooks/pre-commit。
+echo
+echo "[手机指令云端副本（v0.8.26 起）]"
+if [ -f "$TARGET/sync_phone_directive.py" ]; then
+  phout="$(python3 "$TARGET/sync_phone_directive.py" --repo "$TARGET" --check 2>&1)"
+  phrc=$?
+  case "$phrc" in
+    0) ok "$(printf '%s' "$phout" | sed 's/^FRESH  *//')" ;;
+    1) no "$(printf '%s' "$phout" | sed 's/^STALE  *//')"
+       echo "     处置：python3 sync_phone_directive.py（同步 + 回读校验，幂等）" ;;
+    *) opt "云端副本判据无法判定：$(printf '%s' "$phout" | head -1)" ;;
+  esac
+else
+  opt "sync_phone_directive.py 缺失——云端副本新鲜度未检"
+fi
 if [ -f "$TARGET/能力层/tvbox/CODEBUDDY.md" ]; then
   ok "项目薄壳 CODEBUDDY.md 在位"
   grep -q "core-8" "$TARGET/能力层/tvbox/CODEBUDDY.md" \
@@ -594,7 +614,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 # ★ 注意：test_verify_exit.sh **不能**挂在这里——它内部会调 verify.sh，会无限递归。
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
-         test_triggers test_docsync test_skill_cards test_ledger_laws; do
+         test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
