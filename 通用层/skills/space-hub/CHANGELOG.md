@@ -1,3 +1,9 @@
+## v2.7.4 — 建库正本迁移（520 v0.8.32，2026-11-13）
+- 平台 library 把 `database/create_database.py` 重构为 `db_create.py`，字段键 `properties` → `fields`（`db_create.py:450` 读 `payload["fields"]`）；`_create_db_api` 改为新路径 + 键名适配，三处调用点继续传 properties 不用各改一遍
+- 建库正本输出加了状态前缀（实测 `KS_DB_CREATE_OK\t{json}`），JSON 不在行首，旧的「逐行找 `{` 开头」解析漏掉 → 新增 `_first_json_object`（逐个 `{` 试解析到末尾）；不修会导致「库建成了但判失败」，进而每跑一次自举就多建一个空库
+- 实证：`printf '{"title":"T","fields":[...]}' | db_create.py --stdin --dry-run` → `source: fields, property_count: 1`；`space_hub.py ensure --dry-run` → 原「将建」变「认领」
+- 背景：全仓 8 类 library 引用失配（22 处），本次只修建库 1 类，其余见 `docs/遗留登记.md` + `verify/lib_refs_check.py`
+
 ## v2.7.3 — 触发语义前置（520 v0.8.31 工程K，2026-11-13）
 - description 首句改为「当用户说「…」「…」时使用本技能」，把 5 个高频口语说法提到前 80 字内：平台只把描述编成截断预览给模型看，触发词写在尾巴上等于没写（C9 机检）
 - 依赖项：`verify/skill_contract_check.py` 新增 C9 触发前置 / C10 样本词桥；`verify/tests/test_trigger_frontload.py` 8 用例变异回归

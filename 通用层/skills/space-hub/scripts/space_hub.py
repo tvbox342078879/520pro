@@ -2206,29 +2206,41 @@ def cmd_classify(a):
     return 0
 
 
+def _first_json_object(text):
+    """从任意前缀文本里摘出第一个可解析的 JSON 对象，找不到返回 {}。
+
+    平台正本会输出 `KS_XXX_OK\\t{json}` 这类带状态前缀的行（2026-11-13 实测
+    db_create.py），JSON 不在行首——按行首判 '{' 会漏。这里逐个 '{' 试解析。
+    """
+    for i, ch in enumerate(text):
+        if ch != '{':
+            continue
+        try:
+            obj = json.loads(text[i:])
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            continue
+    return {}
+
+
 def _create_db_api(sc):
-    """调 library 建库正本（create_database.py --stdin）+ 多行 JSON 解析 + 父容器回读。
-    返回 (db_id, err)。M-R38 单一实现：cmd_create_db 与 _ensure_index_db 共用（B-08 不自造）。"""
-    r = subprocess.run([sys.executable, f'{LIB}/database/create_database.py', '--stdin'],
-                       input=json.dumps(sc, ensure_ascii=False), capture_output=True, text=True)
+    """调 library 建库正本（db_create.py --stdin）+ 多行 JSON 解析 + 父容器回读。
+    返回 (db_id, err)。M-R38 单一实现：cmd_create_db 与 _ensure_index_db 共用（B-08 不自造）。
+
+    v0.8.32（2026-11-13 实测）：平台 library 把 create_database.py 重构为
+    db_create.py，字段键 properties → fields（db_create.py:450 读 payload["fields"]）。
+    键名适配放在这里、三处调用点继续传 properties，避免同一件事改三遍漏一处。
+    """
+    payload = dict(sc)
+    if 'properties' in payload and 'fields' not in payload:
+        payload['fields'] = payload.pop('properties')
+    r = subprocess.run([sys.executable, f'{LIB}/database/db_create.py', '--stdin'],
+                       input=json.dumps(payload, ensure_ascii=False), capture_output=True, text=True)
     out = (r.stdout or '').strip()
-    # 正本输出可能是多行 pretty JSON——整体解析，失败再退化到逐行找首个完整 '{' 块
-    try:
-        j = json.loads(out)
-    except Exception:
-        buf, j = '', None
-        for ln in out.splitlines():
-            if ln.strip().startswith('{') and not buf:
-                buf = ln
-            elif buf:
-                buf += '\n' + ln
-            if buf:
-                try:
-                    j = json.loads(buf)
-                    break
-                except Exception:
-                    continue
-        j = j or {}
+    # 正本输出形态：v0.8.32 实测为 `KS_DB_CREATE_OK\t{...}`——JSON 与状态前缀同行，
+    # 行首不是 '{'，旧的「逐行找 '{' 开头」会漏掉。改为从每个 '{' 位置试解析到末尾。
+    j = _first_json_object(out)
     db_id = j.get('database_id', '')
     if not db_id:
         return '', f'{out[:200]}{(r.stderr or "")[:200]}'

@@ -25,7 +25,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/artifact-store",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -104,7 +104,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/space-hub",
-      "version": "2.7.3",
+      "version": "2.7.4",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",

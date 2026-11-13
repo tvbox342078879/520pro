@@ -566,6 +566,24 @@ PYEOF
   fi
 fi
 
+echo
+echo "[外部引用对账（v0.8.32 起·library 升级后指针失效的闸）]"
+if [ -f "$TARGET/verify/lib_refs_check.py" ]; then
+  lout="$(python3 "$TARGET/verify/lib_refs_check.py" 2>&1)"; lrc=$?
+  if [ "$lrc" -eq 2 ]; then
+    opt "$(printf '%s' "$lout" | sed 's/^  · 无法判定：//')"
+  elif [ "$lrc" -ne 0 ]; then
+    no "外部引用失配——详情: python3 verify/lib_refs_check.py --strict"
+    printf '%s\n' "$lout" | grep '↳' | head -3 | sed 's/^/     /'
+  elif printf '%s' "$lout" | grep -q '⚠'; then
+    warn "$(printf '%s' "$lout" | head -1 | sed 's/^  ⚠ //')"
+  else
+    ok "$(printf '%s' "$lout" | head -1 | sed 's/^  ✓ //')"
+  fi
+else
+  no "verify/lib_refs_check.py 缺失（外部引用闸未装）"
+fi
+
 # ★ v0.8.16（工程D）：口径机检——M4 编号连续（每条须带 B-xx 且与序号对齐）+ M2/M5 引用断链
 # 为什么要有：core-8 的 M5 自己写着"断链/词表误用/编号越界/复制条款四类须全绿"，
 # 但在此之前这四类**没有任何机检入口**（M1 声称的 docs/registry.md 与 verify/terminology_check.py
@@ -623,7 +641,8 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
-         test_linkage_notice test_secret_scan_size test_trigger_frontload; do
+         test_linkage_notice test_secret_scan_size test_trigger_frontload \
+         test_artifact_scan; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

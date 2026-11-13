@@ -1,5 +1,11 @@
 # artifact-store · CHANGELOG
 
+## v1.0.3 — 执行体落地（520 v0.8.32，2026-11-13）
+- 新增 `scripts/artifact.py`：本技能从纯契约变为可执行件。`scan` 只出计划不动文件，`--json` 供巡检消费，`self-check` 8 例构造样本验证分类器
+- 三条判据写死为可复核逻辑，替代「照文档自己编」：①含 `.git` 的子树整体保护（实测 25.1M 会话里 22.6M 是仓库副本，按 mtime 清会删工作副本）②轮次 = 会话目录而非文件 mtime ③符号链接不跟随
+- 脚本无删除分支：三态 `OK/NOOP/UNKNOWN`，UNKNOWN 退 2 绝不装绿；删除永远由人看计划后执行
+- 依赖项：`verify.sh` 扩展回归挂 `self-check`（拆掉任一分类规则必须翻红）
+
 ## v1.0.2 — 触发语义前置（520 v0.8.31 工程K，2026-11-13）
 - description 首句改为「当用户说「…」「…」时使用本技能」，把 5 个高频口语说法提到前 80 字内：平台只把描述编成截断预览给模型看，触发词写在尾巴上等于没写（C9 机检）
 - 依赖项：`verify/skill_contract_check.py` 新增 C9 触发前置 / C10 样本词桥；`verify/tests/test_trigger_frontload.py` 8 用例变异回归
