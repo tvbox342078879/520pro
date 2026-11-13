@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.23",
+  "version": "0.8.24",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -58,7 +58,7 @@
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
           "role": "库务司·云端库总管 v2.7.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号，拒收带结构化三元组",
-          "version": "2.7.1"
+          "version": "2.7.2"
         },
         "skills/space-hub/scripts/space_hub.py": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
@@ -497,5 +497,11 @@
     "五条有意不入硬轨并逐条登记理由（B-04 并行/B-09 产物纪律/B-12 回合收敛/B-14 账目三齐/B-15 孤例还是模式），按 M7 显式登记为有意例外，不按漏项处理",
     "verify.sh 手机硬轨判据升级：从「抽查 B-10 一条 + 比范围字符串」改为结构化对账——hard-rail ∪ hard-rail-exempt 必须不重不漏等于 core-8 全部编号，必入五项（B-02/10/11/13/16）必须在 rail 内；四变异全翻红（扩条未决定去向/必入项漏放/编号写错/同时进两队）",
     "修一处自己写出的断链：第 12 条初稿写 `scripts/core.py` 被判 T3 断链命中（真阳性，判据没错），改全路径 能力层/tvbox/skills/tvbox-core/scripts/core.py"
+  ],
+  "changelog_0_8_24": [
+    "space-hub v2.7.2「回执≠回读」闭环：cmd_add 幂等命中回读核实（过期记录清掉放行重投，不再静默 return 0）+ 移动回执后落地回读（未落地 rc=3，对齐 cmd_move）+ _nodes_or_none 翻页（单页 50 上限漏读 81 项的实战教训）",
+    "回归测试 verify/tests/test_space_hub_add.py：分页收全 / 过期登记重投 / 真幂等短路 / 未落地不当作成功 / 失败→None 三态不塌，16 断言；三处变异各自精确翻红",
+    "TROUBLESHOOTING 第 4 条补充：手写 list-nodes 调用漏翻页的绕坑口径（列子节点一律复用 _kids / _nodes_or_none）",
+    "修正昨日错误记录：「_kids() 单页不翻页」是误认——_kids 本就是翻页版，单页的是 _nodes_or_none（判账号形态用）；B-15 判定：模式（脚本缺陷 ×2 + 模型侧绕过正门 ×1），机制=回读判据进 cmd_add + 正本入口教训进 TROUBLESHOOTING"
   ]
 }

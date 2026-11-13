@@ -17,12 +17,23 @@ PASS = []
 
 
 def run(node_title, kids, force=False, reason='', move_ok=True):
-    """跑一次 cmd_add，返回 (rc, stdout)"""
+    """跑一次 cmd_add，返回 (rc, stdout)
+
+    v2.7.2 适配：_kids 按 nid 区分——查节点 X1 自身（非空护栏）返回 kids；
+    查收件箱 INBOX（幂等核实/落地回读）返回 landed。move 成功时节点出现在
+    收件箱一层（保真：真实服务器回执成功 = 节点已在目标下），
+    否则「正常不误拦」用例会被新的落地回读判据判成未落地（rc=3）。
+    """
     s.load_state = lambda: {'inbox': 'INBOX', 'items': [], 'audit': []}
     s.save_state = lambda d: None
     s._audit_force = lambda *a: None
     s._find_parent = lambda nid: 'ORIGIN'
-    s._kids = lambda nid: kids
+    landed = [{'id': 'X1'}] if move_ok else []
+
+    def _kids(nid):
+        return kids if nid == 'X1' else landed
+
+    s._kids = _kids
     s._space = lambda method, **kw: (
         {'data': {'node': {'title': node_title, 'kind': 'folder', 'id': kw.get('node_id')}}}
         if method.endswith('node-info') else ({'data': {}} if move_ok else {'error': 'boom'}))

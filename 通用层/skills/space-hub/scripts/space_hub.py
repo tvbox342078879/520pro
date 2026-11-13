@@ -630,9 +630,17 @@ def cmd_add(a):
                        f'     → 确认真的废弃再加 --force'),
             )
             return 4
-    # 幂等
+    # ★ v2.7.2（闭环「回执≠回读」·2026-11-13 空间重置实战）：登记册命中 ≠ 节点真在收件箱。
+    #   实锤过程：第一轮投递全败（收件箱夹被用户删掉，服务端 12607），失败项**也进了登记册**；
+    #   重建收件箱后重投，49 项全部撞这条旧短路直接 return 0——回执「成功 32」，回读落地 0。
+    #   修法：命中后回读收件箱一层核实；节点确在才算真幂等，否则清掉过期记录放行重投。
     if any(x['id'] == nid for x in st['items']):
-        print(f'ℹ️ 已在清单：{title}'); return 0
+        _landed = any((n.get('id') or n.get('nodeId')) == nid for n in _kids(iid))
+        if _landed:
+            print(f'ℹ️ 已在清单（回读核实：节点确在收件箱）：{title}'); return 0
+        print(f'⚠️ 登记册过期（有记录但节点不在收件箱一层）——清掉过期记录，重新投递：{title}')
+        st['items'] = [x for x in st['items'] if x['id'] != nid]
+        save_state(st)
     # ★ 移动前记录原父节点（node-info.parentNodeId 不可信，用全树反查），
     #   供误投后 `janitor restore` 一键退回原位（v1.1.7）。
     origin = _find_parent(nid) or ''
@@ -645,6 +653,21 @@ def cmd_add(a):
         time.sleep(5)
         mv = _space('space.workspace.move-node', node_id=nid, target_parent_id=iid)
     ok = bool(mv and not mv.get('error'))
+    # ★ v2.7.2（闭环「回执≠回读」）：回执成功 ≠ 落地。cmd_move 早有 readback_mismatch
+    #   先例，add 却一直只看回执。移动回执成功后再回读收件箱一层，确有该节点才算真落地；
+    #   不符时按「未落地」登记（moved=False，rc=3），不当作成功——疑似索引延迟时
+    #   等待复投即可，幂等核实（修①）保证重投不会重复登记。
+    if ok:
+        ok = any((n.get('id') or n.get('nodeId')) == nid for n in _kids(iid))
+        if not ok:
+            _reject(
+                'readback_mismatch',
+                f'移动回执成功，但收件箱一层未枚举到 {nid}（疑似索引延迟/未落地）',
+                target='等待 1-2 分钟复核后重投；幂等核实已保证重投不重复登记',
+                method=f'add --node {nid} --force --reason "复核后重投"',
+                human=(f'⚠️ 移动回执成功，但收件箱下**未枚举到** {nid}'
+                       f'——疑似索引延迟或未落地，**不当作成功**，请复核后重投'),
+            )
     st['items'].append({
         'id': nid, 'title': title, 'kind': node.get('kind', ''),
         'reason': a.reason or '（未注明）',
@@ -655,7 +678,9 @@ def cmd_add(a):
     if getattr(a, 'force', False):
         _audit_force('add --force', f'{title}（{nid}）', a.reason)
     print(f'  {"✅ 已移入收件箱" if ok else "⚠️ 移动失败（清单仍登记）"}：{title}（{nid}）')
-    if not ok:
+    if not ok and (mv or {}).get('error'):
+        # v2.7.2 注：回执成功但回读不符的情形已在上面按 readback_mismatch 报过，
+        # 这里只报「服务端明确拒绝」——两种失败混在一个文案里会把索引延迟误读成权限问题。
         _reject(
             'move_rejected',
             f'服务端拒绝移动：{str((mv or {}).get("error"))[:120] or "无响应"}',
@@ -2552,11 +2577,22 @@ def _nodes_or_none(pid):
     _kids() 失败时返回 []，和"空空间"长得一模一样——用它判账号形态，
     授权失效会被误判成新账号，然后一次建 17 个单元全失败（三态塌陷）。
     """
-    d = _space('space.workspace.list-nodes', space_id=SPACE,
-               parent_node_id=pid, limit=200, offset=0)
-    if not isinstance(d, dict) or d.get('error'):
-        return None
-    return (d.get('data') or {}).get('nodes') or []
+    # ★ v2.7.2：补翻页。服务端单页实测上限 50（请求 200 也会截断），>单页的容器
+    #   会被漏读——2026-11-13 空间重置实测顶层 130 项，单页枚举漏 81 项。
+    #   「失败→None」语义不变（与 _kids 的「失败→[]」区分，三态不塌）。
+    out, off = [], 0
+    for _ in range(20):                      # 上限 20 页（约 1000 节点/层），防死循环
+        d = _space('space.workspace.list-nodes', space_id=SPACE,
+                   parent_node_id=pid, limit=200, offset=off)
+        if not isinstance(d, dict) or d.get('error'):
+            return None
+        data = d.get('data') or {}
+        batch = data.get('nodes') or []
+        out += batch
+        if not data.get('hasMore') or not batch:
+            break
+        off += len(batch)
+    return out
 
 
 def detect_mode():
