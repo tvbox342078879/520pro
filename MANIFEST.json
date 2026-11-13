@@ -518,6 +518,7 @@
     "回读通道实证换路：export_node.py 的导出下载在沙箱被判「下载地址无效」（COS 域名/IP 校验挡掉预签名地址），改用 space.workspace.get-doc-review 直接取块结构；create-doc --node-block-id 实测可原地全量覆盖（version 2→6，节点数仍 1，不新建重复节点）",
     "新增 verify/tests/test_phone_directive_sync.py 11 用例变异回归：提取（剥注释/只取标记间）/ 缺起止标记必须抛错 / 回读三形态（少一条、换首句、小标题串改）/ --check 三态（FRESH 0、STALE 1、无状态 1）/ 幂等短路在\"未装库\"环境里仍 NOOP 通过",
     "判据自证第四例入档：回读校验首版不剥有序列表编号，末句恰为列表项时比对假红——由 T4 正例抓出，_fold 补剥行首 `N. `",
-    "手机指令.md 说明段补「云端副本自动同步」指针；docs/registry.md 登记该副本状态文件为真源（手改即伪造已同步）"
+    "手机指令.md 说明段补「云端副本自动同步」指针；docs/registry.md 登记该副本状态文件为真源（手改即伪造已同步）",
+    "触发器修复（同批自查）：pre-commit 首版用 `git diff --cached --name-only | grep -qx 手机指令.md`，git 默认把中文名转义成 \"\\346\\211\\213...\"，条件永远为假——打印「本次提交未改该文件，跳过」，看着在工作、实际一次都没同步过。加 -c core.quotepath=false，并实测走通（改词→SYNCED v7→还原→SYNCED v8）"
   ]
 }
