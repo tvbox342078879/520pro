@@ -104,6 +104,14 @@ else
   no "hooks/git_push_safe.sh 缺失或语法错误——推送纪律没有执行体"
 fi
 
+# ★ v0.8.29：一行收尾入口——存在 + 语法过即可（不发起网络动作，推送本体由
+#   git_push_safe.sh 判据与真实调用覆盖）
+if [ -f "$TARGET/sync.sh" ] && bash -n "$TARGET/sync.sh" 2>/dev/null; then
+  ok "sync.sh（一行收尾入口在位：verify → 对账 → push_safe，语法过）"
+else
+  no "sync.sh 缺失或语法错误——一行收尾没有执行体"
+fi
+
 echo
 # ★ H4（v0.8.20）：--repo-only 只验仓库自身（检出完整性 + 契约 + 口径 + 回归），
 #   不验安装落点。给 bootstrap.sh 用——它只负责"检出完整"，还没装到 ~/.codebuddy。

@@ -59,6 +59,8 @@
 | 事实类别 | 唯一真源 | 说明 |
 |---|---|---|
 | 验收判据 | `verify.sh`（全量判据 + 分级 ✓/✗/⚠） | 判据数量与红绿是这个脚本的输出，不许手工报 |
+| 推送纪律 | `hooks/git_push_safe.sh` | 向 GitHub 推送一律走它（重试 + 远端 sha 终验），禁止裸 `git push` |
+| 一行收尾入口 | `sync.sh`（仓库根） | 优化完跑 `bash sync.sh` = verify.sh → fetch 对账 → git_push_safe；不做自动提交（过 pre-commit 闸）、不强制推送、不内嵌令牌 |
 | 技能契约判据代码 | `verify/skill_contract_check.py` | 只读 contracts.json，不在脚本里写死技能清单 |
 | 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链 + 规则↔验证器互引（CHANGELOG/测试记录不查） |
 | 真源联动提醒（G6 轻量版） | `verify/linkage_notice.py` | pre-commit 检出"本次改了 registry 登记的真源"时自动列全仓引用方清单（advisory 不阻断；语义过期机检查不了，人眼过 M5）；判据 `verify/tests/test_linkage_notice.py` |
@@ -84,6 +86,7 @@
 
 ## 变更记录
 
+- 2026-11-13 v0.8.29：登记 sync.sh 一行收尾入口（借 908 换机说明的心智，实现走本仓正本）；machine-bootstrap v1.0.3 补「诚实边界」表并修手机通道语义过期（bbbe8a2 漏网第 6 处）。
 - 2026-11-13 G6 轻量版：新增 `verify/linkage_notice.py`（pre-commit 真源联动提醒）+ 7 用例变异回归；registry.md 自此成为它的真源清单唯一来源（表格第 2 列、存在性过滤）。
 - 2026-11-12 工程E：core-8 扩到 B-01…B-10（新增 B-10 拦截即停止）；新增 `verify/rule_map.json`（规则↔验证器映射，T4 双向核）；交付报告模板与派活模板进仓。
 - 2026-11-12 建立：`verify/terminology_check.py` 首跑发现 core-8 M1 声称"登记表见 `docs/registry.md`"但本仓无此文件（悬空指针），按 M6 回真源建表。

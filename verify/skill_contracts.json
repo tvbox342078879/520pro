@@ -49,7 +49,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/machine-bootstrap",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
