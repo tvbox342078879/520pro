@@ -6,13 +6,13 @@
 
 ## 1. 当前主线（一句话）
 
-工程 J（三源纪律合并 × 机检化）已完成并推送：core-8 从 10 条扩到 **B-16**，新增「后台与落盘 / 回合收敛 / 完成态凭落点 / 账目三齐 / 孤例还是模式 / 双核必保」；B-14 进 `test_handoff.py`、B-16 进 `verify.sh`，SKILL.md 体积 40KB 上限进契约检查（probe-hub 50.8KB 记 WARN）。**远端 008c1e2，CI 七步全绿**；本机安装副本已同步。
+工程 J 已完成（core-8 扩到 **B-16**，B-14/B-16 落成机检）；MP 方案余量同步收尾：probe-hub SKILL **50.8→40.0KB**（命令手册/字段范本/归档表外置，判据与触发词零删除）、巡检司惊门新增**「触发回归」**面（95 组样本 0 异常）、交付模板补**「自检命令」**节。**远端 24bac53，CI 四步全绿**，安装副本已同步。
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
 - 版本：0.8.22
-- 远端：`origin/main` 与本地 HEAD 一致（008c1e2，回读 sha 核对过）；推送一律走 `hooks/git_push_safe.sh`，不裸 push
+- 远端：`origin/main` 与本地 HEAD 一致（24bac53，`ls-remote` 回读核对过）；推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
 
 ## 3. 习惯快照指针（只指，不抄）
