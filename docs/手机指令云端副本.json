@@ -4,10 +4,10 @@
   "space_id": "dPQlQDHy2BUBWH2Zecy8Kd",
   "title": "手机指令粘贴区（复制即用）",
   "source": "手机指令.md 粘贴区（两标记行之间，已剥 HTML 注释）",
-  "sha256": "54edbed16bdfafbb80c191afa85baf719b10cbe1669b1048cc54b1ca12b54738",
-  "bytes": 4429,
+  "sha256": "9d9f103f221e9a32ee815a181d0b114de02ffe92588aa3e60aa0d4cce552252e",
+  "bytes": 4668,
   "clauses": 14,
-  "readback_bytes": 6134,
-  "node_version": 8,
-  "synced_at": "2026-11-13T13:26:57+08:00"
+  "readback_bytes": 6456,
+  "node_version": 9,
+  "synced_at": "2026-11-13T13:52:37+08:00"
 }

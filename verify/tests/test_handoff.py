@@ -31,6 +31,38 @@ def check(name, cond, detail=''):
 LEDGER_HEAD = '## 4. 待办账目'
 BAN_WORDS = ('待跟进', '后续优化', '有空再说', '以后再说')
 
+# B-07 的"接手动作"要落在三通道上：只写在 core-8 里，手机端（不读项目薄壳）就看不到；
+# 只写在手机指令里，桌面/云端会话又不会读它。三处缺一，就有一种会话形态拿不到这个动作。
+CHANNELS = (
+    ('通用层/rules/core-8.md', 'core-8 真源'),
+    ('能力层/tvbox/CODEBUDDY.md', '项目薄壳'),
+    ('手机指令.md', '手机硬轨'),
+)
+
+
+def check_handoff_pointers():
+    """三通道都必须写出"接手先读 handoff_latest.md"这个**动作**。
+
+    ⚠️ 这是**存在性判据**：它只能证明"条款写在那儿"，不能证明"agent 真读了"。
+    后者机器判不了（B-19：别拿无因果关系的代理指标冒充真判据），故此处只报"在位"。
+    但它仍有价值：防止后续改动把这句话删掉而没人发现——这已发生过（B-05 口径、硬轨漏条）。
+
+    判据自证第 5 例（2026-11-13）：首版只 grep 文件名 `handoff_latest.md`，结果手机指令
+    第 69 行那句「交接账目在桌面 docs/handoff_latest.md 维护」（讲 B-14 为何不入硬轨的**理由**）
+    把变异蹭成了假绿——删掉真正的动作条款，判据照样 ✓。改为要求「读」与文件名**同行且相邻**，
+    把"提到文件"和"要求去读文件"区分开。
+    """
+    action = re.compile(r'(?:读|先读|第一动作)[^\n]{0,60}handoff_latest\.md'
+                        r'|handoff_latest\.md[^\n]{0,60}(?:读|先读)')
+    for rel, label in CHANNELS:
+        p = os.path.join(REPO, rel)
+        if not os.path.exists(p):
+            check(f'接手条款·{label} 文件存在', False, rel)
+            continue
+        t = open(p, encoding='utf-8').read()
+        check(f'接手条款·{label} 有"读摘要"动作句', bool(action.search(t)),
+              '只提到文件名不算：该通道的会话不会因此先读交接摘要')
+
 
 def check_ledger(body):
     """B-14 账目三齐：owner / next / due。空表也算三齐（0 条待办是合法状态）。"""
@@ -80,6 +112,7 @@ def main():
           '交接摘要过期：接手的人会按旧版本口径干活')
 
     check('含"先跑自检"的提醒', 'verify.sh' in body)
+    check_handoff_pointers()
     check_ledger(body)
     print('结果：%d ✓ / %d ✗' % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
