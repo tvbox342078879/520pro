@@ -41,7 +41,7 @@ IDS_FILE = os.path.join(HERE, 'newlib_ids.json')
 sys.path.insert(0, HERE)
 try:
     from core import (rows_of, invalidate,
-                      rows_of_t, SRC_DBS)          # S159：源库联合所需
+                      rows_of_t, SRC_DBS, add_records)   # S159：源库联合所需
 except Exception:
     # ⚠️ 降级实现**故意让 rows_of_t 返回 ok=False**，而不是 (True, [])。
     #    原实现 `def rows_of(db): return []` 会把「core 导不进来」伪装成「库是空的」，
@@ -50,6 +50,7 @@ except Exception:
     def rows_of_t(db): return (False, [])
     SRC_DBS = [('线路源库', ''), ('成品源库', '')]   # S160：与 core.SRC_DBS 保持同名同序
     def invalidate(db=None): pass
+    def add_records(db, recs, sleep=0.4, _gate=True): return 0, len(recs)
 
 # ★ v0.8.4 总线归目标方：投递门面在库务司。
 #   独立 try——**门面缺失不得连带 core 降级**（否则 space-hub 未装会把"读不到"伪装成"库为空"）
@@ -393,44 +394,12 @@ def cmd_migrate(a):
             print(f'  {level}版：0 条，跳过')
             continue
         tbl = ids['tables'].get({'纯净': '纯净版', '全量': '全量版', '18': '18版'}[level])
-        ok = fail = 0
-        for i in range(0, len(recs), 100):
-            chunk = recs[i:i + 100]
-            r = subprocess.run(
-                [sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                 '--database-id', tbl, '--records', json.dumps(chunk, ensure_ascii=False)],
-                capture_output=True, text=True)
-            out = (r.stdout or '').strip()
-            if r.returncode != 0 or not out:
-                fail += len(chunk)
-                if i == 0:
-                    print(f'  ⚠ {level}版批{i} RC={r.returncode} '
-                          f'ERR={(r.stderr or "")[:300]} OUT={out[:200]}')
-                continue
-            try:
-                d = json.loads(out)
-            except Exception:
-                # 末尾可能夹 KS_USER_REPLY 等行 → 逐行找 JSON
-                d = None
-                for ln in out.splitlines():
-                    ln = ln.strip()
-                    if ln.startswith('{'):
-                        try:
-                            d = json.loads(ln); break
-                        except Exception:
-                            continue
-            if not isinstance(d, dict):
-                fail += len(chunk)
-                if i == 0:
-                    print(f'  ⚠ {level}版批{i} 解析失败 OUT={out[:200]}')
-                continue
-            res = d.get('results') or []
-            good = sum(1 for x in res if x.get('success'))
-            if i == 0 and good == 0:
-                print(f'  ⚠ {level}版批0 原始返回：{out[:600]}')
-            ok += good
-            fail += len(chunk) - good
+        # v0.8.33：正本 batch_add 已并入 db_edit set-records，统一走 core.add_records
+        # （分批 + 三态解析都在 core 里，这里不再自己解析 results/前缀）。
+        ok, fail = add_records(tbl, recs, sleep=0.0, _gate=False)
         print(f'  {level}版 → 表 {tbl}：成功 {ok} / 失败 {fail}')
+        if fail:
+            print(f'  ⚠ {level}版有 {fail} 条未落地——先看 core.add_records 的原因再重试')
     return 0
 
 

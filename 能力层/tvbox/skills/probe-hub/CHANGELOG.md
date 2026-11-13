@@ -1,3 +1,8 @@
+## v1.27.2 — database 正本迁移（520 v0.8.33，2026-11-13）
+- 8 处旧调用失配（`query_database_record` / `batch_add` / `batch_update` / `batch_delete`），其中 5 处走 `api('database/…')` 间接入口，**第一版引用检查器完全扫不到**（模式级盲区，已补 `_run_lib|api` 匹配）
+- 新增 `_db_edit_api`（写入/更新合一，强制 `_cache=False`——写操作走 api() 缓存会拿到上次回执、根本不发请求）、`_db_delete_api`（二段式：先 IMPACT 再确认）、`_tag_of`
+- `_count_success` 改为**双格式解析**：新 `KS_DB_EDIT_OK	{...}` 与旧 `{"results":[{success}]}` 都认。迁移期两代调用并存，宁可双认也不能把「部分失败」翻成「全成功」
+- `_cloud_id_map` / `bl_mark` 的手写游标循环（含 S110 死转闸门）删除，翻页交给 `db_query`；自检 ㉗ 同步改判据：不再是「2 圈内退出」，而是「只发 1 个子进程，不许在外面又长出一套翻页」
 ## v1.27.1 — 触发语义前置（520 v0.8.31 工程K，2026-11-13）
 - description 首句改为「当用户说「…」「…」时使用本技能」，把 5 个高频口语说法提到前 80 字内：平台只把描述编成截断预览给模型看，触发词写在尾巴上等于没写（C9 机检）
 - 依赖项：`verify/skill_contract_check.py` 新增 C9 触发前置 / C10 样本词桥；`verify/tests/test_trigger_frontload.py` 8 用例变异回归

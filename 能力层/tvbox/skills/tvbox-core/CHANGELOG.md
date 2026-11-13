@@ -1,3 +1,9 @@
+## v1.0.68 — database 正本迁移 + 适配层（520 v0.8.33，2026-11-13）
+- 平台重构 `library/database/`：`batch_add/update/delete_database_records`、`get_database_schema/content`、`query_database_record` 全消失，输出统一成 `KS_XXX_OK\t{json}`。core 8 处调用全部失配（另有 link/newlib/blk/preflight/backfill/bak_sync 6 处）
+- core 新增单一适配层：`lib_json / lib_tag / db_query / db_edit_records / _edit_counts`。`_run_lib` 加 `stdin` 参数（批量记录不再拼命令行）
+- **写入语义变了，必须知道**：旧回执 `results[].success` 只代表「服务端接受」；新 `KS_DB_EDIT_OK` 是**逐条回读确认后**才发，`UNVERIFIED` 会带 `failed_add_indices`。`_edit_counts` 按新语义计数，老口径的「成功」不再等于「落库」
+- `delete_records` 改二段式：先取 `KS_DB_DELETE_IMPACT`，再带 `--user-confirmed` 执行（不可逆动作不允许一步到位）
+- 修 `lib_json` 的同类 bug：`json.loads(text[i:])` 遇尾随 `KS_USER_REPLY` 行整体失败 → 改 `raw_decode`。这是本轮 6 个文件里同一个实现、同一个 bug（B-15 判为模式）
 ## v1.0.67 — 触发样本集 + 文档断链修复（2026-11-12）
 - 修文档断链：`scripts/rules_registry.json` 属旧生态 artefact、520pro 未随迁，改为指向本仓 `docs/registry.md`
 

@@ -181,12 +181,11 @@ def rows_of_t(db, _cache=True):
         with _MEM_LOCK:
             if db in _MEM:
                 return True, _MEM[db]
-    out = api('database/get_database_content.py', '--database-id', db)
+    j, raw = db_query(db, 'csv')
     try:
-        d = json.loads(out)
-        if 'content' not in d:
-            raise ValueError('返回无 content 字段（脚本报错/结构失配）')
-        val = list(csv.DictReader(io.StringIO(d['content'])))
+        if not isinstance(j.get('content'), str):
+            raise ValueError(f'返回无 content 字段（脚本报错/结构失配）：{raw[:100]}')
+        val = list(csv.DictReader(io.StringIO(j['content'])))
     except Exception:
         with _MEM_LOCK:
             _FAILED.add(db)          # 登记失败，供 rows_of_failed() 查询
@@ -497,16 +496,10 @@ def add_records(db, recs, sleep=0.4, _gate=True, _force=False):
     ok = fail = 0
     for i in range(0, len(recs), 100):
         b = recs[i:i + 100]
-        out = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                              '--database-id', db, '--records', json.dumps(b, ensure_ascii=False)],
-                             capture_output=True, text=True, cwd=LIB).stdout
-        try:
-            d = json.loads(out)
-            for x in d.get('results', []):
-                ok += 1 if x.get('success') else 0
-                fail += 0 if x.get('success') else 1
-        except Exception:
-            fail += len(b)
+        tag, d, _ = db_edit_records(db, b)
+        good, bad = _edit_counts(tag, d, len(b))
+        ok += good
+        fail += bad
         time.sleep(sleep)
     invalidate(db)
     return ok, fail
@@ -533,32 +526,16 @@ def add_records_diag(db, recs, sleep=0.4, _gate=True, _force=False):
     info = ''
     for i in range(0, len(recs), 100):
         b = recs[i:i + 100]
-        out = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                              '--database-id', db, '--records', json.dumps(b, ensure_ascii=False)],
-                             capture_output=True, text=True, cwd=LIB).stdout
-        good, flags, why = _parse_results(out)
-        if not good:
-            fail += len(b)
-            # S158：优先透出服务端 error 原文——`_parse_results` 只会说
-            # "返回无 results 字段"，人看不出是服务端拒绝还是协议变了。
-            # ★ 此处原本写 `except: _d = None` 然后 `_d.get('error')`——
-            #   **那是折叠**：None(解析不出) 与 {}(解析出但无 error 键) 走了同一条路，
-            #   人分不清"服务端没回话"与"服务端回了但没给原因"。现在显式区分三分支。
-            try:
-                _d = json.loads(out or '{}')
-            except Exception:
-                _d = None
-            if _d is None:
-                info = f'返回不是合法 JSON（无法取得服务端原因）：{(out or "")[:120]}'
-            elif isinstance(_d, dict) and _d.get('error'):
-                info = f'服务端拒绝：{_d["error"]}'
-            else:
-                info = why
-        else:
-            ok += sum(1 for s in flags if s)
-            fail += sum(1 for s in flags if not s)
-            if fail and not info:
-                info = f'返回 results 有 {fail} 条 success!=true：{out[:160]}'
+        tag, d, raw = db_edit_records(db, b)
+        good, bad = _edit_counts(tag, d, len(b))
+        ok += good
+        fail += bad
+        if bad:
+            # 失败原因优先透出正本给的原文：error（参数/字段被拒）或 tag 本身
+            # （KS_DB_EDIT_UNVERIFIED / NEED_CHOICE / NOT_FOUND，各有不同处置）。
+            why = d.get('error') or d.get('hint') or d.get('code')
+            info = (f'{tag}：{why}' if why else
+                    (f'无状态行，原始输出：{raw[:120]}' if not tag else f'{tag}：{bad} 条未落地'))
         time.sleep(sleep)
     invalidate(db)
     return ok, fail, info
@@ -571,17 +548,8 @@ def add_records_parallel(db, recs, workers=3, sleep=0.3):
 
     def do_batch(b):
         nonlocal ok, fail
-        out = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                              '--database-id', db, '--records', json.dumps(b, ensure_ascii=False)],
-                             capture_output=True, text=True, cwd=LIB).stdout
-        bo = bf = 0
-        try:
-            d = json.loads(out)
-            for x in d.get('results', []):
-                bo += 1 if x.get('success') else 0
-                bf += 0 if x.get('success') else 1
-        except Exception:
-            bf += len(b)
+        tag, d, _ = db_edit_records(db, b)
+        bo, bf = _edit_counts(tag, d, len(b))
         with lock:
             ok += bo
             fail += bf
@@ -615,16 +583,17 @@ def add_records_parallel(db, recs, workers=3, sleep=0.3):
 # 那正是 L123「工具做好却接不到入口上」的复发路径。
 # ══════════════════════════════════════════════════════════════════════════
 
-def _run_lib(script, *args, timeout=120):
+def _run_lib(script, *args, timeout=120, stdin=None):
     """调 library 脚本，统一返回 (ok, stdout, err)。**这是唯一允许的调用姿势。**
 
     绕过它的直接后果见本段开头：15 处无三态实现各自发明了失败表示法。
+    v0.8.33：加 stdin 参数——批量记录改走 `--stdin`，避免 100 条记录撞命令行长度上限。
     """
     path = os.path.join(LIB, script)
     if not os.path.exists(path):
         return False, '', f'library 脚本缺失：{script}（预期 {path}）'
     try:
-        r = subprocess.run([sys.executable, path, *args],
+        r = subprocess.run([sys.executable, path, *args], input=stdin,
                            capture_output=True, text=True, cwd=LIB, timeout=timeout)
     except Exception as e:
         return False, '', f'子进程异常（{type(e).__name__}: {str(e)[:70]}）'
@@ -634,8 +603,105 @@ def _run_lib(script, *args, timeout=120):
     return True, r.stdout or '', ''
 
 
+# ── library database 正本适配（v0.8.33）────────────────────────────────────
+# 平台 2026-11 把 database 层重构成 db_create / db_query / db_edit / db_delete，
+# 旧名（batch_add/batch_update/batch_delete_database_records、get_database_*）
+# 整层消失；输出也从「纯 JSON」变成 `KS_XXX_OK\t{json}` 状态行 + JSON。
+# 本段只做参数映射与状态解析，**不自造写入通道**（仍 exec 正本，删除走二段式）。
+LIB_DB_QUERY = 'database/db_query.py'
+LIB_DB_EDIT = 'database/db_edit.py'
+LIB_DB_DELETE = 'database/db_delete.py'
+
+
+def lib_json(text):
+    """从正本输出里摘第一个可解析 JSON 对象；摘不到返回 {}。
+
+    ★ 2026-11-13 实测：JSON 与 `KS_XXX_OK` 状态行**同行**，行首不是 '{'。
+      旧代码 `json.loads(out)` 全部失败——而失败又被 except 吞成「全失败」或
+      「部分成功」，属于最难发现的一类静默降级。space-hub v0.8.32 先踩过一次，
+      这里是同一模式的第二处（B-15 判为模式，不是孤例）。
+    """
+    for i, ch in enumerate(text or ''):
+        if ch != '{':
+            continue
+        try:
+            # ★ 必须 raw_decode：正本输出是「KS_OK\t{json}\nKS_USER_REPLY\t…」多行，
+            #   json.loads(text[i:]) 会把尾随行算进去 → 整体失败 → 静默返回 {}。
+            #   实测 db_edit set-records：add_count/record_ids 全丢，只剩一个'成功'标签。
+            obj, _ = json.JSONDecoder().raw_decode(text[i:])
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return {}
+
+
+def lib_tag(text):
+    """取输出里的状态行标签（KS_XXX_YYY）；没有返回 ''（= 无法判定）。"""
+    for ln in (text or '').splitlines():
+        s = ln.strip()
+        if s.startswith('KS_'):
+            return s.split('\t')[0].strip()
+    return ''
+
+
+def db_query(db, ask, **kw):
+    """读库。ask ∈ schema / records / record / stats / csv → (payload, raw)。
+
+    payload 为空 dict = **读不到**（不是空库）。调用方必须自己区分，别折叠。
+    """
+    argv = ['--target', db, '--target-kind', 'id', '--ask', ask]
+    for k, v in kw.items():
+        if v not in (None, ''):
+            argv += ['--' + k.replace('_', '-'), str(v)]
+    ok, out, err = _run_lib(LIB_DB_QUERY, *argv)
+    if not ok or lib_tag(out) != 'KS_DB_QUERY_OK':
+        return {}, (out or err or '')
+    return lib_json(out), out
+
+
+def db_edit_records(db, records, timeout=240):
+    """追加或更新记录（一次调用含写入 + 逐条回读）→ (tag, payload, raw)。
+
+    记录带 record_id 即更新，不带即新增（正本按索引自动分流）。
+    """
+    ok, out, err = _run_lib(
+        LIB_DB_EDIT, '--database-id', db, '--op', 'set-records', '--stdin',
+        stdin=json.dumps({'records': records}, ensure_ascii=False), timeout=timeout)
+    return lib_tag(out), lib_json(out), (out or err or '')
+
+
+def _edit_counts(tag, d, n):
+    """把 db_edit 的状态映射成 (成功数, 失败数)。
+
+    KS_DB_EDIT_OK         —— 全部写入且逐条回读确认 → 全成
+    KS_DB_EDIT_UNVERIFIED —— 有失败索引或回读数不足，按 failed_*_indices / verified_count 计
+    其它（error / 无状态行）—— 全失败，**绝不折叠成"可能成功"**
+    """
+    if tag == 'KS_DB_EDIT_OK':
+        return n, 0
+    if tag == 'KS_DB_EDIT_UNVERIFIED':
+        failed = []
+        for key in ('failed_add_indices', 'failed_update_indices'):
+            if isinstance(d.get(key), list):
+                failed += d[key]
+        if failed:
+            bad = len(set(failed))
+            return max(n - bad, 0), bad
+        vc = d.get('verified_count')
+        if isinstance(vc, int):
+            return min(vc, n), max(n - vc, 0)
+    return 0, n
+
+
 def _parse_results(out):
-    """解析 batch_*_database_records.py 的 {"results":[{success:bool}...]}。
+    """解析旧回执 {"results":[{success:bool}...]}。
+
+    ⚠️ v0.8.33 起正本已换 `db_edit.py --op set-records`，回执不再是这个结构，
+    本函数在仓内已无调用点。**保留**是因为它把「解析失败 ≠ 全成功」这条三态
+    写得很清楚，且外部脚本可能 import；新代码请用 lib_tag / lib_json / _edit_counts。
+    原 docstring：
+    解析 batch_*_database_records.py 的 {"results":[{success:bool}...]}。
 
     三态：能解析且结构对 → (True, [success 布尔列表])；否则 (False, [], 原因)。
     绝不在解析失败时返回"全成功"——那是最危险的折叠。
@@ -685,18 +751,13 @@ def update_records(db, records, _gate=True, _force=False):
             print(f'   原因：{why}')
             print('   放行方式：tvbox conductor ask "<你的需求>"')
             return False, 0, f'闸门未放行：{why}'
-    ok, out, err = _run_lib('database/batch_update_database_records.py',
-                            '--database-id', db,
-                            '--records', json.dumps(records, ensure_ascii=False))
-    if not ok:
-        return False, 0, err
-    parsed, flags, perr = _parse_results(out)
-    if not parsed:
-        return False, 0, perr
-    n = sum(1 for f in flags if f)
+    tag, d, raw = db_edit_records(db, records)
+    n, bad = _edit_counts(tag, d, len(records))
     invalidate(db)                       # 写后失效缓存（不论成败，数据可能已部分变）
-    if n != len(records):
-        return False, n, f'仅 {n}/{len(records)} 条成功（明细见 library 返回）'
+    if bad or n != len(records):
+        why = d.get('error') or d.get('hint') or d.get('code') or ('' if tag else raw[:160])
+        return False, n, (f'{tag or "无状态行"}：仅 {n}/{len(records)} 条成功'
+                          + (f'（{why}）' if why else ''))
     return True, n, ''
 
 
@@ -716,19 +777,28 @@ def delete_records(db, record_ids, _gate=True, _force=False):
             print('🚫 会话闸门拦截：本次删除被拒绝')
             print(f'   原因：{why}')
             return False, 0, f'闸门未放行：{why}'
-    ok, out, err = _run_lib('database/batch_delete_database_records.py',
-                            '--database-id', db,
-                            '--record-ids', json.dumps(ids, ensure_ascii=False))
+    ids_json = json.dumps(ids, ensure_ascii=False)
+    # 二段式（正本 db_delete 的设计）：先取影响面，拿到 IMPACT 才带 --user-confirmed 真删。
+    # 这一步不是冗余往返——它挡的是"参数写错把整表删光"，而删除不可逆（S144 清空三库）。
+    ok, out, err = _run_lib(LIB_DB_DELETE, '--database-id', db, '--op', 'delete-records',
+                            '--record-ids', ids_json)
     if not ok:
         return False, 0, err
-    parsed, flags, perr = _parse_results(out)
-    if not parsed:
-        return False, 0, perr
-    n = sum(1 for f in flags if f)
+    tag = lib_tag(out)
+    if tag != 'KS_DB_DELETE_IMPACT':
+        return False, 0, f'影响面未取到（{tag or "无状态行"}）：{(out or "")[:160]}'
+    ok, out, err = _run_lib(LIB_DB_DELETE, '--database-id', db, '--op', 'delete-records',
+                            '--record-ids', ids_json, '--user-confirmed')
+    if not ok:
+        return False, 0, err
+    tag = lib_tag(out)
+    d = lib_json(out)
     invalidate(db)
-    if n != len(ids):
-        return False, n, f'仅 {n}/{len(ids)} 条删除成功'
-    return True, n, ''
+    if tag == 'KS_DB_DELETE_OK':
+        return True, len(ids), ''
+    remaining = d.get('remaining')
+    n = max(len(ids) - remaining, 0) if isinstance(remaining, int) else 0
+    return False, n, f'{tag or "无状态行"}：仅 {n}/{len(ids)} 条删除成功'
 
 
 def write_and_verify(db, records, key_field=None, _gate=True, _force=False):

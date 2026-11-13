@@ -29,6 +29,14 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
 PAT = re.compile(r'\{LIB\}/([A-Za-z0-9_/]+\.py)')
+# 间接入口：脚本名以字符串常量传给 `_run_lib(...)` 一类转发函数，路径在函数内部
+# 才与 LIB 拼接 —— 上面的 PAT 只看 `{LIB}/` 字面量，对这类写法是**瞎的**。
+# 2026-11-13 实测：core.py:688/719、preflight.py:40 三处指着已消失的
+# batch_update_database_records.py / batch_delete_database_records.py /
+# get_database_schema.py，第一版检查器 0 命中（B-15 模式级盲区，不是孤例）。
+# 已知仍扫不到的：run.py:54 把变量转发给 _run_lib（静态不可判，登记在文档里）。
+PAT_INDIRECT = re.compile(r"""(?:_run_lib|api)\(\s*['"]([A-Za-z0-9_/]+\.py)['"]""")
+PATTERNS = (PAT, PAT_INDIRECT)
 SKIP_DIRS = {'__pycache__', '.git', 'node_modules'}
 
 
@@ -46,9 +54,11 @@ def collect_refs():
                 text = open(full, encoding='utf-8', errors='ignore').read()
             except OSError:
                 continue
-            for m in PAT.finditer(text):
-                rel = m.group(1)
-                line = text[:m.start()].count('\n') + 1
+            hits = []
+            for pat in PATTERNS:
+                hits += [(m.group(1), m.start()) for m in pat.finditer(text)]
+            for rel, pos in sorted(hits, key=lambda x: x[1]):
+                line = text[:pos].count('\n') + 1
                 refs.setdefault(rel, []).append(f'{os.path.relpath(full, ROOT)}:{line}')
     return refs
 

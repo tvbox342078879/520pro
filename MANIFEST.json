@@ -58,7 +58,7 @@
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
           "role": "库务司·云端库总管 v2.7.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号，拒收带结构化三元组",
-          "version": "2.7.4"
+          "version": "2.7.5"
         },
         "skills/space-hub/scripts/space_hub.py": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
@@ -104,7 +104,7 @@
             "tvbox-pipeline"
           ],
           "critical": "缺此目录，探源司必报 ModuleNotFoundError: No module named 'core'",
-          "version": "1.0.67"
+          "version": "1.0.68"
         },
         "tvbox/skills/probe-hub/": {
           "user_install": "~/.codebuddy/skills/probe-hub/",
@@ -115,7 +115,7 @@
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
           "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/",
-          "version": "1.27.1"
+          "version": "1.27.2"
         },
         "tvbox/skills/tvbox-pipeline/": {
           "user_install": "~/.codebuddy/skills/tvbox-pipeline/",

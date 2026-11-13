@@ -29,8 +29,7 @@ UA='okhttp/3.12.0'
 
 # 共享效率核心（S123 收窄：仅同一进程内与 link/evolve 共享 core 模块实例；跨技能 CLI 单命令调用时各自独立实例）
 sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
-from core import (rows_of, add_records, add_records_parallel,
-
+from core import (rows_of, add_records, add_records_parallel, db_query,
                   invalidate,
                   SRC_DBS, src_rows, src_rows_t, http_get)  # noqa: E402  S159：源库联合
 # ★ v0.8.4 总线归目标方：投递→库务司、监测登记→巡检司（不再经 core 中转）
@@ -146,20 +145,26 @@ REVIVE_RANGE='观望'
 REVIVE_STATE='已平反'
 REVIVE_RETEST='已恢复'
 
-def _dead_id(host):
-    """按 host 定位失效库 record_id（rows_of 无 id，需 query 子进程）。"""
-    cur=None; guard=0
-    while True:
-        cmd=['python3',f'{LIB}/database/query_database_record.py','--database-id',DB_DEAD,
-             '--page-size','100']
-        if cur: cmd+=['--start-cursor',cur]
-        d=json.loads(subprocess.run(cmd,capture_output=True,text=True).stdout)
-        for r in d.get('results',[]):
-            if (r.get('host') or '')==host: return r['record_id']
-        if not d.get('has_more'): break
-        cur=d.get('next_cursor'); guard+=1
-        if guard>25: break
+def _dead_id_by_field(field, want):
+    """按字段精确定位失效库 record_id（rows_of 无 id，必须走 records 查询）。
+
+    v0.8.33：正本 query_database_record.py 并入 db_query.py --ask records，
+    翻页在正本内完成——两个调用点（host / 样例api）原先是同一段手写游标循环
+    各写一遍（M-R38 单一实现），现在收成一个。
+    """
+    j, raw = db_query(DB_DEAD, 'records', limit=10000)
+    res = j.get('results')
+    if not isinstance(res, list):
+        print(f'  ⚠️ 失效库读取失败：{str(raw)[:140]}')
+        return None
+    for r in res:
+        if (r.get(field) or '') == want:
+            return r.get('record_id')
     return None
+
+
+def _dead_id(host):
+    return _dead_id_by_field('host', host)
 
 def _dead_id_by_api(api):
     """按**样例 api** 精确定位 record_id（S139）。
@@ -173,18 +178,7 @@ def _dead_id_by_api(api):
     api = (api or '').strip()
     if not api:
         return None
-    cur=None; guard=0
-    while True:
-        cmd=['python3',f'{LIB}/database/query_database_record.py','--database-id',DB_DEAD,
-             '--page-size','100']
-        if cur: cmd+=['--start-cursor',cur]
-        d=json.loads(subprocess.run(cmd,capture_output=True,text=True).stdout)
-        for r in d.get('results',[]):
-            if (r.get('样例api') or '').strip()==api: return r['record_id']
-        if not d.get('has_more'): break
-        cur=d.get('next_cursor'); guard+=1
-        if guard>25: break
-    return None
+    return _dead_id_by_field('样例api', api)
 
 
 def _update_dead(record_id, props):

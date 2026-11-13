@@ -48,8 +48,57 @@ import sys as _sys
 _sys.path.insert(0, os.path.expanduser('~/.codebuddy/skills/tvbox-core/scripts'))
 
 
+def _json_obj(text):
+    """从正本输出里摘第一个 JSON 对象（不要求独占一行）；摘不到返回 {}。
+
+    v0.8.33：平台正本改成 `KS_XXX_OK\\t{json}` 同行输出，`json.loads(out)` 全失败。
+    """
+    for i, ch in enumerate(text or ''):
+        if ch != '{':
+            continue
+        try:
+            # ★ 必须 raw_decode：正本输出是「KS_OK\t{json}\nKS_USER_REPLY\t…」多行，
+            #   json.loads(text[i:]) 会把尾随行算进去 → 整体失败 → 静默返回 {}。
+            #   实测 db_edit set-records：add_count/record_ids 全丢，只剩一个'成功'标签。
+            obj, _ = json.JSONDecoder().raw_decode(text[i:])
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return {}
+
+
 def _count_success(out, expect):
-    """解析写入回执 → (成功条数, 错误串)。**不信任退出码，只信任 results**。"""
+    """解析写入回执 → (成功条数, 错误串)。**不信任退出码，只信任回执里的落地证据**。
+
+    v0.8.33：平台把 batch_*_records 换成 `db_edit.py --op set-records`，回执从
+    `{"results":[{success}]}` 变成 `KS_DB_EDIT_OK\t{add_count,failed_add_indices,verified_count}`。
+    新格式先判（KS_DB_EDIT_OK 是**逐条回读确认后**才发，比旧的 success 更严），
+    旧格式保留解析——迁移期两代调用可能并存，宁可双认也不能把"部分失败"翻成"全成功"。
+    """
+    tag = ''
+    for ln in (out or '').splitlines():
+        s = ln.strip()
+        if s.startswith('KS_'):
+            tag = s.split('\t')[0].strip()
+            break
+    if tag:
+        d = _json_obj(out)
+        if tag == 'KS_DB_EDIT_OK':
+            return expect, ''
+        if tag == 'KS_DB_EDIT_UNVERIFIED':
+            failed = []
+            for key in ('failed_add_indices', 'failed_update_indices'):
+                if isinstance(d.get(key), list):
+                    failed += d[key]
+            if failed:
+                bad = len(set(failed))
+                return max(expect - bad, 0), f'{tag}：{bad} 条未落地'
+            vc = d.get('verified_count')
+            if isinstance(vc, int):
+                return min(vc, expect), ('' if vc >= expect else f'{tag}：回读仅确认 {vc}/{expect}')
+        why = d.get('error') or d.get('hint') or d.get('code') or tag
+        return 0, str(why)[:120]
     try:
         d = json.loads(out)
     except Exception:
@@ -67,6 +116,50 @@ def _count_success(out, expect):
             break
     return good, (err if good < expect else '')
 
+
+
+def _db_edit_api(db_id, records):
+    """写入/更新记录 → 回执文本（db_edit.py --op set-records，写入+逐条回读一次完成）。
+
+    带 record_id 即更新、不带即新增，正本按索引自动分流——原来两个入口
+    （batch_add / batch_update）现在合成一个，调用方不必再分。
+
+    ★ 必须 `_cache=False`：api() 默认缓存 stdout。写操作若命中缓存，第二次写入
+      会**直接拿到上次的回执、根本不发请求**——这是最难发现的一种假成功。
+    """
+    return api('database/db_edit.py', '--database-id', db_id, '--op', 'set-records',
+               '--payload', json.dumps({'records': records}, ensure_ascii=False),
+               _cache=False)
+
+
+def _tag_of(text):
+    """取正本输出的状态行标签（KS_XXX_YYY）；没有返回 ''（= 无法判定）。"""
+    for ln in (text or '').splitlines():
+        t = ln.strip()
+        if t.startswith('KS_'):
+            return t.split('\t')[0].strip()
+    return ''
+
+
+def _db_delete_api(db_id, rids):
+    """删除记录 → (成功数, 错误串)。走 db_delete 二段式：先影响面，再带确认执行。
+
+    ★ 为什么不能一步删：正本不带 --user-confirmed 只出 KS_DB_DELETE_IMPACT。
+      多这一次往返，挡的是「参数写错把整表删光」——S144 清空三库那次就是这么发生的。
+    """
+    payload = json.dumps([str(r) for r in rids], ensure_ascii=False)
+    argv = ['--database-id', db_id, '--op', 'delete-records', '--record-ids', payload]
+    first = api('database/db_delete.py', *argv, _cache=False)
+    tag = _tag_of(first)
+    if tag != 'KS_DB_DELETE_IMPACT':
+        return 0, f'影响面未取到（{tag or "无状态行"}）：{str(first)[:120]}'
+    out = api('database/db_delete.py', *argv, '--user-confirmed', _cache=False)
+    tag = _tag_of(out)
+    if tag == 'KS_DB_DELETE_OK':
+        return len(rids), ''
+    d = _json_obj(out)
+    why = d.get('error') or d.get('remaining') or str(out)[:120]
+    return 0, f'{tag or "无状态行"}：{why}'
 
 
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
@@ -174,7 +267,8 @@ def _parse_ts(s):
 
 # 共享效率核心（S123 收窄：仅同一进程内与 link/blk/evolve 共享 core 模块实例→缓存/并行池复用；跨技能 CLI 单命令调用时各自独立实例，无跨进程复用）
 sys.path.insert(0, HUB)
-from core import (rows_of, rows_of_t, api, add_records, invalidate)  # noqa: E402
+from core import (rows_of, rows_of_t, api, add_records, invalidate,  # noqa: E402
+                  db_query, db_edit_records)
 # ★ 生态联动门面（v0.8.4 总线归目标方）：不再经 core 中转，直连收件方。
 #   投递 → 库务司 space_hub.file_to_janitor（含 S156 护栏 + 本地/云端分流）
 #   监测登记 → 巡检司 inspect_hub.register_monitor（登记册制）
@@ -766,13 +860,15 @@ def _cloud_delete(db_id, id_field, keys):
         if not rids:
             return True, 0
         ok = True
+        done = 0
         for i in range(0, len(rids), 100):        # 与写入同口径：单次 1–100 条
-            out = api('database/batch_delete_database_records.py',
-                      '--database-id', db_id,
-                      '--record-ids', json.dumps(rids[i:i + 100]))
-            ok = ok and ('error' not in str(out)[:40])
+            n, derr = _db_delete_api(db_id, rids[i:i + 100])
+            done += n
+            if derr or n < len(rids[i:i + 100]):
+                ok = False
+                print(f'  ⚠️ 云端删除未全成功（{n}/{len(rids[i:i + 100])}）：{derr or "回执未确认"}')
         invalidate(db_id)
-        return ok, len(rids)
+        return ok, done
     except Exception as e:
         print(f'  ⚠️ 云端删除失败（{type(e).__name__}: {e}）——本地已删，云端残留需人工处理')
         return False, 0
@@ -881,42 +977,22 @@ def _cloud_id_map(db_id=None, text_field='id'):
     """
     db_id = db_id or DB_UPSTREAM
     m = {}
-    try:
-        cur, guard = None, 0
-        while True:
-            cmd = ['python3', f'{LIB}/database/query_database_record.py',
-                   '--database-id', db_id, '--page-size', '100']
-            if cur:
-                cmd += ['--start-cursor', cur]
-            out = subprocess.run(cmd, capture_output=True, text=True, timeout=30).stdout
-            d = json.loads(out)
-            for r in d.get('results', []):
-                k = str(r.get(text_field) or '').strip()
-                if k and r.get('record_id'):
-                    m[k] = r['record_id']
-            if not d.get('has_more'):
-                break
-            nc = d.get('next_cursor')
-            # ★ S156：游标不前进即退出。S110 记载的坑——参数写错（--cursor 而非
-            #   --start-cursor）时服务端不报错、每次返回首页，循环**死转**。
-            #   本函数原先只靠 guard>25 兜底，等于"转 25 圈才发现有毛病"；
-            #   而 5810 处的同型循环早就有这道闸门。两处口径不同 → 这里补齐（M-R38）。
-            if not nc or nc == cur:
-                break
-            cur = nc
-            guard += 1
-            if guard > 25:
-                break
-    except Exception as e:
-        # ★ S156：原 `except: return {}` 把"读不到"折叠成"没有已存行"——M-R60 命门。
-        #   后果很具体：调用方看到空 dict 就按"全新的表"走 **全量新增**，
-        #   而 docstring 自己写着"曾因误用 rows_of 而永远判为新增，一次 check 就插出 4 条重复行"。
-        #   同一个坑，另一条路（网络抖动/超时）照样能掉进去。
-        #   三态：返回 None 表示**无法判定**，调用方须显式区分"空表"与"读失败"。
-        _why = f'{type(e).__name__}: {str(e)[:120]}'
-        print(f'  ⚠️ 取 record_id 失败（{_why}）——**无法判定是否已有行**，不得当作空表做全量新增',
-              file=sys.stderr)
+    # v0.8.33：正本 `query_database_record.py` 已并入 `db_query.py --ask records`，
+    # **翻页在正本内部完成**（原来是这里手写游标循环 + 死转闸门）。
+    # S156 的三态结论不变：返回 None = 无法判定，返回 {} = 真·空库。
+    j, raw = db_query(db_id, 'records', limit=10000)
+    results = j.get('results')
+    if not isinstance(results, list):
+        print(f'  ⚠️ 取 record_id 失败（{str(raw)[:140]}）——**无法判定是否已有行**，'
+              '不得当作空表做全量新增', file=sys.stderr)
         return None
+    for r in results:
+        k = str(r.get(text_field) or '').strip()
+        if k and r.get('record_id'):
+            m[k] = r['record_id']
+    if j.get('truncated'):
+        print('  ⚠️ 云端记录超过单次上限（10000），本次映射**不完整**——'
+              '新增判定可能重复，请先确认单次上限', file=sys.stderr)
     return m
 
 
@@ -998,9 +1074,7 @@ def _cloud_upsert(rows, db_id, id_field, select_cols=(), num_cols=(), skip_cols=
 
         for i in range(0, len(to_add), _BATCH):
             chunk = to_add[i:i + _BATCH]
-            out = api('database/batch_add_database_records.py',
-                      '--database-id', db_id,
-                      '--records', json.dumps(chunk, ensure_ascii=False))
+            out = _db_edit_api(db_id, chunk)
             got, err = _count_success(out, len(chunk))
             n_ok_add += got
             if got < len(chunk):
@@ -1008,9 +1082,7 @@ def _cloud_upsert(rows, db_id, id_field, select_cols=(), num_cols=(), skip_cols=
                 first_err = first_err or err
         for i in range(0, len(to_upd), _BATCH):
             chunk = to_upd[i:i + _BATCH]
-            out = api('database/batch_update_database_records.py',
-                      '--database-id', db_id,
-                      '--records', json.dumps(chunk, ensure_ascii=False))
+            out = _db_edit_api(db_id, chunk)
             got, err = _count_success(out, len(chunk))
             n_ok_upd += got
             if got < len(chunk):
@@ -5660,20 +5732,16 @@ def cmd_harvest_dedup(a):
 
 
 def _cloud_delete_ids(db_id, rids, chunk=40):
-    """按 record_id 批量删，**以 results[].success 判真**（M-R99）。返回 (成功数, 错误串)。"""
+    """按 record_id 批量删 → (成功数, 错误串)。判真靠 db_delete 的回读态，不看退出码（M-R99）。"""
     good, err = 0, ''
     rids = [r for r in rids if r]
     for i in range(0, len(rids), chunk):
         batch = rids[i:i + chunk]
         try:
-            out = api('database/batch_delete_database_records.py',
-                      '--database-id', db_id, '--record-ids', json.dumps(batch))
-            d = json.loads(out) if isinstance(out, str) else out
-            for r in d.get('results', []):
-                if r.get('success'):
-                    good += 1
-                else:
-                    err += f'{r.get("id")} '
+            n, derr = _db_delete_api(db_id, batch)
+            good += n
+            if derr:
+                err += f'{derr} '
         except Exception as e:
             err += f'[{type(e).__name__}: {e}] '
     return good, err.strip()
@@ -7896,7 +7964,7 @@ def _sc_forge_shell(results):
     def _paginate_replies(replies):
         it = iter(replies)
         def _fake(cmd, **kw):
-            if any(str(x).endswith('query_database_record.py') for x in (cmd or [])):
+            if any(str(x).endswith('db_query.py') for x in (cmd or [])):
                 return _R(next(it))
             return _R('{}')
         return _fake
@@ -7909,21 +7977,21 @@ def _sc_forge_shell(results):
         # (b) 真·空表 → {}（不是 None）
         import json as _json
         subprocess.run = _paginate_replies(
-            [_json.dumps({'results': [], 'has_more': False})])
+            [_json.dumps({'record_count': 0, 'truncated': False, 'results': []})])
         clean_rid = (_cloud_id_map('FAKE_DB', 'id') == {})
-        # (c) 游标恒不前进 → 必须只查 2 次就退出（第 1 次拿首页，第 2 次发现游标没变）
+        # (c) 翻页已交给正本 db_query（一次调用内部翻完），本函数**不得**再手写游标循环：
+        #     断言只发 1 个子进程。旧版守的是"游标不前进要 2 圈内退出"，现在死转
+        #     的可能性搬进正本，我们能守的是"别在外面又长出一套翻页"（M-R38 单一实现）。
         _calls = {'n': 0}
-        def _stuck(cmd, **kw):
-            if any(str(x).endswith('query_database_record.py') for x in (cmd or [])):
-                _calls['n'] += 1
-                if _calls['n'] > 50:
-                    raise AssertionError('游标不前进未被拦截——死循环（S110 坑复发）')
-                return _R(_json.dumps({'results': [], 'has_more': True,
-                                       'next_cursor': 'SAME'}))
-            return _R('{}')
-        subprocess.run = _stuck
+        def _count(cmd, **kw):
+            _calls['n'] += 1
+            if _calls['n'] > 5:
+                raise AssertionError('_cloud_id_map 又长出了手写翻页循环（M-R38）')
+            return _R('KS_DB_QUERY_OK\t' + _json.dumps(
+                {'record_count': 0, 'truncated': False, 'results': []}))
+        subprocess.run = _count
         _cloud_id_map('FAKE_DB', 'id')
-        base_rid = (_calls['n'] <= 3)
+        base_rid = (_calls['n'] == 1)
     finally:
         subprocess.run = _orig_run
     results.append(('record_id三态·读失败≠空表', hit_rid, clean_rid, base_rid))
@@ -8333,30 +8401,15 @@ def cmd_bl_pardon(a):
     # S146 修：`_cloud_rows` 走 get_database_content，**不返回 record_id**（S088 已知）。
     # 删记录必须用 query_database_record 拿真 ID，曾因此「命中 1 条但删 0 条」空转。
     rid_map = {}
-    try:
-        cur, guard = None, 0
-        while True:
-            c = ['python3', f'{LIB}/database/query_database_record.py',
-                 '--database-id', DB_DEAD, '--page-size', '100']
-            if cur:
-                c += ['--start-cursor', cur]
-            d = json.loads(subprocess.run(c, capture_output=True, text=True,
-                                          timeout=30).stdout)
-            for r in d.get('results', []):
-                k = str(r.get('源指纹') or '').strip()
-                if k and r.get('record_id'):
-                    rid_map[k] = r['record_id']
-            if not d.get('has_more'):
-                break
-            nc = d.get('next_cursor')
-            if not nc or nc == cur:
-                break
-            cur, guard = nc, guard + 1
-            if guard > 5:
-                break
-    except Exception as e:
-        print(f'❌ 取 record_id 失败（{type(e).__name__}）——不敢删（无 ID 硬删会删错）')
+    _j, _raw = db_query(DB_DEAD, 'records', limit=10000)
+    _res = _j.get('results')
+    if not isinstance(_res, list):
+        print(f'❌ 取 record_id 失败（{str(_raw)[:140]}）——不敢删（无 ID 硬删会删错）')
         sys.exit(1)
+    for r in _res:
+        k = str(r.get('源指纹') or '').strip()
+        if k and r.get('record_id'):
+            rid_map[k] = r['record_id']
     hits = [r for r in rows
             if str(r.get('源指纹') or '').strip() == f
             or str(r.get('样例api') or '').strip() == api.strip()]
@@ -8439,9 +8492,7 @@ def _cloud_update_ids(db_id, rows):
             chunk.append({'record_id': rid, 'properties': props})
         if not chunk:
             continue
-        out = api('database/batch_update_database_records.py',
-                  '--database-id', db_id,
-                  '--records', json.dumps(chunk, ensure_ascii=False))
+        out = _db_edit_api(db_id, chunk)
         g, e = _count_success(out, len(chunk))
         good += g
         if e:
@@ -8492,11 +8543,12 @@ def cmd_bl_mark(a):
 
 def _cloud_insert(db_id, records):
     """写一批记录 → (是否全成功, 错误串)。复用 _count_success 判真，不看退出码。"""
-    body = {'database_id': db_id, 'records': records}
     p = subprocess.run(
-        ['python3', f'{LIB}/database/batch_add_database_records.py', '--stdin'],
-        input=json.dumps(body, ensure_ascii=False), capture_output=True, text=True)
-    good, err = _count_success(p.stdout, len(records))
+        ['python3', f'{LIB}/database/db_edit.py', '--database-id', db_id,
+         '--op', 'set-records', '--stdin'],
+        input=json.dumps({'records': records}, ensure_ascii=False),
+        capture_output=True, text=True)
+    good, err = _count_success((p.stdout or '') + (p.stderr or ''), len(records))
     try:
         invalidate(db_id)
     except Exception:

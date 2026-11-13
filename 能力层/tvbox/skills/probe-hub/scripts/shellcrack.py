@@ -26,6 +26,23 @@ UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 DB_SHELL = 'hPF6AUmWmOQa26tOg8Wjb5'
 LIB = os.path.expanduser('~/.codebuddy/skills/library')
 
+def _first_json(text):
+    """摘第一个可解析 JSON 对象（正本输出是 `KS_XXX_OK\t{json}`，JSON 不在行首）。"""
+    for i, ch in enumerate(text or ''):
+        if ch != '{':
+            continue
+        try:
+            # ★ 必须 raw_decode：正本输出是「KS_OK\t{json}\nKS_USER_REPLY\t…」多行，
+            #   json.loads(text[i:]) 会把尾随行算进去 → 整体失败 → 静默返回 {}。
+            #   实测 db_edit set-records：add_count/record_ids 全丢，只剩一个'成功'标签。
+            obj, _ = json.JSONDecoder().raw_decode(text[i:])
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return {}
+
+
 # ── 本地壳库（2026-11-12 立为权威）──────────────────────────────────────────
 # 为什么改：原实现读回要 `eco-ledger/core_ledger`、入库要 `library/database/*.py`，
 # 而这两个技能在新生态里都没装 —— 于是「入库必须 readback」这条硬规则整条落空，
@@ -226,22 +243,26 @@ def save(recs):
         print('   · 云端未装（library/database 不存在），本次仅存本地')
         n_ok = len(recs)
     else:
-        payload = json.dumps({'database_id': DB_SHELL,
-                              'records': [to_record(x) for x in recs]}, ensure_ascii=False)
-        tmpf = '/tmp/shellcrack_recs.json'
-        with open(tmpf, 'w') as f:
-            f.write(payload)
+        payload = json.dumps({'records': [to_record(x) for x in recs]}, ensure_ascii=False)
         import subprocess
-        with open(tmpf) as fin:
-            r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py', '--stdin'],
-                               stdin=fin, capture_output=True, text=True)
-        out = next((ln.strip() for ln in (r.stdout or '').splitlines() if ln.strip().startswith('{')), '')
-        try:
-            d = json.loads(out) if out else {}
-        except Exception:
-            d = {}
-        n_ok = sum(1 for x in (d.get('results') or []) if x.get('success'))
-        print(f'   云端双写：{n_ok}/{len(recs)} 成功（失败不影响本地）')
+        # v0.8.33：正本 batch_add_database_records.py 已并入 db_edit.py --op set-records
+        # （写入 + 逐条回读一次完成）。回执从 {"results":[{success}]} 变成
+        # `KS_DB_EDIT_OK\t{add_count,failed_add_indices,verified_count}`，
+        # 旧的前缀解析（找 '{' 开头行）会整段漏掉 → n_ok 恒为 0，看起来"云端全失败"。
+        r = subprocess.run([sys.executable, f'{LIB}/database/db_edit.py',
+                            '--database-id', DB_SHELL, '--op', 'set-records', '--stdin'],
+                           input=payload, capture_output=True, text=True)
+        text = (r.stdout or '') + (r.stderr or '')
+        tag = next((ln.strip().split('\t')[0] for ln in text.splitlines()
+                    if ln.strip().startswith('KS_')), '')
+        d = _first_json(text)
+        if tag == 'KS_DB_EDIT_OK':
+            n_ok = len(recs)
+        else:
+            failed = d.get('failed_add_indices') or []
+            n_ok = max(len(recs) - len(failed), 0) if isinstance(failed, list) else 0
+        print(f'   云端双写：{n_ok}/{len(recs)} 成功（失败不影响本地）'
+              + ('' if tag == 'KS_DB_EDIT_OK' else f'｜{tag or "无状态行"}'))
 
     print('   回执≠真相，请用 `shellcrack status` readback 复核')
     return n_ok

@@ -6,12 +6,12 @@
 
 ## 1. 当前主线（一句话）
 
-**执行体落地 + 外部引用闸（v0.8.32）**——artifact-store 从纯契约（76 行 md、零代码）变为可执行件：新增 `通用层/skills/artifact-store/scripts/artifact.py`（只读 scan / 8 例 self-check），把「产物边界」与「2 轮判据」写死为可复核逻辑（实测某会话 25.1M 里 22.6M 是含 .git 的仓库副本，按 mtime 清会删工作副本）。连带发现**模式级缺陷**：平台把 `library/database/` 整层重构为 `db_*.py`，全仓 12 类引用 8 类失配、22 处调用，横跨 space-hub / tvbox-core / probe-hub；已修建库 1 类（路径 + properties→fields 键名 + `KS_xxx_OK\t` 前缀解析），新增 `verify/lib_refs_check.py` 作闸（当前 warn 级，全绿后升 `--strict`）。此前主线（技能触发前置 v0.8.31、908 蓝图榨取、手机硬轨）均已收口。
+**外部正本全面迁移（v0.8.33）**——平台把 `library/database/` 整层重构为 `db_create / db_query / db_edit / db_delete` 四件套，旧脚本名全部消失。本轮把 **8 类 24 处**调用迁移完毕（space-hub 6 / tvbox-core 11 / probe-hub 9），并补上一个**检查器盲区**：`_run_lib('database/xxx.py')` 与 `api('database/xxx.py')` 这类间接入口第一版完全扫不到，实测漏掉 5 处（core.py 3 + preflight 1 + probe 5）。迁移中暴露两件事：① **写入语义变了**——旧 `results[].success` 只代表服务端接受，新 `KS_DB_EDIT_OK` 是逐条回读确认后才发，因此核数逻辑必须按 `failed_*_indices / verified_count` 重算；② **同一个 JSON 解析 bug 在 6 个文件里各写了一遍**：`json.loads(text[i:])` 遇尾随 `KS_USER_REPLY` 行整体失败→ 静默返回 `{}`（实测丢 `record_ids/add_count`），已统一改 `raw_decode`。验证：真实库写入→回读 1 条→二段式删除→回读 0 条，全链路通；`lib_refs_check` 由 8 类失配 → **9/9 类 22 处全有效**。此前主线（artifact-store 执行体 v0.8.32、技能触发前置 v0.8.31、908 蓝图榨取）均已收口。
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.32
+- 版本：0.8.33
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）

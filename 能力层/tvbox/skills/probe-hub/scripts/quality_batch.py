@@ -122,28 +122,26 @@ def play_url_of(api, evidence=''):
     return '', '非可评形态'
 
 
-def fetch_rows(db, page_size=200):
-    """全量读库。★ 分页参数是 `--start-cursor`，不是 `--cursor`——
-    写错不会报错，脚本会一直读首页，陷入"每页都读 200 条"的假循环（S110 踩过）。"""
-    rows, cursor = [], None
-    while True:
-        cmd = [sys.executable, f'{LIB}/database/query_database_record.py',
-               '--database-id', db, '--page-size', str(page_size)]
-        if cursor:
-            cmd += ['--start-cursor', cursor]
-        out = subprocess.run(cmd, capture_output=True, text=True, cwd=LIB, timeout=90)
-        try:
-            d = json.loads(out.stdout)
-        except Exception:
-            print(f'  ⚠ 读失败，中断（已读 {len(rows)} 条）')
-            break
-        rows += d.get('results', [])
-        nxt = d.get('next_cursor')
-        if not d.get('has_more') or not nxt or nxt == cursor:
-            break
-        cursor = nxt
-        time.sleep(0.1)
-    return rows
+def fetch_rows(db, page_size=200, limit=10000):
+    """全量读库（翻页在正本 db_query 内完成，`--start-cursor` 那套手写游标已废弃）。
+
+    v0.8.33：正本 query_database_record.py 并入 db_query.py --ask records。
+    原来这里手写游标循环 + 死转闸门（S110 的 `--cursor` 坑）；现在只剩一道检查：
+    正本报 truncated 就明说"没读全"，**不把半张表当全表**。
+    """
+    try:
+        from core import db_query
+    except Exception as e:
+        print(f'  ⚠ 读库不可用（core 导入失败：{type(e).__name__}）')
+        return []
+    j, raw = db_query(db, 'records', limit=limit)
+    res = j.get('results')
+    if not isinstance(res, list):
+        print(f'  ⚠ 读失败：{str(raw)[:140]}')
+        return []
+    if j.get('truncated'):
+        print(f'  ⚠ 记录超过 {limit} 条，本次只拿到前 {len(res)} 条——结论须标注"不完整"')
+    return res
 
 
 def write_quality(db, updates, batch=50):

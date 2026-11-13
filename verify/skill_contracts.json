@@ -104,7 +104,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/space-hub",
-      "version": "2.7.4",
+      "version": "2.7.5",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -118,7 +118,7 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/probe-hub",
-      "version": "1.27.1",
+      "version": "1.27.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -145,7 +145,7 @@
       "kind": "lib",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/tvbox-core",
-      "version": "1.0.67",
+      "version": "1.0.68",
       "required_files": [
         "README.md",
         "manifest.json",

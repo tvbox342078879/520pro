@@ -203,6 +203,23 @@ def plan_updates(rows):
     return ups
 
 
+def _first_json(text):
+    """从正本输出里摘第一个可解析 JSON 对象；摘不到返回 {}。"""
+    for i, ch in enumerate(text or ''):
+        if ch != '{':
+            continue
+        try:
+            # ★ 必须 raw_decode：正本输出是「KS_OK\t{json}\nKS_USER_REPLY\t…」多行，
+            #   json.loads(text[i:]) 会把尾随行算进去 → 整体失败 → 静默返回 {}。
+            #   实测 db_edit set-records：add_count/record_ids 全丢，只剩一个'成功'标签。
+            obj, _ = json.JSONDecoder().raw_decode(text[i:])
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return {}
+
+
 _SCHEMA = {}
 
 
@@ -215,11 +232,13 @@ def schema_types(db):
     """
     if db in _SCHEMA:
         return _SCHEMA[db]
-    script = f'{LIB}/database/get_database_schema.py'
+    # v0.8.33：正本 get_database_schema.py 已并入 db_query.py --ask schema。
+    # 输出是 `KS_DB_QUERY_OK\t{json}`——JSON 不在行首，必须用 _first_json 摘。
     try:
-        out = subprocess.run([sys.executable, script, '--database-id', db],
+        out = subprocess.run([sys.executable, f'{LIB}/database/db_query.py',
+                              '--target', db, '--target-kind', 'id', '--ask', 'schema'],
                              capture_output=True, text=True, cwd=LIB).stdout
-        d = json.loads(out)
+        d = _first_json(out)
     except Exception:
         return None
     props = d.get('properties')

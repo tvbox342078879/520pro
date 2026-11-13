@@ -1,3 +1,9 @@
+## v2.7.5 — database 正本全面迁移（520 v0.8.33，2026-11-13）
+- 平台把 `database/` 层重构成 `db_create / db_query / db_edit / db_delete` 四件套，本技能 6 处旧调用全部失配（`get_database_schema` / `get_database_content` / `batch_add_database_records` / `add_database_field`）。新增适配层 `_db_call / _db_query / _db_add_records`：只做参数映射与状态行解析，写入仍 exec 正本
+- **`_first_json_object` 修了一个会吞数据的 bug**：原实现 `json.loads(text[i:])` 把尾随的 `KS_USER_REPLY` 行算进去 → 解析失败 → 返回 `{}`。实测 `db_edit set-records` 的 `record_ids / add_count` 全丢，只剩一个成功标签。改 `json.JSONDecoder().raw_decode`
+- 建库/补列/索引写入全部改走新正本；`_probe_empty_databases` 里的 `_run_lib('database/get_database_content.py')` 已删（间接入口，第一版引用检查器扫不到，现由 `lib_refs_check.py` 的 `_run_lib|api` 模式覆盖）
+- 实证：`ensure --dry-run` → 认领 10 / 新建 7（schema 通路正常）；真实库写入 → 回读 1 条 → 删除 → 回读 0 条
+
 ## v2.7.4 — 建库正本迁移（520 v0.8.32，2026-11-13）
 - 平台 library 把 `database/create_database.py` 重构为 `db_create.py`，字段键 `properties` → `fields`（`db_create.py:450` 读 `payload["fields"]`）；`_create_db_api` 改为新路径 + 键名适配，三处调用点继续传 properties 不用各改一遍
 - 建库正本输出加了状态前缀（实测 `KS_DB_CREATE_OK\t{json}`），JSON 不在行首，旧的「逐行找 `{` 开头」解析漏掉 → 新增 `_first_json_object`（逐个 `{` 试解析到末尾）；不修会导致「库建成了但判失败」，进而每跑一次自举就多建一个空库

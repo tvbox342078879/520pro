@@ -33,7 +33,8 @@ import subprocess
 import sys
 from collections import Counter
 
-LIB = os.path.expanduser('~/.codebuddy/skills/library/database')
+LIB = os.path.expanduser('~/.codebuddy/skills/library')   # 与全仓同语义：library 根
+DB_DIR = LIB + '/database'                                # 具体脚本在 database/ 下
 # ★ S159：本脚本整体停用。
 #   S144「阶段3 清空旧三库」把源总库 wW5xpbS… 与备用库 G9B1GzfR… 各 801 条清空并改名
 #   「🗑【已废弃】」。此后本脚本仍在运行，效果是：从**空库**读源、把结果写进**废弃库**——
@@ -43,6 +44,23 @@ DB_SRC = 'wW5xpbS663nA6XK8a7DNsp'   # 旧源总库（已废弃，仅留作报错
 DB_BAK = 'G9B1GzfRJDoSausMmPXF8T'   # 旧备用库（已废弃，**禁止再写入**）
 
 # 备用库「状态」无「不适用」——不能写非法枚举（会被 select 校验整条拒绝）
+def _first_json(text):
+    """摘第一个可解析 JSON 对象（正本输出 `KS_XXX_OK\t{json}`，JSON 不在行首）。"""
+    for i, ch in enumerate(text or ''):
+        if ch != '{':
+            continue
+        try:
+            # ★ 必须 raw_decode：正本输出是「KS_OK\t{json}\nKS_USER_REPLY\t…」多行，
+            #   json.loads(text[i:]) 会把尾随行算进去 → 整体失败 → 静默返回 {}。
+            #   实测 db_edit set-records：add_count/record_ids 全丢，只剩一个'成功'标签。
+            obj, _ = json.JSONDecoder().raw_decode(text[i:])
+        except Exception:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return {}
+
+
 STATUS_MAP = {'不适用': '停用'}
 # 备用库可用体系/内容分级等取值域差异，统一走字符串承载
 TEXT_FIELDS_SRC = {'内容分级'}          # 源 select → 备用 text
@@ -53,23 +71,15 @@ MULTI_FIELDS = {'可用体系'}
 
 
 def q(db, page=100):
-    cmd = ['python3', f'{LIB}/query_database_record.py', '--database-id', db,
-           '--page-size', str(page)]
-    cur, rows = None, []
-    # ★ M-R115 禁二 / M-R100：原实现只看 has_more，若服务端一直回 has_more=true
-    #   而 next_cursor 不变，就会无限循环且零报错（reclass2 栽过 4 分钟的同一个坑）。
-    #   两道闸：游标不前进即退出 + 轮次硬上限。
-    for _ in range(200):
-        c = cmd + (['--start-cursor', cur] if cur else [])
-        d = json.loads(subprocess.run(c, capture_output=True, text=True).stdout)
-        rows += d.get('results', [])
-        if not d.get('has_more'):
-            break
-        nxt = d.get('next_cursor')
-        if not nxt or nxt == cur:
-            break                      # 游标未前进 → 立即停，不空转
-        cur = nxt
-    return rows
+    """读整表。v0.8.33：正本 query_database_record.py 并入 db_query.py --ask records，
+    翻页与死转闸门都在正本内（原手写游标循环已删）。本脚本整体停用，读失败返回 []。"""
+    try:
+        from core import db_query
+        j, _ = db_query(db, 'records', limit=10000)
+    except Exception:
+        return []
+    res = j.get('results')
+    return res if isinstance(res, list) else []
 
 
 def to_bak_record(r):
@@ -151,17 +161,25 @@ def main(argv):
         batch = [b for b in batch if b]
         if not batch:
             continue
-        payload = {'database_id': DB_BAK, 'records': batch}
-        p = subprocess.run(['python3', f'{LIB}/batch_add_database_records.py', '--stdin'],
-                           input=json.dumps(payload, ensure_ascii=False),
+        # v0.8.33：正本 batch_add_database_records.py 并入 db_edit.py --op set-records。
+        r = subprocess.run([sys.executable, f'{DB_DIR}/db_edit.py', '--database-id', DB_BAK,
+                            '--op', 'set-records', '--stdin'],
+                           input=json.dumps({'records': batch}, ensure_ascii=False),
                            capture_output=True, text=True)
-        try:
-            res = json.loads(p.stdout or '{}').get('results', [])
-            ok += sum(1 for x in res if x.get('success'))
-            fail += sum(1 for x in res if not x.get('success'))
-        except Exception:
-            fail += len(batch)
-            print(f'  批次 {i // 80 + 1} 解析失败: {p.stdout[:120]}')
+        text = (r.stdout or '') + (r.stderr or '')
+        tag = next((ln.strip().split('\t')[0] for ln in text.splitlines()
+                    if ln.strip().startswith('KS_')), '')
+        if tag == 'KS_DB_EDIT_OK':
+            ok += len(batch)
+        else:
+            d = _first_json(text)
+            bad = d.get('failed_add_indices')
+            n_bad = len(bad) if isinstance(bad, list) else len(batch)
+            fail += n_bad
+            ok += max(len(batch) - n_bad, 0)
+            if n_bad:
+                print(f'  批次 {i // 80 + 1} 未全成功（{tag or "无状态行"}）：'
+                      f'{str(d.get("error") or text)[:120]}')
     print(f'\n写入 成功 {ok} ｜ 失败 {fail}')
 
     # 写完必回读（T-I：success 不等于落库）

@@ -1082,15 +1082,9 @@ def cmd_baksync(a):
         ms = [x.strip() for x in str(r.get('可用体系') or '').replace('，',',').split(',') if x.strip()]
         if ms: p['可用体系'] = {'multi_select': ms}
         recs.append(p)
-    ok = fail = 0
-    import json as _j, subprocess as _sp
-    for i in range(0, len(recs), 100):
-        out = _sp.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                       '--database-id', DB_BAK, '--records', _j.dumps(recs[i:i+100], ensure_ascii=False)],
-                      capture_output=True, text=True).stdout
-        for x in _j.loads(out).get('results', []):
-            ok += 1 if x.get('success') else 0
-            fail += 0 if x.get('success') else 1
+    # v0.8.33：正本 batch_add 已并入 db_edit set-records，改走 core.add_records
+    # （同一函数同时服务新增与更新，内置分批 + 三态解析，别在这里再手写一套）。
+    ok, fail = add_records(DB_BAK, recs, sleep=0.0, _gate=False)
     invalidate(DB_BAK)
     print(f'   ✓ bak-sync：+{ok}(失败{fail})，备用库 {len(rows_of(DB_BAK))} 行')
     if fail:

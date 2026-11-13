@@ -910,7 +910,7 @@ def _probe_empty_databases(items, control_id=None):
 
     返回 {'lines': [头部说明行], 'by_id': {id: 每项结论短语}}
 
-    ★ 判据来自 `database/get_database_content.py`：它返回的 `content` 是 CSV 文本，
+    ★ 判据来自 `db_query.py --ask csv`：它返回的 `content` 是 CSV 文本，
       首行永远是表头。**非空行数 == 1 表示 0 条记录**，>1 表示有数据。
     ★ 对照组（`control_id`=账房总账，已知有数据）必须先读出 >1 行，
       否则说明"这条通路读不到数据"，此时所有「空」都不可采信 → 一律标「无法判定」。
@@ -927,30 +927,11 @@ def _probe_empty_databases(items, control_id=None):
     if not control_id:
         control_id = (os.environ.get('SPACE_HUB_CONTROL_DB') or '').strip() \
             or (load_state().get('control_db') or '').strip()
-    def _run_lib(script, *args):
-        """直调 library 正门（v0.8.4 解耦）：不再 import 能力层 tvbox-core 的 _run_lib。
-
-        原实现借 core._run_lib——通用层技能依赖能力层库，方向反了；
-        此处就地内联等价逻辑（缺失/异常/超时都返回三态可分辨的 (ok, out, err)）。
-        """
-        p = os.path.join(LIB, script)
-        if not os.path.exists(p):
-            return False, '', f'library 脚本缺失：{script}（预期 {p}）'
-        try:
-            r = subprocess.run([sys.executable, p, *args],
-                               capture_output=True, text=True, cwd=LIB, timeout=120)
-            return r.returncode == 0, r.stdout, (r.stderr or '')[:200]
-        except Exception as e:
-            return False, '', f'子进程异常（{type(e).__name__}: {str(e)[:70]}）'
-
     def _rows(did):
-        ok, so, se = _run_lib('database/get_database_content.py', '--database-id', did)
-        if not ok:
-            return None, (se or 'run_lib 失败')[:80]
-        try:
-            c = json.loads(so).get('content') or ''
-        except Exception as e:
-            return None, f'返回解析失败 {type(e).__name__}'
+        j, raw = _db_query(did, 'csv')
+        c = j.get('content')
+        if not isinstance(c, str):
+            return None, f'读库失败（db_query --ask csv 无 content）：{raw[:80]}'
         return len([x for x in c.split('\n') if x.strip()]), ''
 
     if not control_id:
@@ -1572,27 +1553,21 @@ def _ensure_index_db(fid):
 
 def _db_schema(db_id):
     """读库字段结构 {字段名: {'type':..., 'options':[...]}}。None=无法判定。"""
-    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_schema.py',
-                        '--database-id', db_id], capture_output=True, text=True)
-    for ln in reversed((r.stdout or '').strip().splitlines()):
-        ln = ln.strip()
-        if ln.startswith('{'):
-            try:
-                j = json.loads(ln)
-                out = {}
-                for prop in (j.get('properties') or []):
-                    cfg = prop.get('config') or {}
-                    out[prop.get('name')] = {
-                        'type': prop.get('type') or 'text',
-                        'options': [o.get('text') for o in (cfg.get('options') or [])]}
-                return out
-            except Exception:
-                continue
-    return None
+    j, _ = _db_query(db_id, 'schema')
+    props = j.get('properties')
+    if not isinstance(props, list):
+        return None
+    out = {}
+    for prop in props:
+        cfg = prop.get('config') or {}
+        out[prop.get('name')] = {
+            'type': prop.get('type') or 'text',
+            'options': [o.get('text') for o in (cfg.get('options') or [])]}
+    return out
 
 
 def _index_add(db_id, name, cat, date, source, note, path=''):
-    """写一条索引记录（library 正本 batch_add_database_records）。
+    """写一条索引记录（library 正本 db_edit.py --op set-records）。
 
     ★ 按字段真实类型写 oneof（2026-11-12 实测）：select 字段写 {"text":...} 会被
       **静默丢弃**（记录建了、类别为空，不报错）。所以先读 schema 再决定值形态；
@@ -1619,14 +1594,12 @@ def _index_add(db_id, name, cat, date, source, note, path=''):
     rec = [{'名称': val('名称', name), '类别': val('类别', cat), '日期': {'date': date},
             '来源': val('来源', source), '说明': val('说明', real_note),
             '落点路径': val('落点路径', path)}]
-    r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                        '--database-id', db_id, '--records', json.dumps(rec, ensure_ascii=False)],
-                       capture_output=True, text=True)
-    out = (r.stdout or '') + (r.stderr or '')
-    if 'error' in out.lower() and 'KS_' not in out:
-        print(f'  ⚠️ 索引记录写入疑似失败（文件本体已落库）：{out[:160]}')
-        return False
-    return True
+    ok, tag, pl, raw = _db_add_records(db_id, rec)
+    if ok == len(rec):
+        return True
+    why = pl.get('error') or pl.get('code') or raw[:160]
+    print(f'  ⚠️ 索引记录写入失败 {len(rec) - ok}/{len(rec)}（文件本体已落库）：{tag or "无状态行"} {why}')
+    return False
 
 
 def _artifact_rules():
@@ -2212,7 +2185,7 @@ def _first_json_object(text):
     平台正本会输出 `KS_XXX_OK\\t{json}` 这类带状态前缀的行（2026-11-13 实测
     db_create.py），JSON 不在行首——按行首判 '{' 会漏。这里逐个 '{' 试解析。
     """
-    for i, ch in enumerate(text):
+    for i, ch in enumerate(text or ''):
         if ch != '{':
             continue
         try:
@@ -2222,6 +2195,60 @@ def _first_json_object(text):
         except Exception:
             continue
     return {}
+
+
+# ── library database 正本适配层（v0.8.33）──────────────────────────────────
+# 平台 2026-11 把 database 层重构成 db_create / db_query / db_edit / db_delete，
+# 旧脚本名（get_database_schema / batch_add_database_records / …）整层消失。
+# 本层只做两件事：旧调用 → 新正本的参数映射、`KS_XXX_OK\t{json}` 状态行解析成三态。
+# **不自造写入通道**：每次都 exec 正本脚本，删记录仍然只走 db_delete 的二段式。
+_DB_QUERY = f'{LIB}/database/db_query.py'
+_DB_EDIT = f'{LIB}/database/db_edit.py'
+
+
+def _db_call(script, argv, stdin=None, timeout=90):
+    """跑正本脚本 → (tag, payload, raw)。tag='' = 没拿到状态行（无法判定）。"""
+    p = subprocess.run([sys.executable, script] + argv, input=stdin,
+                       capture_output=True, text=True, timeout=timeout)
+    text = (p.stdout or '') + '\n' + (p.stderr or '')
+    tag = ''
+    for ln in text.splitlines():
+        s = ln.strip()
+        if s.startswith('KS_'):
+            tag = s.split('\t')[0].strip()
+            break
+    return tag, _first_json_object(text), text
+
+
+def _db_query(db_id, ask, **kw):
+    """读库。ask ∈ schema / records / record / stats / csv。返回 (payload, raw)。"""
+    argv = ['--target', db_id, '--target-kind', 'id', '--ask', ask]
+    for k, v in kw.items():
+        if v not in (None, ''):
+            argv += ['--' + k.replace('_', '-'), str(v)]
+    tag, pl, raw = _db_call(_DB_QUERY, argv)
+    if tag != 'KS_DB_QUERY_OK':
+        return {}, raw          # 空 dict = 读不到，不折叠成「空库」
+    return pl, raw
+
+
+def _db_add_records(db_id, records, timeout=180):
+    """追加记录（等价旧的 batch_add_database_records.py）。返回 (ok 条数, tag, payload, raw)。
+
+    语义差异必须知道：旧正本 `results[].success` 只代表**服务端接受**；
+    新正本 KS_DB_EDIT_OK 是**逐条回读确认后**才发，UNVERIFIED 会带 failed_add_indices。
+    所以这里的 ok 是「回读确认成功」的条数，比旧口径严。
+    """
+    n = len(records)
+    tag, pl, raw = _db_call(
+        _DB_EDIT, ['--database-id', db_id, '--op', 'set-records', '--stdin'],
+        stdin=json.dumps({'records': records}, ensure_ascii=False), timeout=timeout)
+    if tag == 'KS_DB_EDIT_OK':
+        return n, tag, pl, raw
+    failed = pl.get('failed_add_indices')
+    if isinstance(failed, list):
+        return max(n - len(failed), 0), tag, pl, raw
+    return 0, tag, pl, raw
 
 
 def _create_db_api(sc):
@@ -2297,7 +2324,7 @@ def cmd_create_db(a):
     if not db_id:
         print(f'❌ 建库失败：{err}'); return 1
     print(f'✅ 库已建成并回读确认：{sc["title"]}（{db_id}，{len(sc["properties"])} 字段）')
-    print(f'   → 后续写记录走 library 正本：database/batch_add_database_records.py')
+    print('   → 后续写记录走 library 正本：db_edit.py --op set-records（一次调用完成写入+回读）')
     return 0
 
 
@@ -2445,18 +2472,11 @@ def ensure_space(title):
 
 def _db_fields(db_id):
     """读库字段名列表。返回 None = 无法判定（读失败），空列表 = 真的没有字段。"""
-    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_schema.py',
-                        '--database-id', db_id], capture_output=True, text=True)
-    s = (r.stdout or '').strip()
-    for ln in reversed(s.splitlines()):
-        ln = ln.strip()
-        if ln.startswith('{'):
-            try:
-                j = json.loads(ln)
-                return [p.get('name') for p in (j.get('properties') or [])]
-            except Exception:
-                continue
-    return None
+    j, _ = _db_query(db_id, 'schema')
+    props = j.get('properties')
+    if not isinstance(props, list):
+        return None
+    return [p.get('name') for p in props]
 
 
 def _ensure_db_fields(db_id, fields, quiet=False):
@@ -2469,13 +2489,17 @@ def _ensure_db_fields(db_id, fields, quiet=False):
     for f in fields:
         if f in have:
             continue
-        r = subprocess.run([sys.executable, f'{LIB}/database/add_database_field.py',
-                            '--database-id', db_id,
-                            '--property', json.dumps({'name': f, 'config': _field_cfg(f)},
-                                                     ensure_ascii=False)],
-                           capture_output=True, text=True)
-        out = ((r.stdout or '') + (r.stderr or '')).lower()
-        say(f'  + 补列「{f}」' + ('⚠️ 失败：' + out[:120] if 'error' in out else '✅'))
+        tag, pl, raw = _db_call(
+            _DB_EDIT, ['--database-id', db_id, '--op', 'add-field',
+                       '--payload', json.dumps({'name': f, 'config': _field_cfg(f)},
+                                               ensure_ascii=False)])
+        if tag == 'KS_DB_EDIT_OK':
+            say(f'  + 补列「{f}」✅')
+        elif tag:
+            why = str(pl.get('error') or pl.get('code') or '')[:100]
+            say(f'  + 补列「{f}」⚠️ 失败：{tag} {why}')
+        else:
+            say(f'  + 补列「{f}」⚠️ 无法判定（无状态行）：{raw[:120]}')
 
 
 def _ensure_root(r, dry, quiet=False):
@@ -2918,27 +2942,19 @@ def _root_id(title):
 
 def _cloud_versions(db_id):
     """云端台账已有版本集合。None = 读不到（无法判定，不折叠为空集）。"""
-    r = subprocess.run([sys.executable, f'{LIB}/database/get_database_content.py',
-                        '--database-id', db_id], capture_output=True, text=True)
-    for ln in reversed((r.stdout or '').strip().splitlines()):
-        ln = ln.strip()
-        if not ln.startswith('{'):
-            continue
-        try:
-            j = json.loads(ln)
-            csv = j.get('content') or ''
-            lines = [x for x in csv.splitlines() if x.strip()]
-            if not lines:
-                return set()
-            out = set()
-            for row in lines[1:]:
-                v = row.split(',')[0].strip().strip('"')
-                if v:
-                    out.add(v)
-            return out
-        except Exception:
-            continue
-    return None
+    j, _ = _db_query(db_id, 'csv')
+    csv = j.get('content')
+    if not isinstance(csv, str):
+        return None
+    lines = [x for x in csv.splitlines() if x.strip()]
+    if not lines:
+        return set()
+    out = set()
+    for row in lines[1:]:
+        v = row.split(',')[0].strip().strip('"')
+        if v:
+            out.add(v)
+    return out
 
 
 def cmd_evolve_log(a):
@@ -3007,12 +3023,10 @@ def cmd_evolve_log(a):
     rec = [{'版本': {'text': ver}, '日期': {'date': date}, '类型': {'text': kind},
             '新增能力': {'text': delta}, '变更摘要': {'text': summary},
             '证据': {'text': evidence}}]
-    r = subprocess.run([sys.executable, f'{LIB}/database/batch_add_database_records.py',
-                        '--database-id', dbid, '--records', json.dumps(rec, ensure_ascii=False)],
-                       capture_output=True, text=True)
-    out = (r.stdout or '') + (r.stderr or '')
-    if '"error"' in out.lower() or '"code":' in out and '"code":0' not in out.replace(' ', ''):
-        print(f'❌ 台账写入失败：{out[:240]}')
+    ok, tag, pl, raw = _db_add_records(dbid, rec)
+    if ok != len(rec):
+        why = pl.get('error') or pl.get('code') or raw[:240]
+        print(f'❌ 台账写入失败：{tag or "无状态行"} {why}')
         return 2
     logs.append({'version': ver, 'hash': h, 'date': date, 'kind': kind,
                  'delta': delta, 'db': dbid})

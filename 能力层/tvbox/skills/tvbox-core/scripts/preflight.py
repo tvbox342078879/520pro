@@ -37,20 +37,18 @@ def get_schema(db):
     """
     try:
         import core as _c
-        ok, out, err = _c._run_lib('database/get_database_schema.py', '--database-id', db)
+        # v0.8.33：正本 get_database_schema.py 已并入 db_query.py --ask schema，
+        # 且输出带 `KS_DB_QUERY_OK\t` 前缀——json.loads(out) 会整体失败。
+        # core.db_query 已把「前缀解析 + 状态行判真」收在一处，这里只判空。
+        payload, raw = _c.db_query(db, 'schema')
     except Exception as e:
         print(f'（core 不可用：{type(e).__name__}: {str(e)[:60]}）', file=sys.stderr)
         return None
-    if not ok:
-        print(f'（schema 读取失败：{err[:120]}）', file=sys.stderr)
+    props = payload.get('properties')
+    if not isinstance(props, list):
+        print(f'（schema 读取失败：{str(raw)[:120]}）', file=sys.stderr)
         return None
-    try:
-        d = json.loads(out)
-        props = d.get('properties') or []
-        return {p['name']: p for p in props}
-    except Exception as e:
-        print(f'（schema 解析失败：{type(e).__name__}）', file=sys.stderr)
-        return None
+    return {p['name']: p for p in props}
 
 
 def check_record(rec, schema, idx, problems):
