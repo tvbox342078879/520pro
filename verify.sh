@@ -380,20 +380,70 @@ echo
 echo "[三通道一致性（v0.8.18 起·工程F-7）]"
 if [ -f "$TARGET/手机指令.md" ]; then
   ok "手机指令.md 在位（硬轨）"
-  grep -q "拦截即停止" "$TARGET/手机指令.md" \
-    && ok "  └ 手机硬轨含 B-10「拦截即停止」" \
-    || no "  └ 手机硬轨缺 B-10（手机端被拦后会硬试）"
-  # ★ v0.8.22（工程J）：编号范围不再写死——从 core-8 真源取当前最大编号。
-  #   写死 "B-01~B-10" 的判据，在扩到 B-16 之后会一边红一边说"范围过期"（其实是判据过期）。
-  _bmax=$(grep -oE '^\s*[0-9]+\.\s+\*\*B-[0-9]{2}' "$TARGET/通用层/rules/core-8.md" 2>/dev/null \
-          | grep -oE 'B-[0-9]{2}' | sort -u | tail -1)
-  if [ -n "${_bmax:-}" ]; then
-    grep -q "B-01~${_bmax}\|B-01…${_bmax}" "$TARGET/手机指令.md" \
-      && ok "  └ 手机指令引用当前编号范围（B-01~${_bmax}）" \
-      || no "  └ 手机指令的规则编号范围过期（真源已到 ${_bmax}，手机仍是旧范围）"
-  else
-    opt "  └ core-8 未识别到编号条款——手机指令范围无法判定"
-  fi
+  # ★ v0.8.23：判据从「抽查 B-10 一条 + 比范围字符串」升级为**结构化对账**。
+  #   旧判据的两个漏洞（都是真发生过的）：
+  #     ① 只查一条 → 其余 15 条漏没漏看不出（本次 B-11/13/16 就是漏着的）；
+  #     ② 查 "B-01~B-16" 这串字 → 只要写对范围就过，跟"到底放没放进去"无关。
+  #   新判据要求：hard-rail ∪ hard-rail-exempt 必须**不重不漏**等于 core-8 全部编号。
+  #   这样 core-8 下次扩条时，这里会立刻红，逼一次「进硬轨 or 登记豁免」的决定。
+  _hr_out=$(python3 - "$TARGET" <<'PYEOF'
+import re, sys, os
+tgt = sys.argv[1]
+core = os.path.join(tgt, '通用层/rules/core-8.md')
+mob = os.path.join(tgt, '手机指令.md')
+try:
+    ct = open(core, encoding='utf-8').read()
+    mt = open(mob, encoding='utf-8').read()
+except Exception as e:
+    print('OPT core-8 或手机指令不可读：%s' % e); sys.exit(0)
+
+allb = set(re.findall(r'(?m)^\s*[0-9]+\.\s+\*\*(B-[0-9]{2})', ct))
+if not allb:
+    print('OPT core-8 未识别到 B 编号条款——硬轨对账无法判定'); sys.exit(0)
+
+def grab(tag):
+    m = re.search(r'<!--\s*%s\s*:\s*([^>]*?)-->' % tag, mt)
+    if not m:
+        return None
+    return set(re.findall(r'B-[0-9]{2}', m.group(1)))
+
+rail = grab('hard-rail')
+exem = grab('hard-rail-exempt')
+if rail is None or exem is None:
+    print('FAIL 手机指令缺登记注释（hard-rail / hard-rail-exempt）——硬轨放没放全无从判断')
+    sys.exit(0)
+
+MUST = {'B-02', 'B-10', 'B-11', 'B-13', 'B-16'}   # 手机端踩了当场出事的五条
+probs = []
+ghost = (rail | exem) - allb
+if ghost:
+    probs.append('登记了 core-8 里不存在的编号 %s（编号写错，或 core-8 已删条）'
+                 % '、'.join(sorted(ghost)))
+dup = rail & exem
+if dup:
+    probs.append('%s 同时被登记为「进硬轨」和「豁免」——口径自相矛盾' % '、'.join(sorted(dup)))
+miss = allb - rail - exem
+if miss:
+    probs.append('core-8 有但硬轨没放也没登记豁免：%s（扩条后忘记决定去哪）'
+                 % '、'.join(sorted(miss)))
+lack = MUST - rail
+if lack:
+    probs.append('必入清单缺：%s（这几条手机端踩了当场出事，不能豁免）'
+                 % '、'.join(sorted(lack)))
+
+if probs:
+    print('FAIL ' + '；'.join(probs))
+else:
+    print('OK %d 进硬轨 + %d 登记豁免 = core-8 全 %d 条，不重不漏'
+          % (len(rail), len(exem), len(allb)))
+PYEOF
+)
+  case "$_hr_out" in
+    OK*)   ok "  └ 手机硬轨对账：${_hr_out#OK }" ;;
+    OPT*)  opt "  └ 手机硬轨对账无法判定：${_hr_out#OPT }" ;;
+    FAIL*) no "  └ 手机硬轨对账失败：${_hr_out#FAIL }" ;;
+    *)     opt "  └ 手机硬轨对账无输出（判据自身可能异常）" ;;
+  esac
 else
   no "手机指令.md 缺失（手机通道断：手机端不读项目薄壳）"
 fi
