@@ -25,6 +25,12 @@ docs/巡检/
 通用层/skills/space-hub/scripts/snapshots/
 通用层/skills/space-hub/scripts/.ensure.lock
 
+# 凭据文件（B-05 例外口径：允许代码代写 0600 供本机读取，但**绝不入版本库**）
+# 2026-11-13 实证：probe.py:6360 `token --set` 写 SELF_DIR/.gh_token，而 SELF_DIR 在仓内，
+# 此前 .gitignore 无此条 → 一次 token --set + git add -A 即把 PAT 推上公网。判据见 secret_scan.py 凭据文件名扫描。
+.gh_token
+.git-credentials
+.netrc
 # 探源司·本机运行时数据（v0.8.12：含用户个人采集的监测目标/死册/候选，属私产，不随分发携带）
 # 各留同名 .example.json 作结构模板；新机器首次运行按模板自动建空册
 能力层/tvbox/skills/probe-hub/scripts/monitor_targets.json

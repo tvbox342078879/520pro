@@ -98,6 +98,16 @@
       "check": "verify.sh",
       "anchor": "双核必保",
       "how": "verify.sh 查 probe-hub / tvbox-core(含 scripts/core.py) / learn-hub 三处存在；变异测试：临时移走 tvbox-core 后必须翻红。"
+    },
+    "B-17": {
+      "verify_id": "V-MANUAL-17",
+      "kind": "manual",
+      "how": "回看用户短回复（1/2/3、a/b/c、都做、继续、按顺序来、从根源解决）之后：agent 是否直接映射最近一次回复的可选项并执行；有无无谓的复述确认；遇歧义（同一代号指向多条回复）或不可逆动作（删库/覆盖/发布/改线上）时是否先澄清。"
+    },
+    "B-18": {
+      "verify_id": "V-MANUAL-18",
+      "kind": "manual",
+      "how": "抽查交付正文：每处事实能否指到文件+行号（或文段/页/时间戳）；交付里是否给了「N 条有出处 / M 条无出处」两个数；无出处项是否单列「⚠️ 无出处」而不是删掉或混进正文。"
     }
   }
 }

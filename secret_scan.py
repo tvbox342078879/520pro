@@ -7,6 +7,7 @@
       ★ v0.8.14（工程B）补齐行业九类：私钥块/AKIA/ASIA/xox/AIza/sk-（借鉴 Memory Palace
       pre_publish_check 模式表）；新增三级判定——
         FAIL：密钥命中 / .example.json 含真实节点 id（B1/B5）
+              凭据文件（.gh_token 等）已追踪或未被忽略（2026-11-13 新判据，见 scan_credential_files）
         WARN：文档个人绝对路径 / 本地 endpoint（B2/B3，--strict 升级为红，B4 分级）
 来源: tvbox-eco/verify/secret_scan.py 迁移改造（去 kill-switch 依赖）。
 设计要点:
@@ -177,6 +178,55 @@ def scan_gitconfig(root, found):
     return hit
 
 
+# ---- 凭据文件按**文件名**扫描（B-05 例外口径的机检，2026-11-13）----
+# 为什么必须单列：内容扫描对这类文件**天生失效**——`.gh_token` 无扩展名，
+# 过不了 SCAN_EXT（见下 p.endswith(SCAN_EXT)），所以哪怕它就躺在库根，PATTERNS 也
+# 一次都不会打开它。实测（2026-11-13）：probe.py:6360 `token --set` 写
+# SELF_DIR/.gh_token，SELF_DIR 在仓内，此前 .gitignore 无此条 → 一次 --set + add -A
+# 即把 PAT 推上公网，而全绿。故此处不依赖内容、不依赖扩展名，只看文件名与 git 状态。
+CRED_NAMES = ('.gh_token', '.git-credentials', '.netrc', 'id_rsa', 'id_ed25519')
+
+
+def scan_credential_files(root, found, noted):
+    """凭据文件三态：已追踪=红（已进历史）／未追踪未忽略=红（随时被 add）／未追踪已忽略=合法。
+
+    noted 里回填合法项（作为「例外已生效」的可见证据，M7 要求例外须留痕）。
+    返回 True=判定成立；False=无法判定（非 git 环境/命令异常，调用方记「无法判定」）。
+    """
+    try:
+        r = subprocess.run(['git', '-C', root, '-c', 'core.quotePath=false', 'ls-files', '-z'],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return False
+        tracked = {x for x in r.stdout.split('\0') if x.strip()}
+    except Exception:
+        return False
+    hits = []
+    for dp, dns, fns in os.walk(root):
+        dns[:] = [d for d in dns if d not in SKIP_DIRS]
+        for fn in fns:
+            if fn not in CRED_NAMES:
+                continue
+            rel = os.path.relpath(os.path.join(dp, fn), root).replace('\\', '/')
+            hits.append(rel)
+    for rel in hits:
+        if rel in tracked:
+            found.append((rel, '凭据文件已进版本库（必须移除并轮换该 token）'))
+            continue
+        try:
+            ig = subprocess.run(['git', '-C', root, 'check-ignore', '-q', '--', rel],
+                                capture_output=True, timeout=10)
+        except Exception:
+            return False
+        if ig.returncode == 0:
+            noted.append(rel)                      # 合法：在库外且被忽略（B-05 例外）
+        elif ig.returncode == 1:
+            found.append((rel, '凭据文件未被 .gitignore 覆盖（git add -A 会带走它）'))
+        else:
+            return False                           # check-ignore 异常 → 不判
+    return True
+
+
 def main():
     argv = sys.argv[1:]
     profile = "default"
@@ -245,6 +295,13 @@ def main():
                     bucket.append(('本地endpoint', f"{rel}:{ln}", m.group(0)[:40]))
                     break
     scan_gitconfig(root, found)
+    cred_noted = []
+    cred_ok = scan_credential_files(root, found, cred_noted)
+    if cred_noted:
+        print(f"[豁免] 凭据文件 {len(cred_noted)} 个在库外且已被忽略："
+              f"{', '.join(cred_noted)}（B-05 例外口径：可代写 0600，但不得入版本库）")
+    if not cred_ok:
+        print("[无法判定] 凭据文件名扫描未完成（git 不可用）——不得当作通过", file=sys.stderr)
     if exempted:
         print(f"[豁免] 扫描器自身构造行/注释行：{', '.join(sorted(set(exempted)))}")
     if found:

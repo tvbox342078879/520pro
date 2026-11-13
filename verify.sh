@@ -563,6 +563,30 @@ else
   no "verify/terminology_check.py 缺失（M5 口径机检未装）"
 fi
 
+# ★ v0.8.25（规则迁移批2）：台账四律——旧生态 M-R75/82/86/93 的判据化落点
+# 为什么要有：这四条原本是旧生态的"教训条目"，只在文档里躺着。docs 不加载
+# （docs/加载机制与可靠性.md 实测），所以只搬条文 = 纸面迁移。这里只挑能机检的形态，
+# 检不了的（"须显式收口才变绿"等）留给人工与 docs/通病台账.md，不假装覆盖。
+echo
+echo "[台账四律（v0.8.25 起·规则迁移批2：M-R75/82/86/93）]"
+if [ -f "$TARGET/verify/ledger_laws.py" ]; then
+  lout="$(python3 "$TARGET/verify/ledger_laws.py" --repo "$TARGET" 2>&1)"
+  lrc=$?
+  lok=$(printf '%s\n' "$lout" | grep -c '  ✓ \[' || true)
+  lno=$(printf '%s\n' "$lout" | grep -c '  ✗ \[' || true)
+  lskip=$(printf '%s\n' "$lout" | grep -c '  · \[' || true)
+  if [ "$lno" -gt 0 ] || [ "$lrc" -ne 0 ]; then
+    no "台账四律 $lno 项失败——详情: python3 verify/ledger_laws.py --repo $TARGET"
+    printf '%s\n' "$lout" | grep '  ✗ \[' | head -3 | sed 's/^/     /'
+  elif [ "$lskip" -gt 0 ]; then
+    warn "台账四律 $lok 项通过，另有 $lskip 项无法判定（缺台账文件，不算通过）"
+  else
+    ok "台账四律通过（$lok 项全绿：状态终态化/指纹对账/已结区幂等/退出码不驻全局）"
+  fi
+else
+  no "verify/ledger_laws.py 缺失（台账四律判据未装）"
+fi
+
 # ★ v0.8.18（工程F）：扩展回归——每个都是一个"拆掉实现就翻红"的小测试
 #   不进上一节的统计口径（它们是行为判据，不是落点判据），失败单独列原因。
 echo
@@ -570,7 +594,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 # ★ 注意：test_verify_exit.sh **不能**挂在这里——它内部会调 verify.sh，会无限递归。
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
-         test_triggers test_docsync test_skill_cards; do
+         test_triggers test_docsync test_skill_cards test_ledger_laws; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
