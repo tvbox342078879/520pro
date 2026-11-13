@@ -25,7 +25,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/artifact-store",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -37,7 +37,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/feature-gate",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -49,7 +49,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/machine-bootstrap",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -61,7 +61,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/skill-evolution",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"
@@ -73,7 +73,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/inspect-hub",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -88,7 +88,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/learn-hub",
-      "version": "1.4.1",
+      "version": "1.4.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -104,7 +104,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/space-hub",
-      "version": "2.7.2",
+      "version": "2.7.3",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -118,7 +118,7 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/probe-hub",
-      "version": "1.27.0",
+      "version": "1.27.1",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -133,7 +133,7 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/tvbox-pipeline",
-      "version": "1.3.9",
+      "version": "1.3.10",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"

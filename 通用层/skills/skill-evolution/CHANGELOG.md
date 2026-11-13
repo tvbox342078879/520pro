@@ -1,5 +1,9 @@
 # skill-evolution · CHANGELOG
 
+## v1.1.1 — 触发语义前置（520 v0.8.31 工程K，2026-11-13）
+- description 首句改为「当用户说「…」「…」时使用本技能」，把 5 个高频口语说法提到前 80 字内：平台只把描述编成截断预览给模型看，触发词写在尾巴上等于没写（C9 机检）
+- 依赖项：`verify/skill_contract_check.py` 新增 C9 触发前置 / C10 样本词桥；`verify/tests/test_trigger_frontload.py` 8 用例变异回归
+
 ## v1.1.0 — 经验入库三问 + 脚手架降级报因（工程E，2026-11-12）
 机制借鉴 Memory Palace 的 NOOP/UPDATE 优先于重复 create。
 

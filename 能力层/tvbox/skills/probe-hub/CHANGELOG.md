@@ -1,3 +1,7 @@
+## v1.27.1 — 触发语义前置（520 v0.8.31 工程K，2026-11-13）
+- description 首句改为「当用户说「…」「…」时使用本技能」，把 5 个高频口语说法提到前 80 字内：平台只把描述编成截断预览给模型看，触发词写在尾巴上等于没写（C9 机检）
+- 依赖项：`verify/skill_contract_check.py` 新增 C9 触发前置 / C10 样本词桥；`verify/tests/test_trigger_frontload.py` 8 用例变异回归
+
 ## v1.27.0 — SKILL 瘦身 50.8KB→40.0KB（工程J/D4，2026-11-13）
 - §3 命令清单整体外置 `references/命令手册.md`（55 子命令 + 参数注释），SKILL 留「模块 → 正门命令」表
 - §3.5.0 字段范本 → `references/候选溯源字段范本.md`；§8 归档表 → `references/历史脚本归档.md`

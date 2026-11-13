@@ -34,7 +34,7 @@
 
 | 事实类别 | 唯一真源 | 说明 |
 |---|---|---|
-| 技能契约（结构/版本/描述/样本） | `verify/skill_contracts.json` | 加技能只加一行，`verify/skill_contract_check.py` 逐条读它判定 |
+| 技能契约（结构/版本/描述/样本/触发可命中性） | `verify/skill_contracts.json` | 加技能只加一行，`verify/skill_contract_check.py` 逐条读它判定（C1–C7 结构类 + C9 触发前置 + C10 样本词桥） |
 | 技能版本号（对外） | 各技能 `SKILL.md` 的 front matter `version` | 须与 `CHANGELOG.md` 首条、`MANIFEST.json` 登记、contracts 四处一致（C4） |
 | 技能变更记录 | 各技能 `CHANGELOG.md` 首条 `## vX.Y.Z` | 历史档案，不参与引用断链检查 |
 | 外置文档索引 | `能力层/tvbox/skills/tvbox-pipeline/docs/manual_索引.md`、`能力层/tvbox/skills/probe-hub/docs/外置_索引.md` | 条目集合必须等于目录集合（`verify/tests/test_doc_index.py`） |
@@ -86,6 +86,7 @@
 
 ## 变更记录
 
+- 2026-11-13 v0.8.31：技能描述「触发语义前置」（借 Memory Palace 的 must_use 契约 + 本会话实测「描述被截断成 120–250 字预览」）——9 个技能 description 首句改为「当用户说「…」时使用本技能」，5 个高频口语说法进前 80 字；新增 C9（前 40 字须有句式、前 80 字须命中 ≥3 触发词）与 C10（每条 T 样本须能在描述里找到非泛用词桥），8 用例变异回归 `verify/tests/test_trigger_frontload.py`；inspect-hub 去重（前置句与原句重复 4 词，惊门判黄）。
 - 2026-11-13 v0.8.29：登记 sync.sh 一行收尾入口（借 908 换机说明的心智，实现走本仓正本）；machine-bootstrap v1.0.3 补「诚实边界」表并修手机通道语义过期（bbbe8a2 漏网第 6 处）。
 - 2026-11-13 G6 轻量版：新增 `verify/linkage_notice.py`（pre-commit 真源联动提醒）+ 7 用例变异回归；registry.md 自此成为它的真源清单唯一来源（表格第 2 列、存在性过滤）。
 - 2026-11-12 工程E：core-8 扩到 B-01…B-10（新增 B-10 拦截即停止）；新增 `verify/rule_map.json`（规则↔验证器映射，T4 双向核）；交付报告模板与派活模板进仓。

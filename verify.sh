@@ -623,7 +623,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
-         test_linkage_notice test_secret_scan_size; do
+         test_linkage_notice test_secret_scan_size test_trigger_frontload; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

@@ -60,10 +60,24 @@ check('必须输出"只查字面"的边界说明',
 print('【反例①】跨技能撞词 → 红')
 check('撞词判红', with_edit('触发词：本地瘦身', '触发词：清理', status), 'red')
 
-print('【反例②】删掉触发词段 → 黄（不是绿）')
-check('缺词判黄', with_edit(
-    '触发词：本地瘦身 / 手机变卡 / 手机越用越卡 / 本地磁盘满了 / 产物归档 / 本地清理 / 清本地 / 记忆减负 / 会话治理 / 上下文纪律。 ',
-    '', status), 'yellow')
+print('【反例②】删掉全部触发词来源 → 黄（不是绿）')
+# v0.8.31 起触发词有两个来源：description 前置的「」口语词 + 正文「触发词：」段。
+# 只删正文段已不足以造出"缺词"——两处都删光才算真的没有触发词。
+
+
+def strip_all_triggers():
+    bak = open(ART, encoding='utf-8').read()
+    try:
+        t = bak.replace('「本地瘦身」「手机变卡」「清理产物」「项目混在一起了」「会话治理」', '', 1)
+        t = t.replace('触发词：本地瘦身 / 手机变卡 / 手机越用越卡 / 本地磁盘满了 / 产物归档 / '
+                      '本地清理 / 清本地 / 记忆减负 / 会话治理 / 上下文纪律。 ', '', 1)
+        open(ART, 'w', encoding='utf-8').write(t)
+        return status()
+    finally:
+        open(ART, 'w', encoding='utf-8').write(bak)
+
+
+check('缺词判黄', strip_all_triggers(), 'yellow')
 
 print('【反例③】同技能重复登记 → 黄')
 check('内部重复判黄', with_edit('触发词：本地瘦身', '触发词：本地瘦身 / 本地瘦身', status), 'yellow')

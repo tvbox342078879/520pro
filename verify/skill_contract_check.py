@@ -21,6 +21,10 @@
   C6 触发样本    有 → 查 T/N/B 三组齐备且数量达标；无 → WARN（工程D 补齐）
   C7 体积上限    SKILL.md ≤ 40KB（M-R77）；超限记 WARN 不阻断（瘦身排期归 MP-D4）——
                  SKILL.md 每次命中都要整篇进 context，超限不是"文档长"，是"每轮都在付租金" 
+  C9 触发前置    description 前 40 字须有「当用户」句式、前 80 字须命中 ≥3 个触发词——
+                 平台只把描述编成截断预览给模型；触发词写在尾巴上＝没写（v0.8.31）
+  C10 样本词桥   触发样本 T 组每条须能在 description 里找到词桥（非泛用二字词 / 英文词）——
+                 找不到说明"样本说会触发、描述里根本没这说法"，路由无依据（v0.8.31）
 
 【三态纪律（core-8 第 2 条）】
   安装目录不存在 = 「无法判定」（SKIP），既不记通过也不记失败；
@@ -338,6 +342,106 @@ def check_size(name, spec, base):
         rec('C7', name, '✓', f'SKILL.md {kb:.1f}KB ≤ {lim}KB')
 
 
+# ───────────────── C9/C10 触发可命中性（v0.8.31·借 Memory Palace）─────────────────
+# 为什么要有这两条：C1–C7 只证明「技能长得对」，证明不了「用户说人话时它会被想起来」。
+# 平台把 name+description 编成技能清单给模型看，描述被截成前段预览（实测约 120–250 字，
+# 长度随条目浮动）→ 触发词写在尾巴上等于没写；样本里的话在描述里找不到词，也等于路由无依据。
+# 判据只做两件事：触发语义必须在最前；每条该触发的样本必须能在描述里找到词桥。
+FRONT_WINDOW = 40          # 前 40 字内必须出现「当用户」
+FRONT_HITS = 3             # 前 80 字内至少命中 3 个触发词
+BRIDGE_WINDOW = 80
+GENERIC_BG = {
+    '用户', '时间', '文件', '数据', '问题', '已经', '还是', '就是', '现在', '可以',
+    '我们', '你们', '他们', '这个', '那个', '一下', '帮我', '什么', '怎么',
+}
+STOP_ASCII = {'the', 'and', 'for', 'with', 'json'}
+
+
+def desc_tokens(desc):
+    """触发词 = 「」引号词 ∪ 触发词清单（两种写法都认）。"""
+    toks = set(re.findall(r'「(.+?)」', desc))
+    m = re.search(r'触发词[:：](.*?)(?:不要用于|不适用于|【边界】|$)', desc)
+    if m:
+        toks |= {x.strip() for x in re.split(r'[／/、，,]', m.group(1)) if len(x.strip()) >= 2}
+    return {t for t in toks if len(t) >= 2}
+
+
+def check_frontload(desc):
+    """C9：触发语义前置。返回 (ok, msg)。"""
+    if not desc:
+        return False, 'description 为空'
+    if not re.search(r'当用户', desc[:FRONT_WINDOW]):
+        pos = desc.find('当用户')
+        return False, (f'前 {FRONT_WINDOW} 字内无「当用户」句式'
+                       f'（当前在第 {pos} 位）——描述被截断后触发语义丢失')
+    # 只看「触发词：」清单之前的前段——清单本身也算前 80 字时会把判据测成假绿
+    head = desc[:BRIDGE_WINDOW]
+    cut = head.find('触发词')
+    if cut > 0:
+        head = head[:cut]
+    hit = [t for t in desc_tokens(desc) if t in head]
+    if len(hit) < FRONT_HITS:
+        return False, f'前 {BRIDGE_WINDOW} 字仅命中 {len(hit)} 个触发词（需 ≥{FRONT_HITS}）：{hit}'
+    return True, f'触发前置 ✓（前 {BRIDGE_WINDOW} 字命中 {len(hit)}：{" / ".join(hit[:4])}…）'
+
+
+def parse_t_prompts(text):
+    """取触发样本 T 组的 (编号, prompt)。"""
+    out, cur = [], None
+    for ln in text.splitlines():
+        m = re.match(r'###\s+(T\d+)', ln)
+        if m:
+            cur = m.group(1)
+            continue
+        m = re.match(r'\s*-\s*Prompt[：:]\s*`?(.+?)`?\s*$', ln)
+        if m and cur:
+            out.append((cur, m.group(1).strip('`')))
+            cur = None
+    return out
+
+
+def check_bridge(desc, sample_text):
+    """C10：样本 ↔ description 词桥。返回 (ok, uncovered[(id,prompt)])。"""
+    uncovered = []
+    low = desc.lower()
+    for pid, pr in parse_t_prompts(sample_text):
+        bgs = {pr[i:i + 2] for i in range(max(len(pr) - 1, 0))}
+        bgs = {b for b in bgs
+               if re.fullmatch(r'[\u4e00-\u9fa5]{2}', b) and b not in GENERIC_BG}
+        ok = any(b in desc for b in bgs)
+        if not ok:
+            en = [w for w in re.findall(r'[A-Za-z0-9_%.]{2,}', pr)
+                  if w.lower() not in STOP_ASCII]
+            ok = any(w.lower() in low for w in en)
+        if not ok:
+            uncovered.append((pid, pr))
+    return (not uncovered), uncovered
+
+
+def check_frontload_rec(name, desc):
+    ok, msg = check_frontload(desc)
+    rec('C9', name, '✓' if ok else '✗', msg)
+
+
+def check_bridge_rec(name, spec, base, desc):
+    rel = spec.get('trigger_samples')
+    if not rel:
+        rec('C10', name, '·', '无触发样本——词桥无从对，不折算通过')
+        return
+    p = os.path.join(base, rel)
+    if not os.path.exists(p):
+        rec('C10', name, '✗', f'登记了样本 {rel} 但文件不存在')
+        return
+    ok, unc = check_bridge(desc, read(p))
+    if ok:
+        rec('C10', name, '✓', '样本全部能在描述里找到词桥（说人话也能路由到）')
+    else:
+        detail = '；'.join(f'{i}:{p[:18]}' for i, p in unc[:3])
+        rec('C10', name, '✗',
+            f'{len(unc)} 条样本在 description 里找不到任何词桥（{detail}）'
+            f'——要么把这些说法写进描述，要么改样本')
+
+
 # ────────────────────────── 主流程 ──────────────────────────
 def main(argv):
     repo, install, as_json, require_mirror = DEFAULT_REPO, DEFAULT_INSTALL, False, False
@@ -383,8 +487,11 @@ def main(argv):
         if spec['kind'] == 'skill':
             sk = os.path.join(base, 'SKILL.md')
             body = read(sk) if os.path.exists(sk) else ''
-            check_desc(name, spec, base, fm_get(front_matter(body), 'description'), body)
+            desc = fm_get(front_matter(body), 'description')
+            check_desc(name, spec, base, desc, body)
             check_size(name, spec, base)
+            check_frontload_rec(name, desc)
+            check_bridge_rec(name, spec, base, desc)
         else:
             rec('C3', name, '·', 'lib 类：不注册路由，desc 五组契约不适用')
         check_version(name, spec, base, repo)

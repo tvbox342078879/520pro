@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.30",
+  "version": "0.8.31",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -31,19 +31,19 @@
         },
         "skills/skill-evolution/SKILL.md": {
           "role": "复发问题固化成技能",
-          "version": "1.1.0"
+          "version": "1.1.1"
         },
         "skills/feature-gate/SKILL.md": {
           "role": "特性开关+绞杀者切流",
-          "version": "1.0.1"
+          "version": "1.0.2"
         },
         "skills/machine-bootstrap/SKILL.md": {
           "role": "一键换机/克隆工作副本",
-          "version": "1.0.3"
+          "version": "1.0.4"
         },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",
-          "version": "1.0.1"
+          "version": "1.0.2"
         },
         "skills/learn-hub/": {
           "install_to": "~/.codebuddy/skills/learn-hub/",
@@ -53,12 +53,12 @@
           "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
           "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
           "not_tvbox": "与 TVBox 无关，纯通用层",
-          "version": "1.4.1"
+          "version": "1.4.2"
         },
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
           "role": "库务司·云端库总管 v2.7.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号，拒收带结构化三元组",
-          "version": "2.7.2"
+          "version": "2.7.3"
         },
         "skills/space-hub/scripts/space_hub.py": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",
@@ -71,7 +71,7 @@
         "skills/inspect-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/inspect-hub/SKILL.md",
           "role": "巡检司 v1.4.1：520 自家健康 8 面巡检（八卦八门全部转正），景门改集合比对防假红",
-          "version": "1.4.1"
+          "version": "1.4.2"
         },
         "skills/inspect-hub/scripts/inspect_hub.py": {
           "install_to": "~/.codebuddy/skills/inspect-hub/scripts/inspect_hub.py",
@@ -115,7 +115,7 @@
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
           "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/",
-          "version": "1.27.0"
+          "version": "1.27.1"
         },
         "tvbox/skills/tvbox-pipeline/": {
           "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
@@ -124,7 +124,7 @@
             "tvbox-core"
           ],
           "entry": "SKILL.md → SOP_整包加工.md",
-          "version": "1.3.9"
+          "version": "1.3.10"
         },
         "tvbox/fix_paths.py": {
           "role": "路径适配：把 /root/.codebuddy 改成 os.path.expanduser('~/.codebuddy')，tokenize 精确替换，跳过隐式字符串拼接"
@@ -545,5 +545,12 @@
     "借 908 重做蓝图 §4.5 两条：① secret_scan.py 新增大文件闸——git 视角下任何文件 >10MB 即 FAIL（与密钥同一 candidate_files 视角，add -A 会带走的未追踪大文件也算），现状最大文件 probe.py 仅 0.5MB、余量 20 倍；② docs/工程纪律.md 增第 8 条「状态进 git 前过四条件」（低频写/读多/小文件/结构化，违反任一必须分层），标题七条改八条",
     "verify/tests/test_secret_scan_size.py 4 用例变异回归挂进扩展回归（C1 超限翻红 / C2 全小放行 / C3a 边界 10MB 放行 / C3b 10MB+1 翻红——闸位精确）",
     "蓝图 8 步清单对账：6 步已完成或被更优方案取代（520pro 即私有状态仓/sync.sh/secret_scan 兼自检），2 步不采纳并记理由（orphan 分支当前规模不必、last_seq 游标 9MB 仓全量拉无压力）"
+  ],
+  "changelog_0_8_31": [
+    "技能触发可命中性工程（借 Memory Palace 的 description 契约思想 + 本会话实测）：平台只把 name+description 编成截断预览给模型（实测约 120–250 字，长度随条目浮动），触发词写在第 397/479/1174 位的四个技能等于没写——9 个技能 description 首句统一改为「当用户说「…」「…」时使用本技能」，5 个高频口语说法进前 80 字，原内容一字未删只前置",
+    "新增 C9 触发前置：前 40 字须有「当用户」句式、前 80 字须命中 ≥3 个触发词（「」引号词 ∪ 触发词清单，且只算「触发词：」标签之前的前段，防清单自己把判据测成假绿）",
+    "新增 C10 样本词桥：触发样本 T 组每条须能在 description 里找到词桥（非泛用二字词 / 英文数字词），找不到即红并报出样本编号——抓「样本说会触发、描述里根本没这说法」",
+    "verify/tests/test_trigger_frontload.py 8 用例变异回归（F2 真实形态「触发词埋 400 字后」、F4 第 41 字边界、B3 只重合泛用词必须翻红）；挂进 verify.sh 扩展回归",
+    "连带修两处：① inspect-hub 前置句与原句重复 4 词，惊门（test_triggers）判黄 → 去重；② test_triggers 反例② 前提更新——v0.8.31 起触发词有两个来源，只删正文段造不出「缺词」，改为两处都删光（不变量未变：没有触发词才判黄）"
   ]
 }
