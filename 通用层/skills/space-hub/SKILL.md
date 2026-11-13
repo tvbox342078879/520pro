@@ -13,7 +13,7 @@ description: "当用户说「清理资料库」「归类」「建库」「收件
 
 - **为什么存在**：WorkBuddy 云端库无删除 API，AI 删不掉节点 → 挪进收件箱+生成清单，**删除永远由用户手动**。
 - **管什么**：任意空间（不只 TVBox）的节点——清理垃圾、归纳散落文档、建库、搬运/改名。
-- **不管什么**：不删除任何节点；批量写记录走 library 正本（`database/batch_add_database_records.py`）；普通文件夹建立走同一 `manage/create_folder.py` 正门。
+- **不管什么**：不删除任何节点；批量写记录走 library 正本（`database/db_edit.py --op set-records`，写入+逐条回读一次完成）；普通文件夹建立走同一 `manage/create_folder.py` 正门。
 
 ## 1. ★ 空间解析四层（v2.0.0 核心，禁止写死 space id）
 

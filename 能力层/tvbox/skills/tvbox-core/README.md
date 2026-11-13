@@ -107,7 +107,7 @@ S160 起了真实分级：对含 `api.php` / `provide` 的 CMS 接口，现场�
 
 > 🔍 **字段是否为空，不能靠 `.get()` 判断**：`rows_of` 会**剥掉空值键**，
 > 「没有这个字段」与「有这个字段但值是空」在它返回的 dict 里长得一样。
-> 判断字段存在性必须查 `get_database_schema.py`（见 L142）。
+> 判断字段存在性必须查 `db_query.py --ask schema`（或 `core.db_query(db, "schema")`）。
 
 字段：`名称(text) | host(text) | 分组类目(select) | api接口(text) | 状态(select) | 体系(select 旧值) | 可用体系(multi_select 新)`
 
@@ -146,7 +146,7 @@ S160 起了真实分级：对含 `api.php` / `provide` 的 CMS 接口，现场�
 ```
 扫描(多包) → 提取 sites/lives/parses → 剔相对路径死源 → 剔黑名单伪源
    → 以 api接口 为唯一键去重(与库内比对) → 判体系 → 补字段 → 批量写(每批≤100)
-   → get_database_content 读回核对行数
+   → db_query --ask csv 读回核对行数
 ```
 
 **一体化入口**（推荐，幂等，可反复跑）：
@@ -167,9 +167,9 @@ python3 run.py --db <id>     # 写入指定库(默认主库)
 | 坑 | 铁律 |
 |---|---|
 | `records[0] 校验后为空` | 值**必须**用 PropertyValue 包装：`{"text":".."}` `{"select":".."}` `{"multi_select":[".."]}` `{"date":".."}`。**裸字符串不行** |
-| 加列报字段非法 | `add_database_field` 的 config 要包类型层：`{"name":"x","config":{"multi_select":{"options":[{"id":"s1","text":".."}]}}}` |
-| **伪成功** | `results[].success=true` **不算数**。必须 `get_database_content` 读回核对行数才算落地 |
-| 拿不到 record_id | `get_database_content` 只给 CSV 无 id。要 `query_database_record --page-size 100` + `--start-cursor` **分页拉全量**取 `record_id` |
+| 加列报字段非法 | `db_edit.py --op add-field --payload` 的 config 要包类型层：`{"name":"x","config":{"multi_select":{"options":[{"id":"s1","text":".."}]}}}` |
+| **伪成功** | 旧回执 `results[].success=true` 只代表服务端接受，**不算落地**。现在 `KS_DB_EDIT_OK` 是正本逐条回读确认后才发的；`UNVERIFIED` 会带 `failed_add_indices`，按它核数 |
+| 拿不到 record_id | `--ask csv` 只给 CSV 无 id。要 `db_query.py --ask records`（record_id 由正本回填，**翻页在正本内完成**，不必再手写 `--start-cursor`） |
 | 30 QPS 限流 | 每批 100 条 + `sleep 0.4`，别并发猛灌 |
 | 批量更新 1–100 | 单次更新最多 100 条 `{record_id, properties}`；任一项非法会**整批拒** |
 
@@ -249,7 +249,7 @@ S111 接真库时，一次"只猜到失败 1 条"的排查暴露出写库的三�
 `体系` 字段名明明存在却被判非法：**select 值不在 options 内，和字段不存在返回同一个错误码**。
 报错只列字段名，不区分是哪种，靠猜必然反复撞墙。
 
-- 一律走 `schema_of(db)`（底层 `get_database_schema.py`）拿真实字段与 options
+- 一律走 `schema_of(db)`（底层 `db_query.py --ask schema`）拿真实字段与 options
 - select 值必须命中 options，否则丢弃该字段并告警；**schema 读不到就不写库**，不赌
 - 存量校准值（线路源库）：`源类型` 只有 `py线路`/`csp线路`，**没有** `入库时间` 字段
 
@@ -410,7 +410,7 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 4. 用户问「现在有多少条 / 库里什么状态」→ **以快照页为准回答**，不凭记忆、不凭旧文档
 
 ### 精准性要求
-- 数字必须**实测拉取**（`get_database_content` / `list-nodes`），禁止估算或沿用
+- 数字必须**实测拉取**（`db_query --ask csv` / `list-nodes`），禁止估算或沿用
 - 对账要定位到「文档名 + 字段名 + 旧值 → 新值」粒度，不能只说"有出入"
   - 历史数值属正常留痕，标注「以快照页为准」即可，不必删除
 
@@ -433,14 +433,14 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 ```bash
 export SID=~/.codebuddy/skills/library
 # ① 查某条源（S160 起 py/csp 同库，**一次查完**，不必分别查）
-python3 $SID/database/query_database_record.py --database-id pNwZ9uBOTz6FzRuvu8nryI \
-  --filter '{"conditions":[{"field":"api接口","operator":"contains","value":"<关键字>"}]}'
+python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+  --ask records --filter '{"conditions":[{"field":"api接口","operator":"contains","value":"<关键字>"}]}'
 # ①b 只要 csp 类（用 源类型 字段筛，不是换库）
-python3 $SID/database/query_database_record.py --database-id pNwZ9uBOTz6FzRuvu8nryI \
-  --filter '{"conditions":[{"field":"源类型","operator":"is","value":"csp线路"}]}'
+python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+  --ask records --filter '{"conditions":[{"field":"源类型","operator":"is","value":"csp线路"}]}'
 # ② 按可用体系筛（例：只要能在 A 系用的）——两库字段已统一，任一库都可筛
-python3 $SID/database/query_database_record.py --database-id pNwZ9uBOTz6FzRuvu8nryI \
-  --filter '{"conditions":[{"field":"可用体系","operator":"contains","value":"A·CatVod标准系"}]}'
+python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+  --ask records --filter '{"conditions":[{"field":"可用体系","operator":"contains","value":"A·CatVod标准系"}]}'
 ```
 
 回答口径：**http 类 = 全体系通用，可直接加进任何包；csp 类 = 只能用在该体系的 spider 上**（跨体系加会报类找不到）。

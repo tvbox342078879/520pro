@@ -143,7 +143,7 @@ link.py ingest --candidates /tmp/to_add.json         # 真实入库
 
 **写前（强制）**
 1. `scripts/preflight.py --database-id <id> --records-file x.json` —— 拦未知字段/裸值/类型不符/选项外取值/空值
-2. 字段名以 `get_database_schema.py` 为准，**禁止凭记忆写 `r.get`**
+2. 字段名以 `db_query.py --ask schema` 为准（或 `core.db_query(db, "schema")`），**禁止凭记忆写 `r.get`**
 3. 批量 ≤100 条/批 + sleep 防限流；走 `core.add_records`（自带写后 invalidate）
 
 **写后（强制）**

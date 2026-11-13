@@ -31,7 +31,7 @@
 1. 提取：包的所有 `sites`(`api`) + `lives`(`url`) + `parses`(`url`)
 2. 去重：**以 `api接口` 为唯一键**，先与库内已有（导出 CSV）比对，剔除重复
 3. 判体系：按上表
-4. 批量写：`batch_add_database_records`，**每批 ≤100 行**
+4. 批量写：`db_edit.py --op set-records`（或 `core.add_records` 包一层），**每批 ≤100 行**；带 record_id 即更新、不带即新增，同一个入口
 5. 回填：新增源的「可用体系」随写入一起落，不用二次更新
 
 **提取时的字段映射**
