@@ -70,7 +70,7 @@
 | verify.sh 退出码 | `verify.sh` 末尾 | ✗ 计 FAILS 并 exit 2；· 记 UNKNOWNS 不阻断。**自动化只认 rc，人眼只认 ✓，两者必须同源** |
 | 回归测试 | `verify/tests/` | 八个随 verify.sh 自动跑（troubleshoot/language/doc_index/reading_guide/reject_contract/triggers/docsync/skill_cards）+ 三个手动（test_verify_exit 会递归调 verify.sh 故不挂、test_node_parent 需真接口、rule_map_reverse 会改文件）；每个都做过"拆实现即翻红"的变异验证 |
 | 每技能故障排查（症状索引） | 各技能 `docs/` 下的 `TROUBLESHOOTING.md` | 按症状排，≥5 条真实条目；`verify/tests/test_troubleshoot.py` 机检，占位符判红 |
-| 密钥与卫生扫描 | `secret_scan.py` | 九类凭证 + 个人绝对路径 + 本地 endpoint + 模板真值 |
+| 密钥与卫生扫描 | `secret_scan.py` | 九类凭证 + 个人绝对路径 + 本地 endpoint + 模板真值 + 凭据文件三态 + **大文件闸（>10MB，git-as-DB 边界，工程纪律 §8）** |
 
 ---
 

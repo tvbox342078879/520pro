@@ -8,6 +8,9 @@
       pre_publish_check 模式表）；新增三级判定——
         FAIL：密钥命中 / .example.json 含真实节点 id（B1/B5）
               凭据文件（.gh_token 等）已追踪或未被忽略（2026-11-13 新判据，见 scan_credential_files）
+              文件 >10MB（2026-11-13 git-as-DB 边界闸，见 scan_oversized——
+              低频写/读多/小文件/结构化四条件，docs/工程纪律.md §8；
+              防 179MB 生态包混进仓库那类事）
         WARN：文档个人绝对路径 / 本地 endpoint（B2/B3，--strict 升级为红，B4 分级）
 来源: tvbox-eco/verify/secret_scan.py 迁移改造（去 kill-switch 依赖）。
 设计要点:
@@ -186,6 +189,9 @@ def scan_gitconfig(root, found):
 # 即把 PAT 推上公网，而全绿。故此处不依赖内容、不依赖扩展名，只看文件名与 git 状态。
 CRED_NAMES = ('.gh_token', '.git-credentials', '.netrc', 'id_rsa', 'id_ed25519')
 
+# ★ git-as-DB 边界（v0.8.30）：单文件上限——908 蓝图 §4.5 的落地判据
+MAX_FILE_BYTES = 10 * 1024 * 1024
+
 
 def scan_credential_files(root, found, noted):
     """凭据文件三态：已追踪=红（已进历史）／未追踪未忽略=红（随时被 add）／未追踪已忽略=合法。
@@ -225,6 +231,23 @@ def scan_credential_files(root, found, noted):
         else:
             return False                           # check-ignore 异常 → 不判
     return True
+
+
+def scan_oversized(root, found):
+    """git-as-DB 边界闸（2026-11-13，借 908 蓝图 §4.5）：git 视角下任何文件 >10MB 即红。
+
+    与密钥同一文件视角（candidate_files：已追踪 + 未忽略未追踪）——未追踪大文件也算，
+    因为 `git add -A` 会带走它。上限 10MB：现状最大文件 probe.py 仅 0.5MB，余量 20 倍。
+    """
+    for p in candidate_files(root):
+        try:
+            sz = os.path.getsize(p)
+        except OSError:
+            continue
+        if sz > MAX_FILE_BYTES:
+            rel = os.path.relpath(p, root).replace('\\', '/')
+            found.append((rel, f'文件 {sz / 1048576:.1f}MB 超 git-as-DB 上限 10MB'
+                               f'（工程纪律 §8：进库须低频写/读多/小文件/结构化）'))
 
 
 def main():
@@ -297,6 +320,7 @@ def main():
     scan_gitconfig(root, found)
     cred_noted = []
     cred_ok = scan_credential_files(root, found, cred_noted)
+    scan_oversized(root, found)
     if cred_noted:
         print(f"[豁免] 凭据文件 {len(cred_noted)} 个在库外且已被忽略："
               f"{', '.join(cred_noted)}（B-05 例外口径：可代写 0600，但不得入版本库）")
@@ -326,7 +350,7 @@ def main():
             by[loc.rsplit(':', 1)[0]] = by.get(loc.rsplit(':', 1)[0], 0) + 1
         print(f"[豁免] 卫生项 {len(exempted_hygiene)} 处／{len(by)} 个历史档案"
               f"（M7 登记，理由见 secret_scan.py HYGIENE_EXEMPT；活文档不豁免）")
-    print(f"✓ 未发现明文密钥 [{profile}]（含 .git/config 复查）")
+    print(f"✓ 未发现明文密钥 [{profile}]（含 .git/config 复查 + 大文件闸 ≤10MB）")
     sys.exit(0)
 
 
