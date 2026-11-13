@@ -145,7 +145,7 @@
       "kind": "lib",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/tvbox-core",
-      "version": "1.0.68",
+      "version": "1.0.69",
       "required_files": [
         "README.md",
         "manifest.json",

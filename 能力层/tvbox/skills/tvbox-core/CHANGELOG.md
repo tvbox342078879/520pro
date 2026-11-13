@@ -1,3 +1,9 @@
+## v1.0.69 — 补漏：5 个「假绿」调用点迁到新正本（520 v0.8.34，2026-11-13）
+- **发现方式**：给 `lib_refs_check` 加 `--probe` 时顺手扩了引用判据——原来只认 `{LIB}/xxx.py`，tvbox-core 里用的是 `f'{core.LIB}/database/xxx.py'`（属性访问写法），**整整 5 处已断的调用一直静默漏过**（`build.py` schema_of / _write_errors，`backfill_system.py` dump_rows / find_id / batch_update），上一轮「9/9 类 22 处全有效」的结论对这 5 处是假绿
+- `build.schema_of` → `core.db_query(db,'schema')`；`build._write_errors` → `core.db_edit_records`（新正本只回 `failed_*_indices`，**不再有单条 error 原文**，措辞已改成不假装拿得到根因）
+- `backfill_system.dump_rows` → `core.db_query(DB,'csv')`，并把「读失败」与「空库」分开（失败返 None，调用方返回码 2，不再把读不到折叠成 0 行）；`find_id` → `db_query(DB,'records', filter=…, limit=5)`；`batch_update` → `db_edit_records` + `_edit_counts`，不再假设旧 `results[].success`
+- 验证：`build.schema_of('BHZkF1or5Ab2o5zxtx7bt5')` 真实读到 6 字段（连跑 2 次稳定）；`lib_refs_check --probe` 现覆盖 14 类引用 / 30 个调用作用域
+- **同时暴露**：两个 TVBox 源库（`pNwZ…` / `8JBrh…`）现在读回 `12607 permission denied`，已登记 `docs/遗留登记.md`（空间重建后旧库授权失效，非代码问题）
 ## v1.0.68 — database 正本迁移 + 适配层（520 v0.8.33，2026-11-13）
 - 平台重构 `library/database/`：`batch_add/update/delete_database_records`、`get_database_schema/content`、`query_database_record` 全消失，输出统一成 `KS_XXX_OK\t{json}`。core 8 处调用全部失配（另有 link/newlib/blk/preflight/backfill/bak_sync 6 处）
 - core 新增单一适配层：`lib_json / lib_tag / db_query / db_edit_records / _edit_counts`。`_run_lib` 加 `stdin` 参数（批量记录不再拼命令行）

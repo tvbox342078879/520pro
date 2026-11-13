@@ -121,19 +121,21 @@ _SCHEMA_CACHE = {}
 
 
 def schema_of(db):
-    """读库真实 schema → {字段名: {'type':..., 'options':[...]}}。读失败返回 None（不缓存）。"""
+    """读库真实 schema → {字段名: {'type':..., 'options':[...]}}。读失败返回 None（不缓存）。
+
+    v0.8.34：旧正本 `get_database_schema.py` 已在平台重构中消失（本处原本还在用
+    `f'{core.LIB}/...'` 拼路径，检查器只认 `{LIB}/` 字面量，漏了整整一轮没报红）。
+    改走 `core.db_query(db, 'schema')`，载荷里带 properties。
+    """
     if db in _SCHEMA_CACHE:
         return _SCHEMA_CACHE[db]
-    script = f'{core.LIB}/database/get_database_schema.py'
-    try:
-        out = subprocess.run([sys.executable, script, '--database-id', db],
-                             capture_output=True, text=True, cwd=core.LIB).stdout
-        d = json.loads(out)
-    except Exception as e:
-        print(f'  ⚠️ 读 schema 失败（{e}），本次不写库以免整条被拒')
+    d, raw = core.db_query(db, 'schema')
+    props = d.get('properties')
+    if not isinstance(props, list):
+        print(f'  ⚠️ 读 schema 失败（{str(raw)[:160]}），本次不写库以免整条被拒')
         return None
     sc = {}
-    for p in d.get('properties', []):
+    for p in props:
         sc[p['name']] = {'type': p.get('type'),
                          'options': [o['text'] for o in (p.get('config') or {}).get('options', [])]}
     if not sc:
@@ -226,30 +228,26 @@ def _text(rec, field):
 
 
 def _write_errors(db, payload, max_show=5):
-    """复跑一次批量写，只为拿 results[].error 原文（失败时才有必要，最多一批）。
+    """复跑一次批量写，只为拿到失败索引（失败时才有必要，最多一批）。
 
-    代价是这批会再被拒一次（不会被写入，因为本来就是非法记录），
-    但换到的是**根因原文**，比让下一个人重新手工炮制一遍划算。
+    代价是这批会再被拒一次（不会被写入，因为本来就是非法记录）。
+    v0.8.34：旧正本 `batch_add_database_records.py` 已消失，改走 `core.db_edit_records`；
+    新正本只回 `failed_add_indices`，**不再逐条返回 error 原文**——所以这里给的是
+    「哪几条被拒 + 字段级提示」，不再假装能拿到根因原文（拿不到就拿不到，B-02）。
     """
-    script = f'{core.LIB}/database/batch_add_database_records.py'
-    try:
-        out = subprocess.run([sys.executable, script, '--database-id', db,
-                              '--records', json.dumps(payload[:100], ensure_ascii=False)],
-                             capture_output=True, text=True, cwd=core.LIB).stdout
-        d = json.loads(out)
-    except Exception as e:
-        return [f'（取 error 原文失败：{e}）']
+    tag, d, raw = core.db_edit_records(db, payload[:100])
+    if tag == 'KS_DB_EDIT_OK':
+        return ['（复跑本批未复现失败：可能是并发/限流，建议原样重试一次）']
+    bad = sorted(set((d.get('failed_add_indices') or []) + (d.get('failed_update_indices') or [])))
+    if not bad:
+        return [f'未拿到逐条明细（tag={tag or "无状态行"}）；原始返回：{str(raw)[:300]}']
     lines = []
-    for x in d.get('results', []):
-        if x.get('success'):
-            continue
-        i = x.get('index', -1)
+    for i in bad:
         nm = _text(payload[i], '名称') if 0 <= i < len(payload) else '?'
-        lines.append(f'[{i}] {nm}: {x.get("error") or "(无 error 字段)"}')
-    if not lines:
-        lines.append(f'无 results 明细；原始返回：{str(d)[:300]}')
+        lines.append(f'[{i}] {nm}: 写入后回读未通过（新正本不返回单条 error 原文，'
+                     f'请查该记录的字段取值是否符合 schema）')
     if len(lines) > max_show:
-        lines = lines[:max_show] + [f'…另 {len(lines) - max_show} 条同类错误']
+        lines = lines[:max_show] + [f'…另 {len(lines) - max_show} 条同类']
     return lines
 
 

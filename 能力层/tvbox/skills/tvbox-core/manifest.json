@@ -1,5 +1,5 @@
 {
- "version": "1.0.68",
+ "version": "1.0.69",
  "updated": "2026-10-22",
  "note": "底包双形态（S111）：底包=三包(L包lytvs/G包guard/D包DmaxPro908)+备用包(轻量可编辑态)。三坐标（S110）：技术体系/枝/业务别名正交，D包≠体系D·Amns。加归位断言防游离。 ｜ 2026-11-12 方案C：skill 字段改为 tvbox-core / tvbox-pipeline；原 tvbox 统一调度器已停用，本表仅作命令索引存档。",
  "commands": [

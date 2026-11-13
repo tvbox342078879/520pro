@@ -104,7 +104,7 @@
             "tvbox-pipeline"
           ],
           "critical": "缺此目录，探源司必报 ModuleNotFoundError: No module named 'core'",
-          "version": "1.0.68"
+          "version": "1.0.69"
         },
         "tvbox/skills/probe-hub/": {
           "user_install": "~/.codebuddy/skills/probe-hub/",

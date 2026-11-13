@@ -569,7 +569,19 @@ fi
 echo
 echo "[外部引用对账（v0.8.32 起·library 升级后指针失效的闸）]"
 if [ -f "$TARGET/verify/lib_refs_check.py" ]; then
-  lout="$(python3 "$TARGET/verify/lib_refs_check.py" 2>&1)"; lrc=$?
+  # v0.8.34：默认带 --probe（每个引用脚本真跑一次 --help + 参数契约回查）。
+  # 存在的文件也可能调不通——2026-11-13 实测把 db_query 的 --ask 改名后，
+  # 只查存在性的版本全绿，三个包装调用点（space_hub/core/backfill_jar）已经全断。
+  # 探活要起 10 来个进程，用 120s 兜底防挂：超时按「无法判定」降级并说明，不静默。
+  if [ "${LIB_REFS_NO_PROBE:-0}" = "1" ]; then
+    lout="$(python3 "$TARGET/verify/lib_refs_check.py" 2>&1)"; lrc=$?
+  else
+    lout="$(timeout 120 python3 "$TARGET/verify/lib_refs_check.py" --probe 2>&1)"; lrc=$?
+    if [ "$lrc" -eq 124 ]; then
+      lout='  · 无法判定：--probe 超过 120s 未返回，已退化为存在性检查（LIB_REFS_NO_PROBE=1 可关闭探活）'
+      lrc=2
+    fi
+  fi
   if [ "$lrc" -eq 2 ]; then
     opt "$(printf '%s' "$lout" | sed 's/^  · 无法判定：//')"
   elif [ "$lrc" -ne 0 ]; then
@@ -642,7 +654,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
          test_linkage_notice test_secret_scan_size test_trigger_frontload \
-         test_artifact_scan; do
+         test_artifact_scan test_lib_refs_probe; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

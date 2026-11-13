@@ -37,51 +37,50 @@ DB = 'pNwZ9uBOTz6FzRuvu8nryI'   # 线路源库
 
 
 def dump_rows():
-    """读整表（CSV 形态，含 record_id 需另查，这里只用于比对期望值）。"""
-    out = subprocess.run([sys.executable, f'{core.LIB}/database/get_database_content.py',
-                          '--database-id', DB, '--page-size', '900'],
-                         capture_output=True, text=True, cwd=core.LIB).stdout
-    d = json.loads(out)
-    return list(csv.DictReader(io.StringIO(d.get('content', ''))))
+    """读整表（CSV 形态，不含 record_id，只用于比对期望值）。读不到返回 None（不折叠成空表）。
+
+    v0.8.34：`get_database_content.py` 已随平台重构消失，改走 `core.db_query(DB,'csv')`。
+    旧写法把「读失败」和「空库」都变成 0 行，这里显式区分：失败 None，空库 []。
+    """
+    d, raw = core.db_query(DB, 'csv')
+    if not str(d.get('content') or '').strip():
+        print(f'  ⚠️ 读整表失败（{str(raw)[:160]}）')
+        return None
+    return list(csv.DictReader(io.StringIO(d['content'])))
 
 
 def find_id(api):
-    """按 api 精确查 record_id。查不到返回 None（不猜）。"""
-    body = {'database_id': DB,
-            'filter': {'property': {'property': 'api接口', 'text': {'equals': api}}},
-            'page_size': 5}
-    out = subprocess.run([sys.executable, f'{core.LIB}/database/query_database_record.py', '--stdin'],
-                         input=json.dumps(body, ensure_ascii=False),
-                         capture_output=True, text=True, cwd=core.LIB).stdout
-    try:
-        res = json.loads(out).get('results') or []
-    except Exception:
+    """按 api 精确查 record_id。查不到返回 None（不猜）。
+
+    v0.8.34：`query_database_record.py --stdin`（整个 body 走 stdin）已消失，
+    改走 `core.db_query(DB,'records', filter=..., limit=...)`——新正本的 filter 直接收条件体。
+    """
+    cond = {'property': {'property': 'api接口', 'text': {'equals': api}}}
+    d, raw = core.db_query(DB, 'records', filter=cond, limit=5)
+    if not d:
+        print(f'  ⚠️ 查 record_id 失败（{str(raw)[:160]}），本次按「查不到」跳过')
         return None
-    hit = [r for r in res if str(r.get('api接口') or '').strip() == api.strip()]
+    hit = [r for r in (d.get('results') or [])
+           if str(r.get('api接口') or '').strip() == api.strip()]
     return hit[0].get('record_id') if hit else None
 
 
 def batch_update(pairs):
-    """pairs = [(record_id, properties)]，一次 ≤100 条。返回 (ok, fail, errors)。"""
+    """pairs = [(record_id, properties)]，一次 ≤100 条。返回 (ok, fail, errors)。
+
+    v0.8.34：`batch_update_database_records.py` 已消失，改走 `core.db_edit_records`
+    （带 record_id 即更新）。成败按状态行 + failed_update_indices 判，
+    不再假设有 results[].success（那是旧正本的语义）。
+    """
     recs = [{'record_id': rid, 'properties': props} for rid, props in pairs]
-    out = subprocess.run([sys.executable, f'{core.LIB}/database/batch_update_database_records.py',
-                          '--database-id', DB, '--records', json.dumps(recs, ensure_ascii=False)],
-                         capture_output=True, text=True, cwd=core.LIB).stdout
-    ok = fail = 0
+    tag, d, raw = core.db_edit_records(DB, recs)
+    ok, fail = core._edit_counts(tag, d, len(recs))
     errs = []
-    try:
-        d = json.loads(out)
-    except Exception:
-        return 0, len(recs), [f'返回非 JSON：{out[:200]}']
-    for x in d.get('results', []):
-        if x.get('success'):
-            ok += 1
-        else:
-            fail += 1
-            errs.append(f"[{x.get('index')}] {x.get('error')}")
-    if not d.get('results'):
-        errs.append(f'无 results 明细：{str(d)[:300]}')
-        fail = len(recs)
+    bad = sorted(set(d.get('failed_update_indices') or []))
+    if bad:
+        errs = [f'[{i}] 更新后回读未通过（新正本不返回单条 error 原文）' for i in bad]
+    elif tag not in ('KS_DB_EDIT_OK', 'KS_DB_EDIT_UNVERIFIED'):
+        errs = [f'未拿到状态行：{str(raw)[:200]}']
     return ok, fail, errs
 
 
@@ -140,6 +139,11 @@ def main():
 
     # 写后读回核对（不信 success）
     after_rows = dump_rows()
+    if after_rows is None:
+        # 读失败不能当 0 行：那会把「读不到」说成「一条都没生效」，是假结论（B-02）
+        tri.undecidable('写后读回失败', '读表失败（不是空表）', n=len(todo))
+        print(); print(tri.report())
+        return 2
     after = {str(r.get('api接口') or '').strip(): str(r.get('体系') or '').strip() for r in after_rows}
     hit = sum(1 for api, cur, want, _ in todo if after.get(api) == want)
     print(f'  读回核对：{hit}/{len(todo)} 已生效')
