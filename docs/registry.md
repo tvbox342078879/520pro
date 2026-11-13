@@ -61,6 +61,7 @@
 | 验收判据 | `verify.sh`（全量判据 + 分级 ✓/✗/⚠） | 判据数量与红绿是这个脚本的输出，不许手工报 |
 | 技能契约判据代码 | `verify/skill_contract_check.py` | 只读 contracts.json，不在脚本里写死技能清单 |
 | 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链 + 规则↔验证器互引（CHANGELOG/测试记录不查） |
+| 真源联动提醒（G6 轻量版） | `verify/linkage_notice.py` | pre-commit 检出"本次改了 registry 登记的真源"时自动列全仓引用方清单（advisory 不阻断；语义过期机检查不了，人眼过 M5）；判据 `verify/tests/test_linkage_notice.py` |
 | 规则↔验证器映射 | `verify/rule_map.json` | 每条 B-xx 的判据号/入口/锚点；T4 双向核，锚点漂移即红 |
 | 交付报告与派活模板 | `docs/模板_阶段完工交付报告.md`、`docs/派活提示模板.md` | 回执含「回滚路径」必填；派活含五段固定基线 |
 | 技能卡片导出（手机端导入用） | `export_skill_cards.py` | 从 SKILL.md 现读现出，不手抄；坏技能整条不输出（半张卡片更难查）；`verify/tests/test_skill_cards.py` 盯"description 不许夹带 frontmatter 其它键" |
@@ -83,5 +84,6 @@
 
 ## 变更记录
 
+- 2026-11-13 G6 轻量版：新增 `verify/linkage_notice.py`（pre-commit 真源联动提醒）+ 7 用例变异回归；registry.md 自此成为它的真源清单唯一来源（表格第 2 列、存在性过滤）。
 - 2026-11-12 工程E：core-8 扩到 B-01…B-10（新增 B-10 拦截即停止）；新增 `verify/rule_map.json`（规则↔验证器映射，T4 双向核）；交付报告模板与派活模板进仓。
 - 2026-11-12 建立：`verify/terminology_check.py` 首跑发现 core-8 M1 声称"登记表见 `docs/registry.md`"但本仓无此文件（悬空指针），按 M6 回真源建表。

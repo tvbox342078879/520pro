@@ -42,7 +42,15 @@ else
   echo "  · 本次提交未改 手机指令.md，跳过"
 fi
 
-echo "[pre-commit] ③ 仓库级自检（--repo-only：不依赖安装副本）"
+echo "[pre-commit] ③ 真源联动提醒（G6 轻量版·v0.8.28，advisory 不阻断）"
+# ★ 脚本内部同样用 -c core.quotepath=false 取暂存清单（中文名转义教训，见②）。
+#   真源清单唯一来源是 docs/registry.md 第 2 列；它列出"谁在读"，M5 连带核对靠人。
+python3 verify/linkage_notice.py --repo "$ROOT" >>"$LOG" 2>&1 || true
+# 跳过/命中/异常三种情况都出声（②的静默失效教训：看不见的闸等于没装）
+grep -E '⚑|· 本次提交未动真源|⚠ linkage' "$LOG" | sed 's/^/   /'
+grep -q '⚑' "$LOG" && echo "  （↑ 改了真源：引用方清单见上，语义是否过期机检查不了）"
+
+echo "[pre-commit] ④ 仓库级自检（--repo-only：不依赖安装副本）"
 if ! bash verify.sh --repo-only --target "$ROOT" >>"$LOG" 2>&1; then
   echo "✗ 提交被拒：仓库级自检未通过"
   grep -E '  ✗' "$LOG" | head -8 | sed 's/^/   /'

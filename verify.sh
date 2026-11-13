@@ -614,7 +614,8 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 # ★ 注意：test_verify_exit.sh **不能**挂在这里——它内部会调 verify.sh，会无限递归。
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
-         test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync; do
+         test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
+         test_linkage_notice; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
