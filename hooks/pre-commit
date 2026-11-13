@@ -23,15 +23,20 @@ fi
 
 echo "[pre-commit] ② 手机指令云端副本同步"
 # 只在「手机指令.md 进本次提交」时跑：其它改动不该被网络请求拖慢。
-# 同步失败不在这里硬拦（网络/库环境可能真不可用），但下面的 verify.sh 会因判据红而拒提交，
-# 也就是"改了粘贴区就必須同步成功"这条约束仍然成立，只是失败原因由判据统一报。
-if git diff --cached --name-only --diff-filter=ACMR | grep -qx '手机指令.md'; then
-  if python3 sync_phone_directive.py --repo "$ROOT" >>"$LOG" 2>&1; then
+# ★ 必须加 -c core.quotepath=false：git 默认把非 ASCII 文件名转义成 "\346\211\213\346..."，
+#   直接 grep '手机指令.md' 永远匹配不上——首版就是这样静默跳过的（还说"未改该文件"），
+#   自动同步形同虚设。这类"看起来在工作"的判据必须有正样本证明它会命中。
+if git -c core.quotepath=false diff --cached --name-only --diff-filter=ACMR | grep -qx '手机指令.md'; then
+  sout="$(python3 sync_phone_directive.py --repo "$ROOT" 2>&1)"
+  src=$?
+  printf '%s\n' "$sout" >>"$LOG"
+  if [ "$src" -eq 0 ]; then
     git add docs/手机指令云端副本.json 2>/dev/null || true
-    echo "  ✓ 粘贴区有变更，已同步云端副本（回读通过）"
+    # 如实转述脚本结论：NOOP（内容没变）与 SYNCED（真写了）是两回事，不合并成"已同步"
+    echo "  ✓ $(printf '%s' "$sout" | tail -1)"
   else
-    echo "  ⚠ 同步未成功（网络或资料库环境不可用）；判据会因此变红并拒提交"
-    tail -3 "$LOG" | sed 's/^/   /'
+    echo "  ⚠ 同步未成功（rc=$src）；判据会因此变红并拒提交"
+    printf '%s\n' "$sout" | tail -3 | sed 's/^/   /'
   fi
 else
   echo "  · 本次提交未改 手机指令.md，跳过"

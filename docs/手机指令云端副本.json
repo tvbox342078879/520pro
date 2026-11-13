@@ -7,7 +7,7 @@
   "sha256": "54edbed16bdfafbb80c191afa85baf719b10cbe1669b1048cc54b1ca12b54738",
   "bytes": 4429,
   "clauses": 14,
-  "node_version": 5,
-  "synced_at": "2026-11-13T13:23:28+08:00",
-  "readback_bytes": 6141
+  "readback_bytes": 6134,
+  "node_version": 8,
+  "synced_at": "2026-11-13T13:26:57+08:00"
 }
