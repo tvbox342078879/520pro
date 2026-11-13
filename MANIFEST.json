@@ -115,7 +115,7 @@
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
           "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/",
-          "version": "1.26.6"
+          "version": "1.27.0"
         },
         "tvbox/skills/tvbox-pipeline/": {
           "user_install": "~/.codebuddy/skills/tvbox-pipeline/",
@@ -487,6 +487,9 @@
     "B-16 机检化：verify.sh 新增双核必保存在性判据（probe-hub / tvbox-core·core.py / learn-hub），变异测试用临时移走目录验证会翻红",
     "M-R77 借用：skill_contract_check.py 新增 C7 体积项（SKILL.md ≤40KB，超限 WARN 不阻断；probe-hub 52KB 现记 WARN，瘦身归 MP-D4）",
     "判据去硬编码：verify.sh 的手机指令编号范围检查改为从 core-8 动态取最大 B 编号，避免扩条后判据自身过期",
-    "同步全部编号范围指针（zh-style / CODEBUDDY / SOP / registry / 手机指令 / MANIFEST）到 B-01…B-16；core-8 代号沿用不改名（M7 登记，改名会断全仓引用）"
+    "同步全部编号范围指针（zh-style / CODEBUDDY / SOP / registry / 手机指令 / MANIFEST）到 B-01…B-16；core-8 代号沿用不改名（M7 登记，改名会断全仓引用）",
+    "MP-D4：probe-hub SKILL 50.8KB→40.0KB（-21.4%）——§3 命令清单外置 references/命令手册.md、§3.5.0 字段范本与 §8 归档表外置，§3.13/3.14 压重复；判据/正门命令/触发词零删除；probe-hub 1.26.6→1.27.0（四处一致）",
+    "MP-D5：巡检司惊门新增「触发回归」面——抽全部 N/B 样本，校验「应归谁」指向的技能真实存在（95 组 / 0 异常）；首跑抓出自己判据过严（B 组无归属字段是设计），已修正并做变异验证",
+    "MP-B7：交付模板「四、验证结果」补「自检命令」节（5 条可直接复跑的命令 + 必须写预期输出的判据）"
   ]
 }

@@ -1,7 +1,7 @@
 ---
 name: probe-hub
 description: "探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测作者仓库动态（存活/内容变更/新增文件/活跃度）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12；写源四门禁 `gate`（能播放/稳定兜底/内容齐全/精简体积，S223）、模板库内联 `hook`（flags/线路分组/封面/AES兜底打进单文件，S225），见 §3.12.2。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定；`livecheck` 单条/批量输出带死因分型（S221）。★修源 `repair`：死因七型→五路由（换域/接口改道/小补/整站重写/复验），checkup/route/drafts/apply/repair/recon/rewrite 七动作，**没验过不许说修好**，见 §3.17。★广告治理 `hls_clean`：61 域名黑名单 + Allow→Block→启发式三段判定，`quality` 的广告判定已委托它（S225），见 §3.11。★破甲 `decrypt`。★AES 兜底 `scripts/_aes_fallback.py`：羊壳无 pycryptodome 时的纯 Python 解密路径，可 import 可命令行（`--decrypt`），`--crosscheck` 与 forgekit 内联片段对账防漂移，见 §3.12.3。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 / 探源司 / 真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / DmaxPro908 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳 / 修源 / 源失效了怎么修 / 这个源为什么挂了 / 死因 / 死因分型 / 广告分片 / 广告太多 / HLS 净化 / 写源四门禁 / 模板内联。正门：scripts/probe.py（55 个子命令：monitor/search/harvest/forge/repair/decrypt/shellcrack/hls_clean/quality）；测活走 scripts/livecheck.py（含 --spider 源自验）。"
-version: "1.26.6"
+version: "1.27.0"
 ---
 
 > **🗣 语言铁律（M-R110 · 全模型适用）**：本技能所有输出——正文、思考过程、进度播报、
@@ -85,120 +85,31 @@ M-R60 三态，全靠"碰巧记得"才遵守，**不是被技能强制的**。
 > **细则索引（F2）**：`docs/外置_*.md` 的 10 篇长正文按"你会问什么"排成了表 → `docs/外置_索引.md`。
 > 查细则先看索引，别按文件名猜；新增/改名必须同步索引（`verify/tests/test_doc_index.py` 会翻红）。
 
-## 3. 用法（引擎 `scripts/probe.py`）
+## 3. 用法（引擎 `scripts/probe.py`，55 个子命令）
 
-> 📌 **S199 两类新型监测目标**（填补只认 GitHub 仓库的黑洞）：① **发布源直连包（pub-package）**——HTTP 轻量探活对象存储直连包（无 git 历史）；② **生命周期声明**维度——mark.json 自报 × 实测活跃度正交交叉（冲突/风险/提示）。登记见 [`references/S199_发布源与生命周期声明.md`](references/S199_发布源与生命周期声明.md)。
+> **完整命令清单（参数 + 逐条注释）** → [`references/命令手册.md`](references/命令手册.md)。
+> 下表只列**每个模块的正门命令**；参数一律 `tvbox probe <子命令> --help` 查（以代码为准）。
 
-```bash
-# 模块 A：监测上游仓库
-tvbox probe monitor check [--repo <url>] [--all] [--json]   # 四类信号逐条三态
-tvbox probe monitor diff  [--repo <url>]                    # 快照对比（本次 vs 上次）
-tvbox probe monitor status                                  # 监测目标总览表
-tvbox probe monitor add --url <repo_url> [--author X] [--cadence 每周] [--branch main]
-tvbox probe monitor import --file <seed.json>   # 从 seed JSON 批量登记（接口清单/离线种子基线，kind=tvbox-iface/repo/pub-package）
-# ★S199① 聚合分发站监测：盯一个聚合发布源的清单文件（tvboxapilinks.txt + api/live.json），
-#   其 sha12 变更即=全行业接口增删信号（monitor_pubsources.json 的 pub-moliys-666 即此模式）。
-tvbox probe monitor due                                     # 列出到期未检查的目标
+| 模块 | 正门命令 | 一句话 |
+|---|---|---|
+| 监测 A | `probe monitor check / diff / status / add / due / import` | 作者仓库存活/变更/新增/活跃度，四类信号逐条三态 |
+| 搜索 B | `probe search github / gitee / rank / verify` | 多平台找有效仓库，高分转监测目标 |
+| 采集 C | `probe harvest scan / pull / filter / export / dispatch / promote / prune / lightjson / repack / splitjsm` | 采线路→测活→去伪→入成品源库 |
+| 破甲 | `probe decrypt --file/--url [--chain]` | 响应体看不懂先分诊形态 |
+| 测活 E | `probe livecheck <url> / --batch / --spider` | 真拉流（vod_play_url / m3u8 分片），不是只看 HTTP 码 |
+| 写源 | `probe forge verify / list / classify / profile / audit` | 验→留档→列→判→画像，见 §3.12 |
+| 修源 | `probe repair checkup / route / drafts / apply` | 死因七型→五路由，见 §3.17 |
+| 质量 | `probe quality / quality-batch` | 画质/速度/广告，见 §3.11 |
+| 凭据 | `probe token / limits` | 未鉴权 60 req/h，配 token 升 5000 req/h |
+| 自检 | `probe self-check` | 16 组活体探针 + 假阳性基线 |
 
-# 监测三态分诊细化（借鉴 learn-hub M-L03 · S203 后移植）
-> 监测作者仓库存活，必须逐条给**三态结论**，不许折叠成「成功/失败」两分（细化 M-R60，生态规则 M-R203）：
-> - **取到**：拿到内容且可解析 → 进下一步；
-> - **确定取不到**：404 / 已删 / 明确拒绝 → 记死因，可换源；
-> - **无法判定**：超时 / 412 / 登录墙 / 编码异常 → **单列「待复测」，不许当「失败」**。
->
-> 412（机房 IP 被 CDN 拒）≠ 文件坏了；超时 ≠ 作者跑路。归因错，处置就全错（S171 实测网盘 412 被误当下载失败）。
+> 📌 **S199 两类新型监测目标**：① 发布源直连包（pub-package）——HTTP 轻量探活对象存储直连包（无 git 历史）；② 生命周期声明——mark.json 自报 × 实测活跃度正交交叉。登记见 [`references/S199_发布源与生命周期声明.md`](references/S199_发布源与生命周期声明.md)。
 
-# 模块 B：搜索更多仓库
-tvbox probe search github --topic tvbox [--limit N]
-tvbox probe search gitee  --keyword tvbox [--limit N]
-tvbox probe search rank   --in <raw_results.json>
-tvbox probe search verify --repo <url>
+**监测三态（不许折叠）**：取到 → 进下一步；确定取不到（404/已删/明确拒绝）→ 记死因、可换源；**无法判定（超时 / 412 / 登录墙 / 编码异常）→ 单列「待复测」**。412 是机房 IP 被 CDN 拒，≠ 文件坏了；超时 ≠ 作者跑路（S171 实测：网盘 412 被误当下载失败）。
 
-# 模块 D：破甲（响应体看不懂时先过一遍）
-tvbox probe decrypt --file <p>|--url <u>    # 形态分诊（json/hls/html-page/xml/hex/base64*/binary）
-tvbox probe decrypt --file <p> --chain      # 当源码看，列变换链信号（按出现顺序）
-tvbox probe decrypt --aes-key K --aes-iv IV --aes-data <hex>   # AES 严格解密
-tvbox probe decrypt --file <p> --img [--out o.png]             # XOR 图片（魔数反推密钥）
-tvbox probe decrypt --file <m3u8> --m3u8 --base <url>          # m3u8 转绝对代理
+**GitHub 凭据**：未鉴权 **60 req/h**，一次 `monitor check` 约耗 3 请求，几仓即触顶 → 提交/目录树全「无法判定」；配 token 升 **5000 req/h**。优先级：`export GITHUB_TOKEN` ＞ `probe token --set`（0600）＞ `gh auth login`。凭据**只落本地不上云**，`_mask()` 遮罩；无凭据**不报错**、静默降级匿名——**能测的照测，测不了的明说无法判定**。
 
-# 模块 C：采集线路
-tvbox probe harvest scan  --repo <url> [--path <子目录>]
-tvbox probe harvest pull  --url <file_url> --kind <sites|lives|parses>
-tvbox probe harvest filter [--in <candidates.json>]
-tvbox probe harvest export [--out scripts/harvest_candidates/harvest_MMDD.json]
-tvbox probe harvest dispatch                                # 交 tvbox ingest 入库
-tvbox probe harvest promote [--in <候选.json>] [--limit N]  # ★把真实测活通过者写入「成品源库」（S097）
-tvbox probe harvest prune --url <作者原包URL> [--outdir 目录] # ★仓库活体校验→逐条真实测活→剔除失效→产备用版（S097）
-tvbox probe harvest lightjson [--in <候选.json>] [--outdir 目录] [--desc 描述] [--no-probe]
-tvbox probe harvest repack --pkg <整包.json> [--kind sites|lives|parses] [--target <目标包>] [--only-live] [--out] # ★包内抽线路→测活→判能否跨包平移（S142）
-tvbox probe harvest splitjsm --pkg <jsm配置.json> [--out] [--no-probe] [--keep-nonhttp] [--push] # ★jsm拆包+形态分诊（S147）
-
-# 写源（P018·S161）：把「写一个 py 源」从临时手搓变成一条命令（验→留档→列→判→画像）
-python3 skills/probe-hub/scripts/forge.py verify <源.py> [--save]   # 验源；--save 通过则留档 sources/（不再随 /tmp 蒸发）
-python3 skills/probe-hub/scripts/forge.py list                      # 列出已留档源与最近验证结果
-python3 skills/probe-hub/scripts/forge.py classify <api> [--in 清单.json] [--out 结论.json]   # 实测判定源类型（不写库）
-python3 skills/probe-hub/scripts/forge.py profile <url>             # 站点画像→推荐探源司命令
-python3 skills/probe-hub/scripts/forge.py audit                     # 源库审计
-（注：forge 已接入总调度，可直接 `tvbox probe forge verify/list/classify/audit/profile`；上列直跑方式仍等效保留）
-# ★C8（T6·2026-1028）入口分裂收口：总调度已接入 quality / quality-batch / content-probe
-tvbox probe quality <m3u8地址>                                   # S110 单条质量评测（画质/速度/广告/质量分）
-tvbox probe quality-batch [--db 成品源库|线路源库|both] [--limit N] [--only-pass] [--dry]  # S110 批量评测并回填两库
-tvbox probe content-probe                                        # 内容层探查（需 TVBOX_ORIG_DIR 指向原仓库配置）
-# 纯工具/内部能力（未进总调度，独立直跑；C8 评估：一次性抽取或被 probe.py 内部引用，无独立 CLI 需求）
-python3 skills/probe-hub/scripts/mount_judge.py <sites.json> [base] [spider]  # jar 挂载判定（harvest prune 的 csp 系判据底层）
-python3 skills/probe-hub/scripts/danmu_pick.py <url...> [--demo]              # 弹幕挑选
-python3 skills/probe-hub/scripts/parse_apilinks.py <tvboxapilinks.txt> [out]  # 聚合分发站清单→监测 seed（S199 配套）
-python3 skills/probe-hub/scripts/armor.py                        # 破甲底层库（decrypt 的实现体，仅 self_test 入口）
-python3 skills/probe-hub/scripts/extract_live_urls.py            # live.json→测活 batch json（§3.5.0）
-# 网盘分享取料已迁出（2026-11-12）：改由 learn-hub 承接，命令为
-#   python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py info  --url <分享链接>
-#   python3 ~/.codebuddy/skills/learn-hub/scripts/pan.py pull  --url <同上> --outdir <目录>
-# 理由：网盘取料与 TVBox 业务零耦合，且 learn-hub 的 intake 职责本就写着「网盘资料」。
-# 412 判据不变，已随代码一并迁移（pan.py self-check 里有专门探针）。
-# ★MSITEPK2 单文件资源容器（S171）：一个 pak 装整站（源清单+图标+前端页面）
-tvbox probe pak <site.pak> [--list] [--get 名字 [--out 单文件|--outdir 目录]] [--key 64hex]  # key 缺省从同目录 classes.dex 自动取（多候选时逐键自证选中能解开的）
-
-# 模块 E：真实可用测活（S097，非仅HTTP码）
-tvbox probe livecheck <url> [--kind vod|m3u8|py|class|auto]     # 单条真实测活（class=分类完整性检测·S101）
-tvbox probe livecheck --batch <file.json> [--json]           # 批量真实测活
-# ★自己写的 py 源，交卷前先自验（S148）：逐接口 5 步真跑，不是"看像不像源码"
-tvbox probe livecheck --spider <源.py>
-
-# 候选重排（S143：按四分量重算，非按旧分数重排）
-tvbox probe search rank [--in <候选.json>] [--why]           # --why 显示前 5 条分数拆解
-
-# 登记册维护（S143：缺省均只预演，加 --yes 才写；均含云端真删除）
-tvbox probe monitor remove <id|URL片段> [--yes]
-tvbox probe monitor purge-test [--yes]                       # 清理 test1/tvbox 等自检写入的假目标
-
-# 黑名单（S169）：判死要能自证清白
-tvbox probe blacklist audit [--sample 30] [--trials 1] [--yes]   # ★等距抽样复验 L1，找误杀
-tvbox probe blacklist judge <api> --fail N [--first D] [--last D] [--detail 证书过期]  # 试算定层
-
-# 自检（16 组活体探针 + 假阳性基线）
-tvbox probe self-check
-
-# 模块 D：GitHub 凭据（S089 新增）
-tvbox probe token                       # 三态状态 + 实时配额 + 配置指引
-tvbox probe token --set <TOKEN>         # 写入 token 文件（0600）
-tvbox probe token --clear               # 清除 token 文件
-tvbox probe limits [--json]             # 只查配额（供脚本消费）
-```
-
-**GitHub 凭据（S089）**：未鉴权 API 限额 **60 req/h**，一次 `monitor check` 约耗 3 请求
-（repos/commits/tree），几只仓库即触顶 → 近30天提交/目录树**全部"无法判定"**。配 token 后
-升至 **5000 req/h**。三选一（优先级从高到低）：
-
-```bash
-export GITHUB_TOKEN=ghp_xxx          # ① 环境变量（临时覆盖，最高优先）
-tvbox probe token --set ghp_xxx      # ② token 文件（0600，随技能走）
-gh auth login                        # ③ gh CLI（零配置兜底）
-```
-
-> 凭据**只落本地、不上云**（秘钥性质与共享库相反）；`_mask()` 遮罩显示，绝不外泄。
-> 无凭据**不报错**，静默降级匿名，只是受限——**"能测的照测，测不了的明说无法判定"**。
-
-**退出码约定**：`0`=完成（哪怕有变更）；`1`=整体无法判定（网络/鉴权全域失败，不写空结果）；`2`=致命错（登记册损坏）。
+**退出码**：`0`=完成（哪怕有变更）；`1`=整体无法判定（网络/鉴权全域失败，不写空结果）；`2`=致命错（登记册损坏）。
 
 ## 3.5 ★ 合格线路源标准（S097·规则 55）
 
@@ -234,24 +145,10 @@ gh auth login                        # ③ gh CLI（零配置兜底）
 
 **判据五：溯源**——每条成品源记 `来源仓库`（作者原仓库），可回溯。
 
-## 3.5.0 ★ 候选溯源字段范本（点③·借鉴 live.json 结构）
+## 3.5.0 ★ 候选溯源字段范本（点③）
 
-借鉴 666 聚合包 `api/live.json` 的字段结构，候选与成品源统一携带四溯源字段，从源头保留
-「原始上游直链 / 镜像 / UA / 包大小」，供跨包平移（S142）与回溯源（M-R101 原生态保留）使用。
-
-| 候选字段 | 含义 | live.json 来源键 | 备注 |
-|---|---|---|---|
-| `sourceUrl` | 原始上游直链 | `sourceUrl` | 探源核心：上游活不活看这个 |
-| `mirror` | 镜像站地址 | `url` | 聚合分发站的镜像副本（如 `tvbox.moliys.icu`） |
-| `ua` | 请求 UA | `ua` | `null` 表示用默认 UA |
-| `size` | 包大小 | `size` | 原文字符串（如 `21.4K`） |
-
-> **透传链路**：候选 row builder（`_cloud_sync_harvest`）→ filter 保留（`cmd_harvest_filter`）
-> → export（`cmd_harvest_export`）全程携带上述四字段，不因格式转换丢字段
-> （呼应 M-R101「只 reorder 不 select」）。
-> **抽取脚本**：`scripts/extract_live_urls.py`（live.json → `harvest_candidates/livecheck_batch_666.json`）。
-> 字段映射：`url←sourceUrl`（测活目标=上游直链）、`mirror←url`、`ua←ua`、`size←size`、`source←source`（来源分组）、`date←date`（上游更新日期）。
-
+候选与成品源统一携带四溯源字段 `sourceUrl / mirror / ua / size`（供跨包平移 S142 与回溯源 M-R101）。
+**字段表 / 透传链路 / 抽取脚本映射** → [`references/候选溯源字段范本.md`](references/候选溯源字段范本.md)。
 
 ## 3.5.1 ★ 黑名单主键与三层分级（S144·**M-R96**·含并入的 M-R97/M-R99）
 
@@ -352,9 +249,8 @@ tvbox probe harvest promote --in <候选.json>
 
 ## 3.10 ★ 三条"假绿"缺陷定案（S143）→ 已外置
 
-> 详见 [`references/S143_三处假绿定案.md`](references/S143_三处假绿定案.md)（M-R77 法①）。
-> 判据错法各一：评分恒 60=有公式没验分层；上云=看回执不看字段；删除=看本地不看云端。
-> 病根同：拿"看起来对"代替"验过是对的"（S169「上云」栽了第二次，见 §3.13 ①）。
+> 详见 [`references/S143_三处假绿定案.md`](references/S143_三处假绿定案.md)。
+> 错法各一：评分恒 60=有公式没验分层；上云=看回执不看字段；删除=看本地不看云端。病根同：拿"看起来对"代替"验过是对的"。
 
 ## 3.11 ★ 质量评测：画质 / 速度 / 广告（S110）
 
@@ -467,53 +363,17 @@ python3 scripts/_aes_fallback.py --decrypt payload.bin --key <32hex> --iv <32hex
 **>100KB 必须走 pycryptodome**——纯 Python 解 457KB 要 12~18 秒，超出壳端图片加载窗口，
 表现为「大图不显示、小图正常」，会被误判成源坏了。
 
-## 3.13 ★ 静默缺陷六例（S169/S170/S171/S172）
+## 3.13 ★ 静默缺陷（七例）
 
-> 正本：监测台 → [`references/S169_监测台静默缺陷.md`](references/S169_监测台静默缺陷.md)；
-> 黑名单误杀 → [`references/S169_黑名单误杀三根因.md`](references/S169_黑名单误杀三根因.md)；
-> 网盘取料 → **已迁至 learn-hub**（`learn-hub/scripts/pan.py`）。原判据文档仍留 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md) 作历史参考。
+**共同形态：不报错、退出码 0、结果一直不变**——不是"功能坏了"，是空转或归因错位。
+七例：①时间列写不进云端（列名不符仍回执 success）②存活只看主页＝监测面缺口伪装成健康 ③按"失败几次"判死不问原因（证书过期也判死）④412 并进下载失败（坏 token 也是 412）⑤探针自己判自己通过 ⑥判据没落在执行路径（15 探针首版 6 条是假的）⑦外部材料自带 self_test 不能当证据。
 
-**共同形态：不报错、退出码 0、结果一直不变**——不是"功能坏了"，是"空转"或"归因错位"。
+> 逐条实测数字与对照组 → [`docs/外置_静默缺陷七例.md`](docs/外置_静默缺陷七例.md)｜监测台正本 [`references/S169_监测台静默缺陷.md`](references/S169_监测台静默缺陷.md)。
+> **验收**：回读 ≠ 回执；判定要说清凭什么；**写探针先问——把目标改坏，它还亮吗？**
 
-| # | 缺陷（证据与推演见正本） |
-|---|---|
-| ① | `上次检查` 写不进云端：列是 `date`、代码按 `text` 写，回执照样 `success: true` |
-| ② | 存活只看仓库主页 → **监测面缺口伪装成健康度** |
-| ③ | 黑名单按"失败几次"判死，不问"为什么" → 证书过期也被判死 |
-| ④ | 网盘 412 并进「下载失败」 → **坏 token 也是 412**＝拦截在验签之前 |
-| ⑤ | 探针**自己判自己通过**（连犯三次）→ 判据字面量写在探针同文件里 |
-| ⑥ | **判据没落在执行路径上**（15 探针首版 6 条是假的） |
-| ⑦ | 外部材料自带的 `self_test` 不能当证据（`except ImportError: pass` + 无条件 ✅） |
+## 3.14 网盘分享取料 —— 已迁出
 
-> 七例的实测数字、对照组、逐条推演 → [`docs/外置_静默缺陷七例.md`](docs/外置_静默缺陷七例.md)
-
-判据：存活按 `API ok`→存活、`notfound`→已封禁、`限流/失败`→才退回主页；时间列走
-`_cloud_upsert(date_cols=...)`；证书类封顶 L2；**不可达类失败单列、带成因、给处置阶梯**。
-`self-check` 五条命门探针锁死。**验收：回读 ≠ 回执；判定要说清凭什么；归因错位比不报错更毒。**
-
-> **⑤ 比前四条更阴**：前四条是代码空转，⑤ 是**校验空转**。**写探针先问：把目标改坏，它还亮吗？**
-> **⑥ 是 ⑤ 的续集**：六变种逐条正解见 [`docs/外置_判据必须落在执行路径.md`](docs/外置_判据必须落在执行路径.md)。
-> **⑦ 上手第一件事**是用构造数据证伪，不是跑它的自检看绿灯——
-> 判定与处置见 [`references/S195_吸收材料结案.md`](references/S195_吸收材料结案.md)。
-
-> **三条硬要求**：①取自**执行路径**不取自说明书（报错文案里的字不算）；②能行为测就行为测；
-> ③不许查**一个自己会说的话**（提示语里写着"不许报归因 0 条"，那串字本身会命中探针）。
-
-**`pan` 另两条判据**：① 只认 `/s/<id>`（用户贴的整段文案含口令 `/~xxx~/` 极像 id，口令单独输入返回空）；
-② **`format_type` 判改名包**——实测 4 个 `.apk` 里 2 个原生是 `application/zip`，`.apk` <100KB 必预警。
-
-## 3.14 网盘分享取料 —— 已迁出（2026-11-12）
-
-> 命令 `probe harvest pan` 已移除，实现整体迁至 `~/.codebuddy/skills/learn-hub/scripts/pan.py`。
->
-> **为什么迁**：网盘取料与 TVBox 业务零耦合；而 learn-hub 的 `intake` 模块职责里本来就写着
-> 「公众号文章 / **网盘资料** / 本地文档 / PDF / 扫描图 / 网页 / 音视频」—— 它才是这份代码的归属。
-> 迁出同时解除了一处隐形依赖：原实现的「入库必须 readback」依赖账房司 `core_ledger`，
-> 而账房司在新生态里没装，那条硬规则整条落空。
->
-> **判据一个字没改**：412 是机房 IP 段被 CDN 边缘拒，不是 IPv6、不是文件坏；
-> 这条探针随代码搬到了 `pan.py self-check`（2/2 通过）。
-> 历史文档留在 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md)，只作回溯用。
+实现整体迁至 `learn-hub/scripts/pan.py`（与 TVBox 零耦合，learn-hub 的 intake 本就含「网盘资料」）；原判据留 [`docs/外置_网盘分享取料.md`](docs/外置_网盘分享取料.md) 作历史参考。
 
 ## 3.15 ★ 解析接口：采集与真实出流（S173·`harvest parse` / `livecheck --kind parse`）
 
@@ -582,8 +442,8 @@ python3 repair/engine.py rewrite <url>              # 整站重写档（结构�
 
 ## 4. 扩展点
 
-- [x] 更多平台（GitLab/Gitea/工蜂）；变更通知进 watchdog（M18）；活跃度预测 `monitor forecast`；
-      `splitjsm` 复源枢库曹正本（S147，164→外链14、非外链150不进候选）；写源自验 `livecheck --spider`（S148）；破甲 `probe decrypt`；网盘 `harvest pan`（S170）；单文件容器 `pak`（S171）
+- [x] 多平台（GitLab/Gitea/工蜂）· 变更通知进 watchdog · 活跃度预测 `monitor forecast` · `splitjsm` · `--spider` 自验 · `decrypt` · `pak`
+- [x] 网盘取料已迁出 learn-hub
 
 
 ## 5. 联动（数据流）
@@ -598,9 +458,9 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
                                        └─► 用户据成品源库给 **直链系线路池**换路线（三系口径 1025；D 包=历史别名）
 ```
 
-- **上游**：`~/.codebuddy/skills/library`（云读写）+ `tvbox-core/scripts/core.py`（共享效率核心）
-- **下游**：`tvbox-core/scripts/blk.py`（第一道闸·guard 拦截）→ `tvbox-core/scripts/link.py`（ingest 入库）
-- **横向**：`legacy-watchdog`（遗迹哨·监测上游遗留）、`ecosys-conductor`（总指挥·信号源18 守护）
+- 上游：`~/.codebuddy/skills/library`（云读写）+ `tvbox-core/scripts/core.py`（共享核心）
+- 下游：`blk.py`（guard 拦截）→ `link.py`（ingest 入库）
+- 横向：`legacy-watchdog`（遗迹哨）、`ecosys-conductor`（总指挥）
 
 ## 6. 升级契约（规则 48 + 54 三件套）
 
@@ -612,13 +472,12 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 
 | 项 | 值 |
 |---|---|
-| 共享核心 | `~/.codebuddy/skills/tvbox-core/scripts/core.py`（同 §5 上游） |
-| 源库 DB_SRC | 已收口至 `core.SRC_DBS`（**本技能不读源库**；线路源库 `pNwZ9uBOTz6FzRuvu8nryI` / 成品源库 `8JBrhSwsJ3pnPYtoGLo9XV`） |
+| 共享核心 | `tvbox-core/scripts/core.py`（同 §5） |
+| 源库 DB_SRC | 已收口至 `core.SRC_DBS`（**本技能不读源库**；线路 `pNwZ9uBOTz6FzRuvu8nryI` / 成品 `8JBrhSwsJ3pnPYtoGLo9XV`） |
 | 成品源库 DB_PROD | `8JBrhSwsJ3pnPYtoGLo9XV`（S160 由「成品源库」更名；取自 core，勿写死） |
 | 失效源库 DB_DEAD | `92dSuG6uUbxitGuyx4Saaf` |
 | 生态登记库 DB_ECO | `T4kODtANe7rSrtZTu4sIND` |
-| 上游监测库 DB_UPSTREAM | （下轮建：用真实数据验证 18 字段 schema 后创建） |
-| 监测目标登记册 | `scripts/monitor_targets.json`（本轮承载；下轮迁 DB_UPSTREAM） |
+| 上游监测库 DB_UPSTREAM | 下轮建（先验 18 字段 schema）；本轮由 `scripts/monitor_targets.json` 承载 |
 | 采样史数据基座 | `scripts/activity_log.json`（三态守护，损坏拒绝回写） |
 | 闸门 / 入库 | `tvbox-core/scripts/blk.py` · `tvbox-core/scripts/link.py`（cmd_ingest）（同 §5 下游） |
 | 测活口径 | `tvbox-core/scripts/pipeline.py`（`_alive` / `ALIVE_CODES`） |
@@ -626,14 +485,6 @@ harvest  候选 ──► harvest_candidates/harvest_MMDD.json ──► tvbox i
 
 ## 8. 历史专项脚本归档（C5 · 2026-1027 生态对齐治理）
 
-以下脚本经 grep 确认**零运行时依赖**（不被任何运行代码 `import`），属 S117/S173 历史专项遗留，
-已移至 `scripts/_legacy/` 归档，**保留可回溯、不删除**（T8 处置，不影响现有功能）：
-
-| 脚本 | 来源 | 用途 | 失效/遗留原因 |
-|---|---|---|---|
-| `retry_lives_parses.py` | S117 | 复测直播 parse 出流 | 硬编码已失效路径（旧工作区内的原仓库快照 json） |
-| `rebuild_b1018_s116.py` | S116 重建 | 以作者原配置为基线分层重建 | 同上硬编码 + 硬编码本次会话 artifact 路径（换会话即失效） |
-| `rebuild_from_origin.py` | — | 以作者原配置为唯一基线重建 | 同上 |
-| `probe_parse_inject.py` | S173 | parse 档注入回归测试 | 无 `__main__` 守卫，专项回归用，非运行入口 |
-
-> 路径由 `scripts/xxx.py` 变为 `scripts/_legacy/xxx.py`；如需回溯运行，须将其依赖的 `livecheck` 等模块加入 `sys.path` 或调整 import。
+4 个零运行时依赖的历史专项脚本（`retry_lives_parses` / `rebuild_b1018_s116` / `rebuild_from_origin` /
+`probe_parse_inject`）已移至 `scripts/_legacy/`，**保留可回溯、不删除**（T8 处置）。
+逐脚本来源/用途/失效原因 → [`references/历史脚本归档.md`](references/历史脚本归档.md)。

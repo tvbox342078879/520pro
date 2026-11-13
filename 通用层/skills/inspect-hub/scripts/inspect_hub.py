@@ -510,6 +510,49 @@ def chk_triggers(target, cfg, ctx):
                       'c': '在 description 补「触发词：a / b / c」（词从 references/trigger-samples.md 的 T 组提炼，不凭空编）'})
         sts.append('yellow')
 
+    # ④ 触发回归（D5·2026-11-13 · 工程J）：N/B 组样本的「应归谁」必须指向真实存在的技能。
+    #   为什么补这一面：③ 只查 description 字面撞车；样本集里的 N 组写着"该归谁"，
+    #   但没人核对那个名字是不是**真技能**——写错名字的样本等于给了个假出口，
+    #   人工核的时候照着错名字找，永远找不到。
+    names = {n for n, _ in skills}
+    sam_total = sam_bad = 0
+    for name, sk in skills:
+        sp = os.path.join(sk, 'references', 'trigger-samples.md')
+        if not os.path.exists(sp):
+            continue
+        try:
+            txt = open(sp, encoding='utf-8', errors='ignore').read()
+        except Exception:
+            continue
+        for m in re.finditer(r'(?m)^#{2,4}\s*(N\d+|B\d+)[^\n]*\n([\s\S]*?)(?=\n#{2,4}\s|\Z)', txt):
+            am = re.search(r'应归谁[:：]\s*([^\n]+)', m.group(2))
+            sam_total += 1
+            if not am:
+                # 只有 N 组（反例）必须有归属；B 组（边界）的字段是「边界在哪/正确处置」，
+                # 按 N 组格式去要求它 = 判据过严（2026-11-13 首跑即抓到这条假阳性）。
+                if m.group(1).startswith('N'):
+                    sam_bad += 1
+                    items.append({'t': f'【黄】{name} {m.group(1)} 缺「应归谁」',
+                                  'e': '反例没有归属，等于没写反例',
+                                  'c': '补一行「应归谁：<技能名|直接改代码|不触发>」'})
+                    sts.append('yellow')
+                continue
+            for tok in re.findall(r'[a-z][a-z0-9]*(?:-[a-z0-9]+)+', am.group(1)):
+                if tok in names or tok in ('git', 'tvbox'):
+                    continue
+                if tok.endswith(('-hub', '-pipeline', '-core', '-store', '-gate')):
+                    sam_bad += 1
+                    items.append({'t': f'【黄】{name} {m.group(1)} 归属「{tok}」不是现存技能',
+                                  'e': '样本指向的技能名不存在，人工核时照错名字找不到出口',
+                                  'c': f'改成实际承接方（现有：{"、".join(sorted(names))}）'})
+                    sts.append('yellow')
+    if sam_total:
+        items.append({'t': f'【提示】触发回归：抽 {sam_total} 组 N/B 样本，归属异常 {sam_bad} 组',
+                      'e': '只查「应归谁」指向的技能是否存在；语义是否真该归它，仍需人工抽核',
+                      'c': '异常按提示改名字；无异常则此项为绿'})
+        if sam_bad == 0:
+            sts.append('green')
+
     # 覆盖统计与边界说明（无论红绿都要出现——否则"0 冲突"会被读成"全都健康"）
     items.append({'t': f'【提示】字面覆盖 {covered}/{len(skills)} 技能、{total_words} 个触发词（本门只查字面同词）',
                   'e': '语义相近（"整理成笔记"vs"整理"）字面判据抓不到；负边界交叉包含试过，全是假阳性故不做',
