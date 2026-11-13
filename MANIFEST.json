@@ -1,6 +1,6 @@
 {
   "ecosystem": "520pro",
-  "version": "0.8.21",
+  "version": "0.8.22",
   "fusion": "把平台硬机制（账号指令/用户级技能路由/子代理/云端沙箱）接到新生态的可移植业务（core-8/薄壳/业务脚本）上",
   "based_on": [
     "WorkBuddy 平台运行时",
@@ -22,7 +22,7 @@
         "rules/core-8.md": {
           "install_to": "~/.codebuddy/rules/core-8.md",
           "alwaysApply": true,
-          "role": "10 条通用铁律（B-01~B-10 + M1–M7）"
+          "role": "16 条通用铁律（B-01~B-16 + M1–M7）"
         },
         "rules/zh-style.md": {
           "install_to": "<项目>/.codebuddy/rules/zh-style.md",
@@ -480,5 +480,13 @@
     "推送纪律成文：向 GitHub 推送一律走 hooks/git_push_safe.sh，禁止裸 git push。S228 调研件头部加落地登记（M2 引用不复制）；machine-bootstrap TROUBLESHOOTING 第 6 条补正本入口指针；verify.sh 新增脚本在位+语法检查（缺失即红）。",
     "sync_shape 补 hooks/ 与 .github/workflows/verify.yml（否则换机副本缺推送工具与远端闸）。",
     "反向实测：假仓地址→第1次 port 443 判瞬时退避重试、第2次 repository not found 判非瞬时拒绝重试（✗ 不再尝试），行为与 S228 设计一致；--status 无记录 rc=2 三态不折叠。测试命令自身一处测量笔误（$? 误当 $rc）如实记录，脚本无缺陷。"
+  ],
+  "changelog_0_8_22": [
+    "工程J：core-8 扩到 B-16（新增 B-11 后台与落盘、B-12 回合收敛、B-13 完成态凭落点、B-14 账目三齐、B-15 孤例还是模式、B-16 双核必保）；三源纪律去重后只立增量，与既有 10 条重合的 M-R 条目不重复立",
+    "B-14 机检化：test_handoff.py 新增账目三齐判据（owner/next/due 三列非空 + 禁「待跟进/后续优化/有空再说」）；handoff_latest.md 新增第 4 段待办账目",
+    "B-16 机检化：verify.sh 新增双核必保存在性判据（probe-hub / tvbox-core·core.py / learn-hub），变异测试用临时移走目录验证会翻红",
+    "M-R77 借用：skill_contract_check.py 新增 C7 体积项（SKILL.md ≤40KB，超限 WARN 不阻断；probe-hub 52KB 现记 WARN，瘦身归 MP-D4）",
+    "判据去硬编码：verify.sh 的手机指令编号范围检查改为从 core-8 动态取最大 B 编号，避免扩条后判据自身过期",
+    "同步全部编号范围指针（zh-style / CODEBUDDY / SOP / registry / 手机指令 / MANIFEST）到 B-01…B-16；core-8 代号沿用不改名（M7 登记，改名会断全仓引用）"
   ]
 }

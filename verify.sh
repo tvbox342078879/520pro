@@ -381,11 +381,19 @@ echo "[三通道一致性（v0.8.18 起·工程F-7）]"
 if [ -f "$TARGET/手机指令.md" ]; then
   ok "手机指令.md 在位（硬轨）"
   grep -q "拦截即停止" "$TARGET/手机指令.md" \
-    && ok "  └ 手机硬轨已跟到 B-10（拦截即停止）" \
+    && ok "  └ 手机硬轨含 B-10「拦截即停止」" \
     || no "  └ 手机硬轨缺 B-10（手机端被拦后会硬试）"
-  grep -q "B-01~B-10\|B-01…B-10" "$TARGET/手机指令.md" \
-    && ok "  └ 手机指令引用当前编号范围" \
-    || no "  └ 手机指令的规则编号范围过期（与 core-8 不一致）"
+  # ★ v0.8.22（工程J）：编号范围不再写死——从 core-8 真源取当前最大编号。
+  #   写死 "B-01~B-10" 的判据，在扩到 B-16 之后会一边红一边说"范围过期"（其实是判据过期）。
+  _bmax=$(grep -oE '^\s*[0-9]+\.\s+\*\*B-[0-9]{2}' "$TARGET/通用层/rules/core-8.md" 2>/dev/null \
+          | grep -oE 'B-[0-9]{2}' | sort -u | tail -1)
+  if [ -n "${_bmax:-}" ]; then
+    grep -q "B-01~${_bmax}\|B-01…${_bmax}" "$TARGET/手机指令.md" \
+      && ok "  └ 手机指令引用当前编号范围（B-01~${_bmax}）" \
+      || no "  └ 手机指令的规则编号范围过期（真源已到 ${_bmax}，手机仍是旧范围）"
+  else
+    opt "  └ core-8 未识别到编号条款——手机指令范围无法判定"
+  fi
 else
   no "手机指令.md 缺失（手机通道断：手机端不读项目薄壳）"
 fi
@@ -407,6 +415,24 @@ if [ -f "$TARGET/verify/tests/test_handoff.py" ]; then
     printf '%s\n' "$hout" | grep '  ✗ ' | head -3 | sed 's/^/     /'
   fi
 fi
+
+# ★ v0.8.22（工程J·B-16）：双核必保——probe-hub 与 tvbox-core 是硬依赖，不是"最好有"。
+#   core.py 被 probe-hub 全量 import，缺了不是"某个功能不好使"，是探源司整片 ModuleNotFoundError。
+#   判据只查"在不在"（版本归契约 C4，不在这里重复判），位置取仓内真源，不取安装副本——
+#   仓里没有就是仓库问题，装没装是另一回事。
+echo
+echo "[双核必保（v0.8.22 起·B-16）]"
+[ -f "$TARGET/能力层/tvbox/skills/probe-hub/SKILL.md" ] \
+  && ok "probe-hub 在位（探源司本体）" \
+  || no "probe-hub 缺失/改名——探源司不可用（B-16 双核必保）"
+if [ -f "$TARGET/能力层/tvbox/skills/tvbox-core/scripts/core.py" ]; then
+  ok "tvbox-core/scripts/core.py 在位（共享内核）"
+else
+  no "tvbox-core/scripts/core.py 缺失——probe-hub 会 ModuleNotFoundError（B-16 双核必保）"
+fi
+[ -f "$TARGET/通用层/skills/learn-hub/scripts/learn.py" ] \
+  && ok "learn-hub 在位（通用层业务主件，B-16 同保项）" \
+  || no "learn-hub 缺失/改名——学习工坊不可用（B-16 同保项）"
 
 # ★ v0.8.15（工程C）：技能契约机检——结构/头部/描述五组/版本三处/镜像 sha/样本集
 echo
@@ -462,7 +488,7 @@ PYEOF
   fi
 fi
 
-# ★ v0.8.16（工程D）：口径机检——M4 编号连续（十条须带 B-01…B-10 且与序号对齐）+ M2/M5 引用断链
+# ★ v0.8.16（工程D）：口径机检——M4 编号连续（每条须带 B-xx 且与序号对齐）+ M2/M5 引用断链
 # 为什么要有：core-8 的 M5 自己写着"断链/词表误用/编号越界/复制条款四类须全绿"，
 # 但在此之前这四类**没有任何机检入口**（M1 声称的 docs/registry.md 与 verify/terminology_check.py
 # 两个落点当时都不存在）——规则说要查，实际没人查。

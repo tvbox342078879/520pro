@@ -19,6 +19,8 @@
   C4 版本四处    contracts.json == SKILL.md（lib: manifest.json）== CHANGELOG 首条 == MANIFEST 登记
   C5 镜像一致    仓内源 ↔ 安装副本逐文件 sha256；运行时态文件豁免
   C6 触发样本    有 → 查 T/N/B 三组齐备且数量达标；无 → WARN（工程D 补齐）
+  C7 体积上限    SKILL.md ≤ 40KB（M-R77）；超限记 WARN 不阻断（瘦身排期归 MP-D4）——
+                 SKILL.md 每次命中都要整篇进 context，超限不是"文档长"，是"每轮都在付租金" 
 
 【三态纪律（core-8 第 2 条）】
   安装目录不存在 = 「无法判定」（SKIP），既不记通过也不记失败；
@@ -40,6 +42,10 @@ DEFAULT_REPO = os.path.dirname(HERE)
 DEFAULT_INSTALL = os.path.join(os.path.expanduser('~'), '.codebuddy', 'skills')
 
 SEMVER = re.compile(r'\bv?(\d+\.\d+\.\d+)\b')
+# ★ v0.8.22（工程J·M-R77 借用）：SKILL.md 体积上限。判 WARN 不判 FAIL——
+#   体积超标不破坏功能，只是每次加载都吃 context；先让它可见，瘦身按 MP-D4 排期。
+#   技能可在 contracts.json 用 skill_size_limit_kb 单独放宽（须写理由，M7）。
+SKILL_SIZE_LIMIT_KB = 40
 SKIP_DIRS = {'__pycache__', '.git', 'node_modules', '.pytest_cache'}
 SKIP_EXT = {'.pyc', '.pyo', '.swp'}
 
@@ -313,6 +319,25 @@ def check_samples(name, spec, base):
     rec('C6', name, '✓', f'样本齐备 T{got["T"]}/N{got["N"]}/B{got["B"]}（T 均带第一动作、N 均带归属）')
 
 
+def check_size(name, spec, base):
+    """C7（工程J）：SKILL.md 体积——超 40KB 记 WARN。
+
+    为什么计量而不是看感觉：SKILL.md 是"每次命中都整篇注入"的文件，
+    体积直接等于每轮 context 租金。probe-hub 52KB 这种量级，人眼只觉得"文档挺全"，
+    装到手机上就是每轮多烧一万多 token——必须有数、有阈值。
+    """
+    p = os.path.join(base, 'SKILL.md')
+    if not os.path.exists(p):
+        return
+    kb = os.path.getsize(p) / 1024.0
+    lim = int(spec.get('skill_size_limit_kb', SKILL_SIZE_LIMIT_KB))
+    if kb > lim:
+        rec('C7', name, '⚠', f'SKILL.md {kb:.1f}KB > 上限 {lim}KB'
+                          f'（M-R77：每次加载都是常驻 context 成本；瘦身见 MP-D4）')
+    else:
+        rec('C7', name, '✓', f'SKILL.md {kb:.1f}KB ≤ {lim}KB')
+
+
 # ────────────────────────── 主流程 ──────────────────────────
 def main(argv):
     repo, install, as_json, require_mirror = DEFAULT_REPO, DEFAULT_INSTALL, False, False
@@ -359,6 +384,7 @@ def main(argv):
             sk = os.path.join(base, 'SKILL.md')
             body = read(sk) if os.path.exists(sk) else ''
             check_desc(name, spec, base, fm_get(front_matter(body), 'description'), body)
+            check_size(name, spec, base)
         else:
             rec('C3', name, '·', 'lib 类：不注册路由，desc 五组契约不适用')
         check_version(name, spec, base, repo)

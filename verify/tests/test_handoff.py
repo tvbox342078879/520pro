@@ -6,7 +6,10 @@
   ① 文件存在；
   ② 三个必载段齐全（当前主线 / 版本与位置 / 习惯快照指针）——缺一项就等于"只知道在哪、不知道在干啥"；
   ③ 写的版本号 == VERSION（**过期即红**：交接摘要写着旧版本，接手的人会按旧口径干活）；
-  ④ 在 git 仓内时，"当前主线自检口径"那句还在（提醒接手的人先跑 verify）。
+  ④ 在 git 仓内时，"当前主线自检口径"那句还在（提醒接手的人先跑 verify）；
+  ⑤ 账目三齐（B-14，v0.8.22 工程J）：待办账目段每条必须有 owner/next/due，
+     且段内不得出现"待跟进/后续优化/有空再说"这类无主无期措辞——
+     为什么查这个：交接最贵的成本不是"不知道版本"，是"看到一条没人认领的待办"。
 
 只查"是否过期/是否缺项"，不查文字质量——那机器判不了（三态不标注就是骗自己）。
 用法：python3 verify/tests/test_handoff.py
@@ -23,6 +26,37 @@ FAIL, PASS = [], []
 def check(name, cond, detail=''):
     (PASS if cond else FAIL).append(name)
     print(('  ✓ ' if cond else '  ✗ ') + name + ('' if cond else '  ← ' + detail))
+
+
+LEDGER_HEAD = '## 4. 待办账目'
+BAN_WORDS = ('待跟进', '后续优化', '有空再说', '以后再说')
+
+
+def check_ledger(body):
+    """B-14 账目三齐：owner / next / due。空表也算三齐（0 条待办是合法状态）。"""
+    if LEDGER_HEAD not in body:
+        check('账目三齐：存在「待办账目」段', False,
+              '缺段=未完事项无处登记（B-14）；段标题须为「## 4. 待办账目」')
+        return
+    check('账目三齐：存在「待办账目」段', True)
+    seg = body.split(LEDGER_HEAD, 1)[1].split('\n## ', 1)[0]
+    rows = [l.strip() for l in seg.splitlines() if l.strip().startswith('|')]
+    if not rows:
+        check('账目三齐：账目表存在', False, '段内没有表格')
+        return
+    header = [c.strip().lower() for c in rows[0].strip('|').split('|')]
+    need = ('owner', 'next', 'due')
+    miss = [k for k in need if not any(k in h for h in header)]
+    check('账目三齐：表头含 owner / next / due', not miss, f'缺列 {miss}')
+    data = [r for r in rows[1:] if not re.match(r'^\|[\s:\-|]+\|$', r)]
+    bad = []
+    for r in data:
+        cols = [c.strip() for c in r.strip('|').split('|')]
+        if len(cols) < 4 or any(not c for c in cols[-3:]):
+            bad.append(r)
+    check(f'账目三齐：{len(data)} 条待办三字段非空', not bad, f'缺字段：{bad[:2]}')
+    banned = [w for w in BAN_WORDS if w in seg]
+    check('账目三齐：段内无「待跟进」类无主无期措辞', not banned, f'出现 {banned}')
 
 
 def main():
@@ -46,6 +80,7 @@ def main():
           '交接摘要过期：接手的人会按旧版本口径干活')
 
     check('含"先跑自检"的提醒', 'verify.sh' in body)
+    check_ledger(body)
     print('结果：%d ✓ / %d ✗' % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
 

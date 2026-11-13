@@ -64,6 +64,40 @@
       "check": "通用层/skills/space-hub/scripts/space_hub.py",
       "anchor": "def _reject",
       "how": "拒收输出含 {error,reason,target,method} 四字段；变异测试：吞掉结构化输出后用例必须翻红。"
+    },
+    "B-11": {
+      "verify_id": "V-MANUAL-11",
+      "kind": "manual",
+      "how": "回看长任务：是否走了后台通道并有落盘日志；宣布其结果前是否拿到退出码+日志尾部。给不出就是「还在跑」，不是「完成」。"
+    },
+    "B-12": {
+      "verify_id": "V-MANUAL-12",
+      "kind": "manual",
+      "how": "每轮回复末尾能否指出「做了什么 / 凭什么 / 下一步」；有没有一轮里铺开多个半成品却只报一个。"
+    },
+    "B-13": {
+      "verify_id": "V-MANUAL-13",
+      "kind": "manual",
+      "how": "把每条「完成/通过」拎出来，看是否附了文件+行号（或 sha）、命令+rc、判据输出；缺一项就应写「未验证」。"
+    },
+    "B-14": {
+      "verify_id": "V-LEDGER",
+      "kind": "machine",
+      "check": "verify/tests/test_handoff.py",
+      "anchor": "账目三齐",
+      "how": "交接摘要的待办账目段：每条须含 owner/next/due 三字段，且全文不得出现「待跟进/后续优化/有空再说」这类无主无期措辞。"
+    },
+    "B-15": {
+      "verify_id": "V-MANUAL-15",
+      "kind": "manual",
+      "how": "每个失败项是否先答「孤例还是模式」并给了扫描基数（扫几处/中几处）；判为模式的是否完成承认→同类排查→共性登记→机制候选四步。"
+    },
+    "B-16": {
+      "verify_id": "V-DUALCORE",
+      "kind": "machine",
+      "check": "verify.sh",
+      "anchor": "双核必保",
+      "how": "verify.sh 查 probe-hub / tvbox-core(含 scripts/core.py) / learn-hub 三处存在；变异测试：临时移走 tvbox-core 后必须翻红。"
     }
   }
 }
