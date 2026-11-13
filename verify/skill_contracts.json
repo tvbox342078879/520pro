@@ -25,7 +25,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/artifact-store",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"

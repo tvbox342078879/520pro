@@ -1,6 +1,6 @@
 ---
 name: artifact-store
-version: "1.0.3"
+version: "1.0.4"
 description: "当用户说「本地瘦身」「手机变卡」「清理产物」「项目混在一起了」「会话治理」时使用本技能。治理手机长期用变卡的本地轻量化总闸，协调产物 LRU 归档、记忆与会话减负、上下文纪律，优先复用官方原生能力、仅对官方未覆盖部分兜底。适用于本地瘦身、清理产物、记忆归档与本地清理。 触发词：本地瘦身 / 手机变卡 / 手机越用越卡 / 本地磁盘满了 / 产物归档 / 本地清理 / 清本地 / 记忆减负 / 会话治理 / 上下文纪律。 能力：①产物 LRU 归档（本地只留 2 轮，更早进资料库+删本地）；②记忆减负（优先官方原生按目录摘要按需加载与自动清理，仅超大主题文件兜底归档）；③会话治理（一事一话/旧会话归档，建议 /clear）；④上下文纪律（/clear·Subagents·/compact·条件规则）。不要用于：源码与规则的归档删除（git 真源，归 git 正门）；不要用于云端资料库的建库/搬移（归 space-hub 库务司）；不要替用户决定删哪条会话（只建议+待确认）。"
 allowed-tools: Read, Grep, Glob, Bash
 ---
@@ -63,12 +63,19 @@ allowed-tools: Read, Grep, Glob, Bash
 ## 7. 执行体（`scripts/artifact.py`）
 
 > v1.0.3 起本技能带执行体：**扫描与预览走脚本，不许照本文自己编**。脚本只读，不移动、不删除任何文件。
+> v1.0.4 起 `scan --list N` 会**逐条列出将归档的文件名**——只给「12 个文件」这个数，
+> 等于让用户凭想象签字；dry-run 的价值全在「哪 12 个」。
 
 ```bash
-python3 scripts/artifact.py scan          # 只看计划，不动文件
-python3 scripts/artifact.py scan --json   # 机器可读，供巡检/回归消费
-python3 scripts/artifact.py self-check    # 用构造样本验证分类器（8 例）
+python3 scripts/artifact.py scan                        # 只看汇总计划，不动文件
+python3 scripts/artifact.py scan --list 30              # 逐条列出将归档的文件（dry-run 试点用这个）
+python3 scripts/artifact.py scan --json                 # 机器可读，供巡检/回归消费
+python3 scripts/artifact.py self-check                  # 用构造样本验证分类器（8 例）
 ```
+
+**试点的正确姿势**：先 `scan --list` 看清单 → 人确认 → 才谈移入资料库与删本地。
+脚本本身没有删除分支（回归里 `os.remove` 一出现就翻红），所以「误删」在这条链上不可能发生；
+真正要人确认的是**清单对不对**，不是「脚本会不会手滑」。
 
 它解决三件靠文字判不了的事：
 
@@ -77,6 +84,11 @@ python3 scripts/artifact.py self-check    # 用构造样本验证分类器（8 �
 | 「产物」的边界 | 含 `.git` 的子树整体标保护，整个不参与归档 | 本机某会话 25.1M 里 22.6M 是一个仓库副本，按 mtime 清会删掉工作副本 |
 | 「2 轮」的判据 | 轮次 = 会话目录，不是文件 mtime | 同一会话里最老的文件也属于本轮产物，按天清会清掉当天要用的 |
 | 符号链接逃逸 | `followlinks=False` + 逐项 `islink` 跳过 | 与 import_guard 的 TOCTOU 同类 |
+
+**轮次的准确语义**（2026-11-13 写回归时实测到的坑）：轮次按**会话目录 mtime** 排序，
+而目录 mtime 会被「新建/删除子项」刷新。所以「最老会话」的实际含义是**最久没有新增文件的会话**，
+不是「最早创建的会话」。这在本场景下是对的（有新增产物说明该轮还活跃），
+但**别把它读成创建时间**；判定候选时也别先 `touch` 目录再建文件——顺序反了时间戳就白设。
 
 三态输出：`OK 有计划` / `NOOP 无需归档` / `UNKNOWN 无法判定`（退出码 2，绝不装绿）。
 

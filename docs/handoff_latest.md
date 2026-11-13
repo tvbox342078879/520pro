@@ -6,12 +6,12 @@
 
 ## 1. 当前主线（一句话）
 
-**外部引用闸升到三级（v0.8.34）**——`verify/lib_refs_check.py` 原来只回答「文件在不在」，但**存在 ≠ 调得通**：2026-11-13 实测把平台 `db_query.py` 的 `--ask` 改成 `--query`，只查存在性的版本全绿，而 space_hub / core / backfill_jar 三个包装调用点已经全断。本轮补两级：**L2 探活**（每个引用脚本真跑一次 `--help`，rc≠0 或吐 error 载荷即红，抓 import 炸 / 依赖没了 / argparse 重构）＋**L3 参数契约**（把调用点上的字面参数与枚举值回查 `--help`）。L3 用 AST 按作用域归账，因为脚本名走变量（`_DB_QUERY = f"{LIB}/..."`）、参数在另一条语句拼 `argv` 时，正则截片段一条都关联不上——**这正是上一版的假阴性来源**。分类发脚本（`space_api.py space.xxx.yyy`）必须走子命令级 `--help`，拿顶层文本校验参数会全红（假阳性，实测 12 处）；`--limit 60` 是数据不是枚举，只有 `--help` 里写成 `{a,b,c}` 的才当 choices 校验。现状：**9 类 22 处引用、30 个调用作用域全对**，另有 5 个作用域同时引用两个正本（参数归属静态不可判，报数不硬猜）。`verify.sh` 已默认带 `--probe`（120s 兜底超时，`LIB_REFS_NO_PROBE=1` 可关），回归 `verify/tests/test_lib_refs_probe.py` 有 7 个必红变异（参数改名 / 枚举值删除 / import 炸 / 子命令改名 / 文件消失 / 包装写法 / 无 CLI 契约不执行）。上一轮主线（library 正本迁移 v0.8.33、artifact-store 执行体 v0.8.32）均已收口。
+**artifact-store dry-run 补上「哪几个文件」（v0.8.35）**——v0.8.32 落的执行体只给汇总（「普通产物 87B / 12 文件」），给不出「这 12 个是哪 12 个」，而 dry-run 的全部价值就在清单本身。本轮加 `scan --list N`：逐条列出将归档文件的相对路径与字节，超出报「另 M 个未列出」不静默截断，`--json` 同步带 `paths`/`truncated`；口径固定为**只列普通产物**（`.git` 子树在保护堆根本不归档、字节码在可再生堆直接删，两者都不进清单）。端到端试点用三轮会话样本（含 12 个产物 + 1 个含 .git 的仓库副本 + 字节码）实跑：仅最老会话进候选、清单恰好 12 条、`.git` 与 `.pyc` 不在清单、`--root /tmp` 必须 rc=2 报 UNKNOWN —— 4 类判定 7 项断言全绿。过程中实测到并写进 SKILL.md 的语义：轮次按会话目录 mtime，而目录 mtime 会被「新建子目录」刷新，所以「最老会话」= 最久没有新增文件的会话，不是创建时间最早的（回归第一版就因此把 old 判成最新，修法是最后统一设 mtime）。上一轮（v0.8.34 lib_refs_check 三级 + 5 处假绿调用点）已收口。
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.34
+- 版本：0.8.35
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）

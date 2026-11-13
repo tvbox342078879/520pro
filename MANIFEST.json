@@ -43,7 +43,7 @@
         },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",
-          "version": "1.0.3"
+          "version": "1.0.4"
         },
         "skills/learn-hub/": {
           "install_to": "~/.codebuddy/skills/learn-hub/",

@@ -3,7 +3,7 @@
 """artifact.py — artifact-store 执行体（只读扫描 · 归档计划 · 绝不删除）
 
 用法:
-  python3 artifact.py scan [--root DIR] [--keep N] [--json]
+  python3 artifact.py scan [--root DIR] [--keep N] [--list N] [--json]
   python3 artifact.py self-check
 
 为什么要有脚本，而不是让 AI 照 SKILL.md 自己编:
@@ -73,10 +73,13 @@ def find_protected_roots(session_dir):
     return roots
 
 
-def classify(session_dir):
+def classify(session_dir, collect=False, cap=200):
     """把一棵会话树切成三堆，只统计不移动。
 
     返回 dict: protected / regen / candidate 各自的 files+bytes，外加保护根清单。
+    collect=True 时额外给每堆填 paths=[(相对路径, 字节)]（最多 cap 条）与
+    truncated（未列出的条数）——dry-run 试点要回答的是「归档**哪几个**文件」，
+    只给总数等于让人凭想象签字。
     """
     prot_roots = find_protected_roots(session_dir)
     out = {
@@ -84,6 +87,7 @@ def classify(session_dir):
         'regen': {'files': 0, 'bytes': 0},
         'candidate': {'files': 0, 'bytes': 0},
     }
+    picked = {'protected': [], 'regen': [], 'candidate': []}
     for r in prot_roots:
         out['protected']['roots'].append(os.path.relpath(r, session_dir))
 
@@ -104,17 +108,25 @@ def classify(session_dir):
             except OSError:
                 continue
             if in_prot:
-                bucket = out['protected']
+                bucket, key = out['protected'], 'protected'
             elif is_regen_dir or base in REGEN_DIRS or name.endswith(REGEN_EXTS):
-                bucket = out['regen']
+                bucket, key = out['regen'], 'regen'
             else:
-                bucket = out['candidate']
+                bucket, key = out['candidate'], 'candidate'
             bucket['files'] += 1
             bucket['bytes'] += size
+            if collect and len(picked[key]) < cap:
+                picked[key].append((os.path.relpath(full, session_dir), size))
+    if collect:
+        for key, bucket in out.items():
+            if key == 'protected':
+                continue                    # 保护区不归档，列它没意义
+            bucket['paths'] = [{'path': r, 'bytes': s} for r, s in picked[key]]
+            bucket['truncated'] = bucket['files'] - len(picked[key])
     return out
 
 
-def scan_sessions(root, keep):
+def scan_sessions(root, keep, collect=False, cap=200):
     """按会话轮次给结论：只有「第 keep+1 轮及更早」才进入归档候选。"""
     sessions = []
     try:
@@ -129,7 +141,7 @@ def scan_sessions(root, keep):
             mtime = os.path.getmtime(full)
         except OSError:
             continue
-        stats = classify(full)
+        stats = classify(full, collect=collect, cap=cap)
         stats['name'] = name
         stats['path'] = full
         stats['mtime'] = mtime
@@ -159,7 +171,7 @@ def verdict(sessions, keep):
     return 'OK', f'{len(arch)} 个会话超出 keep={keep}，进入归档候选'
 
 
-def render_text(root, keep, sessions, status, reason):
+def render_text(root, keep, sessions, status, reason, list_files=0):
     lines = [f'[artifact] root={root} keep={keep} 会话数={len(sessions)}', '']
     for s in sessions:
         tag = '归档候选' if s['archivable'] else '本轮保留'
@@ -172,6 +184,14 @@ def render_text(root, keep, sessions, status, reason):
         if s['regen']['files']:
             lines.append(f"  ♻ 可再生 {human(s['regen']['bytes']):>5}  {s['regen']['files']:>5} 文件  __pycache__/*.pyc")
         lines.append(f"  · 普通产物 {human(s['candidate']['bytes']):>5}  {s['candidate']['files']:>5} 文件")
+        if list_files and s['archivable'] and s['candidate'].get('paths'):
+            show = s['candidate']['paths'][:list_files]
+            lines.append(f'  📦 将归档 {s["candidate"]["files"]} 个文件（此处列 {len(show)} 个）：')
+            for p in show:
+                lines.append(f"       {human(p['bytes']):>6}  {p['path']}")
+            more = s['candidate']['files'] - len(show)
+            if more > 0:
+                lines.append(f'       …另 {more} 个未列出（--list 调大即可全看）')
         lines.append('')
     lines.append(f'判定：{ST_LABEL[status]} — {reason}')
     if status == 'NOOP':
@@ -197,7 +217,8 @@ def cmd_scan(args):
     if err:
         print(f'判定：{ST_LABEL["UNKNOWN"]} — {err}', file=sys.stderr)
         return 2
-    sessions, err = scan_sessions(root, args.keep)
+    want = max(args.list, 0)
+    sessions, err = scan_sessions(root, args.keep, collect=want > 0, cap=max(want, 200))
     if err:
         print(f'判定：{ST_LABEL["UNKNOWN"]} — {err}', file=sys.stderr)
         return 2
@@ -205,7 +226,7 @@ def cmd_scan(args):
     if args.json:
         print(render_json(root, args.keep, sessions, status, reason))
     else:
-        print(render_text(root, args.keep, sessions, status, reason))
+        print(render_text(root, args.keep, sessions, status, reason, list_files=want))
     # 只有「有候选但有保护区」时才退出 1：存在需人确认的删除动作
     has_prot = any(s['protected']['files'] for s in sessions)
     if status == 'OK' and has_prot:
@@ -285,6 +306,8 @@ def main():
     sp.add_argument('--root', default=DEFAULT_ROOT)
     sp.add_argument('--keep', type=int, default=2, help='本地保留的会话轮次（默认 2）')
     sp.add_argument('--json', action='store_true')
+    sp.add_argument('--list', type=int, default=0, metavar='N',
+                    help='在归档候选会话下列出前 N 个具体文件（dry-run 预览用；0=只给汇总）')
     sub.add_parser('self-check', help='用构造样本验证分类器')
     args = ap.parse_args()
     if args.cmd == 'self-check':
