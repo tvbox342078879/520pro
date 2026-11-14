@@ -87,6 +87,21 @@ def check_ledger(body):
         if len(cols) < 4 or any(not c for c in cols[-3:]):
             bad.append(r)
     check(f'账目三齐：{len(data)} 条待办三字段非空', not bad, f'缺字段：{bad[:2]}')
+
+    # 分级（2026-11-14）：主次不分是实际发生过的病——5 条待办并排，分不出哪条是主线，
+    # 于是每轮问"下一步做什么"时只能从池子里随手抓一条干，抓的就是 P2 杂务。
+    # 判据只查"P0 有没有超过 1 条"，查不了"你选的那条对不对"——后者是人的事。
+    lvl_i = next((i for i, h in enumerate(header) if '级别' in h), None)
+    check('账目分级：表头含「级别」列', lvl_i is not None,
+          '缺级别列=分不清主次（P0 主线 / P1 阻断 / P2 杂务）')
+    if lvl_i is not None:
+        p0 = []
+        for r in data:
+            cols = [c.strip() for c in r.strip('|').split('|')]
+            if len(cols) > lvl_i and cols[lvl_i] == 'P0':
+                p0.append(cols[1] if len(cols) > 1 else r)
+        check('账目分级：P0 至多 1 条（主次不分即红）', len(p0) <= 1,
+              f'当前 {len(p0)} 条 P0：{p0[:3]}')
     banned = [w for w in BAN_WORDS if w in seg]
     check('账目三齐：段内无「待跟进」类无主无期措辞', not banned, f'出现 {banned}')
 

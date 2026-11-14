@@ -664,7 +664,8 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
          test_linkage_notice test_secret_scan_size test_trigger_frontload \
          test_artifact_scan test_lib_refs_probe \
-         test_skill_contract_mutants test_partial_level test_terminology_mutants; do
+         test_skill_contract_mutants test_partial_level test_terminology_mutants \
+         test_commit_fields; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
@@ -676,6 +677,17 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
     no "verify/tests/$t.py 缺失"
   fi
 done
+
+# ★ 交接锚点（v0.8.37）：真源是最后一次提交的 Next: 行，本处只负责"喊出来"。
+#   为什么放在自检里：自检是必跑动作（pre-commit 每次都跑），锚点搭它的车就能每提交一次
+#   被看见一次——不依赖谁记得去读 handoff（多轮会话后纪律会衰减，这是已知事实）。
+#   红了也打印：失败时更要知道下一步是不是"先修红"。
+NEXT_LINE="$(git -C "${TARGET:-.}" log -1 --format=%B 2>/dev/null | grep -E '^Next: ' | head -1 || true)"
+if [ -n "$NEXT_LINE" ]; then
+  echo "--------------------------------------------"
+  echo "上一轮定的下一步（真源 git log -1）："
+  echo "  ${NEXT_LINE#Next: }"
+fi
 
 echo "============================================"
 printf '汇总：✓ 通过 ／ ✗ 失败 %d ／ · 不适用或无法判定 %d\n' "$FAILS" "$UNKNOWNS"

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# 520pro · 提交信息闸（v0.8.37，工程纪律 §9「先查再造」的机检落点）
+# ------------------------------------------------------------------
+# 装法：bash install.sh 自动装到 <仓库根>/.git/hooks/commit-msg
+# 绕过：git commit --no-verify（能绕，但必须写明理由；终局闸在 CI）
+#
+# ★ 为什么不在 pre-commit 里查 message：
+#   pre-commit 跑在 message 生成**之前**。`git commit`（不带 -m）时 message 还没写，
+#   .git/COMMIT_EDITMSG 里是上一次提交的内容——等于在校验一个不存在的对象，
+#   闸会静默失效（而且输出"通过"）。commit-msg 收到的是定稿 message 的文件路径（$1），
+#   这是唯一正确的位置。
+#
+# 四字段（缺一即拒，每条都是"git 自己表达不了"的东西）：
+#   Verify: <命令 → 可核对结果>                          交付证据
+#   Lesson: 病N（第K次）| 新病：<一句话> | 无             经验回流入口（接 docs/通病台账.md）
+#   Next:   <做什么> — 起点：<文件/命令> — 完成判据：<什么算完>   方向锚点
+#   Reuse:  <路径> 扩展 | <A>+<B> 复用，新建 0 | 新建 <文件> —— 已查…+理由   先查再造
+# 每条单行；变更清单不写（git show --stat 才是真源，M2）。
+# ------------------------------------------------------------------
+set -uo pipefail
+
+MSG_FILE="${1:?用法: commit-msg <message 文件路径>}"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 1
+GITDIR="$(git rev-parse --show-toplevel)/.git"
+[ -d "$GITDIR" ] || GITDIR="$(git rev-parse --git-dir)"
+
+# merge 提交没有四字段可言。判据看 MERGE_HEAD 是否存在，不看 message 首词——
+# 看首词的话，随便写个 "Merge: xxx" 就能绕过整道闸。
+if [ -f "$GITDIR/MERGE_HEAD" ]; then
+  echo "[commit-msg] · merge 提交，跳过四字段"
+  exit 0
+fi
+
+MSG="$(cat "$MSG_FILE")"
+# 两个集合，用途不同，混用会出假阳性（v0.8.37 首版就栽过）：
+#   STAGED_ALL —— 全部暂存（含修改）。查「台账有没有被改」必须用它：
+#                 台账是既有文件，改了是 M 不是 A，只查 A 会把「改了台账」判成「没改」。
+#   STAGED_ADD —— 仅本次新增。查「Reuse 声明的新建是否真存在」才用它。
+STAGED_ALL="$(git -c core.quotepath=false diff --cached --name-only)"
+STAGED_ADD="$(git -c core.quotepath=false diff --cached --name-only --diff-filter=A)"
+
+fail() {
+  echo "✗ 提交被拒：$1"
+  echo "   → $2"
+  exit 1
+}
+field() { printf '%s\n' "$MSG" | grep -E "^$1: " | head -1; }
+
+# ── ① Verify：交付证据 ──────────────────────────────────────────
+V="$(field Verify)"
+[ -n "$V" ] || fail "缺 Verify: 行" "写：Verify: bash verify.sh → 0 ✗ / 0 失败"
+printf '%s' "$V" | grep -qE '0 ✗|rc=0|✓' \
+  || fail "Verify 行没有可核对的结果" "要有 0 ✗ / rc=0 / ✓ 之一；「已自检」这类空话不算"
+
+# ── ② Next：方向锚点（三段式）──────────────────────────────────
+N="$(field Next)"
+[ -n "$N" ] || fail "缺 Next: 行" "写：Next: <做什么> — 起点：<文件/命令> — 完成判据：<什么算完>"
+printf '%s' "$N" | grep -q '起点：' \
+  || fail "Next 缺「起点」" "没起点 = 没锚点，下一轮只能自由发挥（主次不分就是这么来的）"
+printf '%s' "$N" | grep -q '完成判据：' \
+  || fail "Next 缺「完成判据」" "没判据 = 做一半就宣布完成"
+
+# ── ③ Lesson：经验回流（不新建存储，接现有病历）────────────────
+L="$(field Lesson)"
+[ -n "$L" ] || fail "缺 Lesson: 行" "踩坑写 病N（第K次）/ 新病：<一句>；没踩写 无"
+# 「病N（第K次）」与「新病：」都要落到台账——否则 Lesson 只是一句谁也不会再看的话。
+if printf '%s' "$L" | grep -qE '病[0-9]+（第 ?[0-9]+ ?次）|新病：'; then
+  printf '%s\n' "$STAGED_ALL" | grep -qx 'docs/通病台账.md' \
+    || fail "Lesson 记了病（复发或新病），但本次提交没改 docs/通病台账.md" \
+            "病历要落在台账上才算数；否则「第 K 次」「新病」都是编的"
+fi
+
+# ── ④ Reuse：先查再造 + 与暂存清单对账（堵"写新建 0 却偷偷新建"）──
+R="$(field Reuse)"
+[ -n "$R" ] || fail "缺 Reuse: 行" \
+  "写：Reuse: <路径> 扩展 / <A>+<B> 复用，新建 0 / 新建 <文件> —— 已查 registry/工程纪律/通病台账/verify + 理由"
+
+# 声明新建了哪些（去掉反引号、「新建 N」这类计数，顿号也算分隔符）
+DECLARED="$(printf '%s' "$R" | grep -oE '新建 [^ ，,；;、]+' \
+            | sed 's/^新建 //; s/[`「」]//g' | grep -vE '^[0-9]+$' || true)"
+# 实际新增的「机制类」文件
+ACTUAL="$(printf '%s' "$STAGED_ADD" \
+          | grep -E '^(docs/.+\.md|verify/.+\.py|hooks/.+)$' || true)"
+
+if [ -z "$DECLARED" ]; then
+  if [ -n "$ACTUAL" ]; then
+    fail "Reuse 写的是「新建 0」（或未声明新建），但实际新增了文件" \
+         "$(printf '%s' "$ACTUAL" | head -3 | tr '\n' ' ')——要么逐个写进 Reuse，要么别建"
+  fi
+else
+  printf '%s' "$R" | grep -q '已查' \
+    || fail "Reuse 声称新建，但没写四查结果" \
+            "须写「已查 registry/工程纪律/通病台账/verify」+ 各自不复用理由（工程纪律 §9）"
+  for f in $DECLARED; do
+    printf '%s' "$STAGED_ADD" | grep -qxF "$f" \
+      || fail "Reuse 声明新建 $f，但本次提交没有新增它" \
+              "改 Reuse，或把该文件 git add 进暂存"
+  done
+fi
+
+echo "✓ commit-msg 通过（Verify / Lesson / Next / Reuse 齐，且 Reuse 与暂存清单一致）"
+exit 0

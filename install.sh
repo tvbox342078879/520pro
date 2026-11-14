@@ -350,10 +350,19 @@ fi
 
 # ★ H5（v0.8.20 工程H）：装提交闸。装到仓库自己的 .git/hooks，只对本仓生效。
 #   不装到别处、不写全局 core.hooksPath——免得污染用户其它仓库。
-if [ "$DRY" = 0 ] && [ -d "$ROOT/.git/hooks" ] && [ -f "$ROOT/hooks/pre-commit" ]; then
-  cp "$ROOT/hooks/pre-commit" "$ROOT/.git/hooks/pre-commit"
-  chmod +x "$ROOT/.git/hooks/pre-commit"
-  echo " · 提交闸已装：$ROOT/.git/hooks/pre-commit（可 --no-verify 绕过，终局闸在 CI）"
+#   v0.8.37 起两个钩子：pre-commit 查工作区（密钥/自检），commit-msg 查 message（交接四字段）。
+#   为什么必须分开：pre-commit 跑在 message 生成之前，读不到本次 message（会去读上一次的
+#   COMMIT_EDITMSG，闸静默失效）。分工的理由写在 hooks/commit-msg 头部。
+if [ "$DRY" = 0 ] && [ -d "$ROOT/.git/hooks" ]; then
+  for h in pre-commit commit-msg; do
+    if [ -f "$ROOT/hooks/$h" ]; then
+      cp "$ROOT/hooks/$h" "$ROOT/.git/hooks/$h"
+      chmod +x "$ROOT/.git/hooks/$h"
+      echo " · 提交闸已装：$ROOT/.git/hooks/$h（可 --no-verify 绕过，终局闸在 CI）"
+    else
+      echo " ⚠ 缺 $ROOT/hooks/$h——该闸未装（不静默跳过）"
+    fi
+  done
 fi
 
 echo
