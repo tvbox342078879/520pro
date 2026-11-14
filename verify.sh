@@ -52,7 +52,7 @@ echo "HOME=$U   TARGET=$TARGET"
 #   判据不写死绝对数（开发会增文件），用 git 索引自校准；无 .git 时退硬下限 200。
 if [ -f "$TARGET/MANIFEST.json" ] && [ -f "$TARGET/verify.sh" ]; then
   _nfiles=$(find "$TARGET" -type f -not -path "$TARGET/.git/*" 2>/dev/null | wc -l | tr -d ' ')
-  _nidx=$(git -C "$TARGET" ls-files 2>/dev/null | wc -l | tr -d ' ')
+  _nidx=$(git -c core.quotepath=false -C "$TARGET" ls-files 2>/dev/null | wc -l | tr -d ' ')
   _head=$(git -C "$TARGET" rev-parse --short HEAD 2>/dev/null || true)
   echo "副本：HEAD=${_head:-无 git}  工作区=${_nfiles} 文件  git 索引=${_nidx}"
   _min=200; _basis="无 git 时硬下限 200"
@@ -240,7 +240,7 @@ if [ -d "$SK/probe-hub/scripts" ]; then
   esac
   # 分发卫生（v0.8.12）：个人资产册不得被 git 跟踪，模板册必须在位
   if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
-    leaked=$(git -C "$TARGET" ls-files -- "能力层/tvbox/skills/probe-hub/scripts/*.json" 2>/dev/null \
+    leaked=$(git -c core.quotepath=false -C "$TARGET" ls-files -- "能力层/tvbox/skills/probe-hub/scripts/*.json" 2>/dev/null \
              | grep -E "(monitor_targets|monitor_domains|monitor_pubsources|dead_repos|shellcrack_cands)\.json$" \
              | grep -v '\.example\.json$' | wc -l | tr -d ' ')
     [ "${leaked:-0}" -eq 0 ] && ok "个人资产册未进 git（分发不带私产）" \
@@ -372,10 +372,10 @@ fi
 if git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
   miss_base=""
   for f in MANIFEST.json VERSION secret_scan.py verify.sh install.sh; do
-    git -C "$TARGET" ls-files --error-unmatch "$f" >/dev/null 2>&1 || miss_base="$miss_base $f"
+    git -c core.quotepath=false -C "$TARGET" ls-files --error-unmatch "$f" >/dev/null 2>&1 || miss_base="$miss_base $f"
   done
   while IFS= read -r sk; do
-    git -C "$TARGET" ls-files --error-unmatch "$sk" >/dev/null 2>&1 || miss_base="$miss_base $sk"
+    git -c core.quotepath=false -C "$TARGET" ls-files --error-unmatch "$sk" >/dev/null 2>&1 || miss_base="$miss_base $sk"
   done < <(cd "$TARGET" && ls 通用层/skills/*/SKILL.md 能力层/tvbox/skills/*/SKILL.md 2>/dev/null)
   [ -z "$miss_base" ] && ok "公开基线文件全部被 git 跟踪（分发件齐全）" \
     || no "基线文件未被跟踪：$miss_base"
@@ -649,6 +649,22 @@ else
   ok "无作废结论残留（已作废：手机不跑钩子；真源 docs/钩子来源判定.md）"
 fi
 
+# ★ v0.8.47（病10/病13）：落地判据扫描——中文路径转义 + 平台钩子观测要件
+# 为什么要有：这两道病之前只有文字病历没有机器判据；verify.sh 全绿 ≠ 它们被守着。
+# 判据三件套（造违例/拦下/改坏溜过）见 verify/tests/test_gate_scan.py。
+echo
+echo "[落地判据扫描（v0.8.47 起·病10 quotepath / 病13 hook-probe）]"
+if [ -f "$TARGET/verify/gate_scan.py" ]; then
+  if python3 "$TARGET/verify/gate_scan.py" --root "$TARGET" > /tmp/_gate_scan.out 2>&1; then
+    ok "gate_scan：quotepath + hook-probe 全绿"
+  else
+    no "gate_scan 有红项（细节见上/下）："
+    sed 's/^/     /' /tmp/_gate_scan.out | head -8
+  fi
+else
+  no "verify/gate_scan.py 缺失——病10/病13 判据闸未装（不静默跳过）"
+fi
+
 # ★ v0.8.25（规则迁移批2）：台账四律——旧生态 M-R75/82/86/93 的判据化落点
 # 为什么要有：这四条原本是旧生态的"教训条目"，只在文档里躺着。docs 不加载
 # （docs/加载机制与可靠性.md 实测），所以只搬条文 = 纸面迁移。这里只挑能机检的形态，
@@ -684,7 +700,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_linkage_notice test_secret_scan_size test_trigger_frontload \
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
-         test_commit_fields; do
+         test_commit_fields test_gate_scan; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
