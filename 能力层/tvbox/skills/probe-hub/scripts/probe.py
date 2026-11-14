@@ -996,6 +996,36 @@ def _cloud_id_map(db_id=None, text_field='id'):
     return m
 
 
+_COL_TYPES_CACHE = {}
+
+
+def _col_types(db_id):
+    """读库 schema → {字段名: 类型}（进程内缓存）。读不到返回 {}，调用方退回传入参数。
+
+    ★ 2026-11-14 真阳性：`_cloud_upsert` 的 select_cols 是**硬编码**的，依赖
+    「旧库这几列是 select」这一历史事实。探源 6 库按语义重建后「来源仓库 / sourceUrl /
+    mirror / ua / size」变成 text，代码仍按 {'select': 值} 包装 → 平台报
+    「字段「来源仓库」没有选项 ['lxcjy/IPTV2']」，采集候选 50 条**全部写不进**
+    （界面看着在跑，实际 0 条落库）。
+    口径：类型以**库**为准，不以调用方记忆为准（与 B-06 同一条）。
+    """
+    if not db_id:
+        return {}
+    if db_id in _COL_TYPES_CACHE:
+        return _COL_TYPES_CACHE[db_id]
+    types = {}
+    try:
+        d, _raw = db_query(db_id, 'schema')
+        for pr in (d.get('properties') or []):
+            nm, tp = pr.get('name'), pr.get('type')
+            if nm and tp:
+                types[nm] = tp
+    except Exception:
+        types = {}
+    _COL_TYPES_CACHE[db_id] = types
+    return types
+
+
 def _cloud_upsert(rows, db_id, id_field, select_cols=(), num_cols=(), skip_cols=(),
                   date_cols=()):
     """通用云端 upsert（S095）：按 `id_field` 定位已有行 → 更新；否则新增。
@@ -1031,16 +1061,31 @@ def _cloud_upsert(rows, db_id, id_field, select_cols=(), num_cols=(), skip_cols=
         return False, 0, 0
     sel, num, skip = set(select_cols), set(num_cols), set(skip_cols)
     dat = set(date_cols)
+    # ★ 2026-11-14：类型以库 schema 为准（schema 说 text 就写 text，不受传入列表绑架）。
+    #   schema 读不到（{}）时退回传入参数，并**出声**——不静默按旧假设写。
+    _types = _col_types(db_id)
+    if not _types:
+        print('  ⚠️ 读不到库 schema —— 按调用方传入的列类型写（可能与库不符，失败请看回执）')
     to_add, to_upd = [], []
     for t in rows:
         props = {}
         for k, v in t.items():
             if k in skip or v in (None, ''):
                 continue
-            if k in sel:
+            _tp = _types.get(k, '')
+            if _tp == 'select':
                 props[k] = {'select': str(v)}      # S027：select 列必须显式包装
-            elif k in dat:
+            elif _tp in ('date', 'created_time', 'updated_time'):
                 props[k] = {'date': str(v)}        # S169：date 列不是 text
+            elif _tp == 'number':
+                props[k] = {'number': v} if isinstance(v, (int, float)) \
+                    else {'text': str(v)}
+            elif _tp:
+                props[k] = {'text': str(v)}        # schema 明确是 text/其它标量
+            elif k in sel:
+                props[k] = {'select': str(v)}      # 兜底：无 schema 时按调用方声明
+            elif k in dat:
+                props[k] = {'date': str(v)}
             elif k in num:
                 props[k] = {'number': v} if isinstance(v, (int, float)) \
                     else {'text': str(v)}
@@ -1198,24 +1243,19 @@ def _harvest_select_options(field='分组类目'):
     选项是库的属性，库改了代码要跟得上 → 动态读；读不到返回 None（无法判定），
     调用方据此**显式告警**，不得当成"没有限制"。
     """
+    # ★ 2026-11-14：改走 core.db_query('schema')（正本、进程内已有调用），
+    #   原实现硬拼 `../../library/database/get_database_schema.py` 路径，该脚本不存在
+    #   时静默返回 None → 每次采集都报「取不到选项表，无法预校验」。
     try:
-        q = os.path.join(SELF_DIR, '..', '..', 'library', 'database',
-                         'get_database_schema.py')
-        q = os.path.abspath(q)
-        if not os.path.exists(q):
-            return None
-        r = subprocess.run(['python3', q, '--database-id', DB_HARVEST],
-                           capture_output=True, text=True, timeout=30)
-        d = json.loads(r.stdout or '{}')
-        d = d.get('data') or d
-        for f in (d.get('fields') or d.get('properties') or []):
-            if (f.get('name') or f.get('field_name')) == field:
+        d, _raw = db_query(DB_HARVEST, 'schema')
+        for f in (d.get('properties') or []):
+            if f.get('name') == field:
                 opts = [o.get('text') for o in
                         ((f.get('config') or {}).get('options') or []) if o.get('text')]
                 return opts or None
+        return None
     except Exception:
         return None
-    return None
 
 
 # 技术形态类目 → 库内内容品类选项 的映射（只在目标值确实存在时才用）
@@ -3789,6 +3829,7 @@ def cmd_harvest_parse(a):
     for it in unk[:8]:
         print(f'   ⚠️ {it["名称"][:14]:16s} {it["出流证据"][:76]}')
 
+    os.makedirs(HARVEST_DIR, exist_ok=True)   # 同 harvest scan：运行态目录不随安装副本存在
     outp = os.path.join(HARVEST_DIR, f'parse_candidates_{time.strftime("%m%d")}.json')
     json.dump({'来源': src, '生成时间': time.strftime('%Y-%m-%d %H:%M'),
                '通过': ok, '不出流': bad, '无法判定': unk},
@@ -3971,6 +4012,9 @@ def cmd_harvest_scan(a):
         print('   ℹ️ 文件可解析但无 sites/lives/parses 线路')
         return
     outp = os.path.join(HARVEST_DIR, f'raw_{repo}_{time.strftime("%m%d")}.json')
+    # ★ 2026-11-14 实测 FileNotFoundError：harvest_candidates 是运行态目录，空目录不进 git、
+    #   install.sh 也不建 → 首次采集必崩。写前建目录（幂等），不再依赖"目录恰好存在"。
+    os.makedirs(HARVEST_DIR, exist_ok=True)
     for _l in lines:
         _l['来源仓库'] = f'{owner}/{repo}'      # S095：供 DB_HARVEST「来源仓库」列
     json.dump(lines, open(outp, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)

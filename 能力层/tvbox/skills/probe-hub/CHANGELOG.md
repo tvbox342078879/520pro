@@ -1,3 +1,27 @@
+## v1.28.2 — 云端写入类型错位根治：按库 schema 决定包装（2026-11-14）
+- **真阳性（比 v1.28.1 更隐蔽）**：采集到了、文件落了、回执也回了，但**云端 0 条**。
+  两层错：
+  ① 建库时按语义把「来源仓库 / sourceUrl / mirror / ua / size」建成 `text`，而
+     `_cloud_upsert` 的 `select_cols` 是**硬编码**的（沿袭旧库这几列=select）→ 平台报
+     「字段「来源仓库」没有选项 ['lxcjy/IPTV2']」，50 条全拒；
+  ② 「分组类目」选项凭常识建成「直链/配置/APP/4k/音乐/听书/其他」，真实取值是
+     「采集(42)/其他(7)/直播(1)」——**关键的「采集」不在选项里**（病14 第 2 次）。
+- **修复**：新增 `_col_types(db_id)` 读库 schema（进程内缓存），`_cloud_upsert` 包装
+  改为 **schema 优先**：select→`{'select'}` / date→`{'date'}` / number→`{'number'}` /
+  text→`{'text'}`；schema 读不到才退回调用方声明并**出声告警**，不静默按旧假设写。
+- **顺带**：`_harvest_select_options` 原硬拼 `../../library/database/get_database_schema.py`
+  路径，该脚本不存在 → 每次采集都报「取不到选项表」；改走 `core.db_query('schema')` 正本。
+- **验证**：`harvest scan --repo lxcjy/IPTV2` 首跑「新增 50 / 更新 0」→ 复跑
+  「新增 0 / 更新 50」（幂等），`db_query --ask stats` 独立确认云端 50 行。
+
+## v1.28.1 — 修 harvest/parse 采集写文件必崩（运行态目录缺失）（2026-11-14）
+- **真阳性 bug**：`harvest scan` 采到线路后写 `harvest_candidates/raw_*.json` 直接
+  `FileNotFoundError` —— 该目录是运行态目录，空目录不进 git、`install.sh` 也不建，
+  **首次采集必崩**（本次重采 620 条线路时第一枪就撞上）。
+- **修复**：`cmd_harvest_scan` 与 parse 采集两处写前 `os.makedirs(HARVEST_DIR, exist_ok=True)`。
+- **安装侧**：`RUNTIME_DIRS` 加 `harvest_candidates`，重装时本机采集产出被保留而非删除。
+- **验证**：py_compile 过；修复后 `harvest scan --repo lxcjy/IPTV2` 完整落盘 50 条候选。
+
 ## v1.28.0 — 探源 6 库坐标重建（520 v0.8.50，2026-11-14）
 - **背景**：探源家族 6 个库（线路/成品/失信host/上游监测册/搜索候选册/采集候选册）全部返回 `12607 permission denied`。
   判据对照：纯假 id 与已废弃库返回 `11510 node index not found`，**错误码分族** ⇒ 12607 是「存在但无权」，

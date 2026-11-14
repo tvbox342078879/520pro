@@ -94,7 +94,7 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/probe-hub",
-      "version": "1.28.0",
+      "version": "1.28.2",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
@@ -133,7 +133,8 @@
     }
   },
   "runtime_dirs": [
-    "snapshots"
+    "snapshots",
+    "harvest_candidates"
   ],
   "_runtime_dirs_note": "运行时**目录**：随使用增长的整目录（space-hub 的 state 写前快照）。与 install.sh 的 RUNTIME_DIRS 同源，install 会保留现场那份、不把源仓的带去别人机器；镜像比对时跳过（不是「没同步」）。verify.sh 有一条判据核对两处一致（M5 防漂移）。"
 }

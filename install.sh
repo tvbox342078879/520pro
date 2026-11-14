@@ -67,7 +67,9 @@ RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json monitor_
 # 运行时**目录**：整目录随使用增长，同样属本机私产，不随分发包走。
 # space-hub 的 scripts/snapshots/ 是 state 写前快照（工程A 的"改坏了能回滚"保证），
 # 只保文件不保目录 → 安装时整目录被 cp 进去（2026-11-12 实测 C5 镜像闸报"装副本多余"抓出）。
-RUNTIME_DIRS="snapshots"
+RUNTIME_DIRS="snapshots harvest_candidates"   # harvest_candidates：采集/解析候选暂存（v0.8.53）
+#   2026-11-14 实测：该目录空目录不进 git、安装副本里没有 → harvest scan 首次必崩
+#   FileNotFoundError。代码侧已补 makedirs（幂等），这里保证重装时本机采集产出被保留而不是删掉。
 
 # 回滚快照：安装前整目录压一次，只留最近一份（v0.8.6）。
 # 替代此前每个目标各留一份 .bak.<TS> —— 2026-11-12 实测 10 份目录合计 13MB，
