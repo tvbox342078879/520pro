@@ -50,7 +50,7 @@
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
           "role": "库务司·云端库总管 v2.7.0（清道夫升级）：清理/归纳/建库/搬运正门，四层空间解析不绑账号，拒收带结构化三元组",
-          "version": "2.7.5"
+          "version": "2.7.6"
         },
         "skills/space-hub/scripts/space_hub.py": {
           "install_to": "~/.codebuddy/skills/space-hub/scripts/space_hub.py",

@@ -1,3 +1,12 @@
+## v2.7.6 — move 正门支持挪回空间根（--to 空串）（2026-11-14）
+- **缺口**：`cmd_move` 对 `--to ''`（=空间根，与 `_create_folder(seg,'')` / `_kids('')` 同一约定）
+  走「目标父不存在」拒绝路径，节点被误挪后无法用正门挪回一级根。
+- **触发场景**：手机端账号库导入实测时，space-hub 自动清理把 8 个节点（5 个空探源库、
+  📦产物归档、📚学习资料、测活报告）挪进「🗄 待清理」；归位时 6 个子级目标成功、
+  2 个根级目标被此缺口挡住。
+- **修复**：`target` 为空串时跳过父节点校验，直接以根为目标；移后回读 `_kids('')` 不变。
+- **验证**：py_compile 过；2 个根级节点用修复后的正门挪回并回读命中。
+
 ## v2.7.5 — database 正本全面迁移（520 v0.8.33，2026-11-13）
 - 平台把 `database/` 层重构成 `db_create / db_query / db_edit / db_delete` 四件套，本技能 6 处旧调用全部失配（`get_database_schema` / `get_database_content` / `batch_add_database_records` / `add_database_field`）。新增适配层 `_db_call / _db_query / _db_add_records`：只做参数映射与状态行解析，写入仍 exec 正本
 - **`_first_json_object` 修了一个会吞数据的 bug**：原实现 `json.loads(text[i:])` 把尾随的 `KS_USER_REPLY` 行算进去 → 解析失败 → 返回 `{}`。实测 `db_edit set-records` 的 `record_ids / add_count` 全丢，只剩一个成功标签。改 `json.JSONDecoder().raw_decode`

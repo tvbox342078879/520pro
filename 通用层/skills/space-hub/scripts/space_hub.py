@@ -1236,7 +1236,10 @@ def cmd_move(a):
         return 1
     tinfo = _space('space.workspace.node-info', node_id=target) if target else None
     tnode = ((tinfo or {}).get('data') or {}).get('node') or {}
-    if not tnode.get('id') and not tnode.get('title'):
+    # v2.7.6：--to 空串 = 空间根（与 _create_folder(seg, '') / _kids('') 同一约定）。
+    #   旧版把空串当「目标不存在」拒掉，导致节点挪错后无法用正门挪回一级根
+    #   （2026-11-14 手机端清理误挪 8 节点，归位时 2 个根级目标被此缺口挡住）。
+    if target and not tnode.get('id') and not tnode.get('title'):
         _reject('target_missing', f'目标父节点不存在（{target}）',
                 target='先枚举目标父夹确认 id；不要用标题猜 id',
                 method='census --json',
