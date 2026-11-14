@@ -6,19 +6,18 @@
 
 ## 1. 当前主线（一句话）
 
-v0.8.37 交接闭环——**三个环节挤进 commit**（`Verify` 交付证据 / `Lesson` 经验回流 / `Next` 方向锚点），
-+ 第四行 `Reuse` 管「先查再造」：与暂存清单**对账**，写「新建 0」却偷偷新建即拒收；
-+ 账目分级（`P0` 至多 1 条，主次不分即红）+ `verify.sh` 每次自检打印上一轮 `Next`。
-**细则不在此复制**（M1）：`git log -1 --format=%B` 是真源，正文都在 commit 里。
+v0.8.40 三闸闭环 + P0 收口——`lib_refs --strict` 升**发布必红**（注入假引用实测红），
++ `commit-msg` 加 B-14 懒词闸 / registry 软提示，+ PreToolUse 锚点钩子（**本会话未生效**，新会话待验）。
 
-**下一步**：`git log -1 --format=%B | sed -n 's/^Next: //p'`
+**下一步**：`git log -1 --format=%B | sed -n 's/^Next: //p'`（正文即细则）
 
-> v0.8.36（判据自证 + 欠账分档）已收口，细节 `git show 05a78b3`。
+> v0.8.38（旧口径订正）/ v0.8.39（禁词 · registry · 锚点钩子）已收口：`git show a8d3458` / `433c4e3`。
+
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.37
+- 版本：0.8.40
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
@@ -44,7 +43,7 @@ v0.8.37 交接闭环——**三个环节挤进 commit**（`Verify` 交付证据 
 
 | 级别 | 事项 | owner | next | due |
 |---|---|---|---|---|
-| P0 | `lib_refs_check --strict` 升为发布必红 | 我 | 已观察 **3/3** 次全绿（`d9ad68e` / `9b84dfa` / `a8d3458` 后各一次）；下个 commit 把 `warn` 分支改 `break` | 2026-11-20 |
+| P1 | 下一件主线待用户选定（P0 已收口，不自己发明——第 1 条纠偏） | 用户 | 三选一：① `probe-hub` SKILL.md 40.1KB 卡阈值（常年 ⚠）② feature-gate / skill-evolution 三处残留处置（已批准未执行）③ 两根失效 ID 复挂 | 下次会话首轮 |
 | P1 | 锚点钩子（`~/.codebuddy/hooks/next_anchor.py`，PreToolUse·Bash 前打印 `Next`）**本会话未生效** | 我 | 新会话首条 Bash 后查 `~/.codebuddy/hooks/.next_anchor_state` 是否生成；生成=平台注入成功，不生成=配置格式不被识别 → 还原 `settings.json.bak-20261114` 并登记 | 下一次新会话 |
 | P1 | 「📚 学习资料」「🔍 探源产出」两根 ID 失效（不在顶层） | 我 | 先确认原内容是否还在旧节点下，再决定重建还是重挂 | 2026-11-18 |
 | P2 | 云端收件箱 2 个测试库待删 | 用户 | 在资料库 App 内手动点删 | 用户确认删除即完 |

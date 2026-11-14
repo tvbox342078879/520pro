@@ -577,10 +577,13 @@ if [ -f "$TARGET/verify/lib_refs_check.py" ]; then
   # 存在的文件也可能调不通——2026-11-13 实测把 db_query 的 --ask 改名后，
   # 只查存在性的版本全绿，三个包装调用点（space_hub/core/backfill_jar）已经全断。
   # 探活要起 10 来个进程，用 120s 兜底防挂：超时按「无法判定」降级并说明，不静默。
+  # v0.8.40（账目 P0 收口）：加 --strict——失配不再只是 ⚠ 而是 rc=1 直接红。
+  # 依据：观察 3 次全绿（d9ad68e / 9b84dfa / a8d3458 后各一次）。
+  # 关探活（LIB_REFS_NO_PROBE=1）同样带 --strict：否则「关探活」就等于悄悄降级成 warn 级。
   if [ "${LIB_REFS_NO_PROBE:-0}" = "1" ]; then
-    lout="$(python3 "$TARGET/verify/lib_refs_check.py" 2>&1)"; lrc=$?
+    lout="$(python3 "$TARGET/verify/lib_refs_check.py" --strict 2>&1)"; lrc=$?
   else
-    lout="$(timeout 120 python3 "$TARGET/verify/lib_refs_check.py" --probe 2>&1)"; lrc=$?
+    lout="$(timeout 120 python3 "$TARGET/verify/lib_refs_check.py" --probe --strict 2>&1)"; lrc=$?
     if [ "$lrc" -eq 124 ]; then
       lout='  · 无法判定：--probe 超过 120s 未返回，已退化为存在性检查（LIB_REFS_NO_PROBE=1 可关闭探活）'
       lrc=2
