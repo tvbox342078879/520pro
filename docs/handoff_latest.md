@@ -6,18 +6,19 @@
 
 ## 1. 当前主线（一句话）
 
-v0.8.43 三件清零——退役 `feature-gate` / `skill-evolution`（顺带修 5 处写死「9 个技能」）、
-`probe-hub` 瘦身 C7 转 ✓、两根「失效 ID」经 `node-info` 实证为**有效空骨架**（原判断过时）。
+v0.8.44 锚点钩子修根因——不是热加载，是 Bash 工具的 cwd 恒为 `/workspace`（非 git 仓，
+`cd` 不持久），旧版只认 `payload.cwd` 所以永久静默。已加三级回退（cwd → command 内
+`cd`/`git -C` → last_repo）与 `--probe` 自检，12 条干跑通过，待新会话验收。
 
 **下一步**：`git log -1 --format=%B | sed -n 's/^Next: //p'`（正文即细则）
 
-> v0.8.40–42 已收口：`git show 1c5a2ae` / `f5973ae` / `c4d8bee`。
+> v0.8.40–43 已收口：`git show 1c5a2ae` / `f5973ae` / `c4d8bee` / `596c2d8`。
 
 
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.43
+- 版本：0.8.44
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
@@ -44,7 +45,7 @@ v0.8.43 三件清零——退役 `feature-gate` / `skill-evolution`（顺带修 
 | 级别 | 事项 | owner | next | due |
 |---|---|---|---|---|
 | P1 | 下一件主线待用户选定（P0 已收口，不自己发明——第 1 条纠偏） | 用户 | 三选一：① `probe-hub` SKILL.md 40.1KB 卡阈值（常年 ⚠）② feature-gate / skill-evolution 三处残留处置（已批准未执行）③ 两根失效 ID 复挂 | 下次会话首轮 |
-| P1 | 锚点钩子（`~/.codebuddy/hooks/next_anchor.py`，PreToolUse·Bash 前打印 `Next`）**本会话未生效** | 我 | 新会话首条 Bash 后查 `~/.codebuddy/hooks/.next_anchor_state` 是否生成；生成=平台注入成功，不生成=配置格式不被识别 → 还原 `settings.json.bak-20261114` 并登记 | 下一次新会话 |
+| P1 | 锚点钩子（`hooks/next_anchor.py` 真源 → `~/.codebuddy/hooks/`）**根因已查明并修复，待新会话验收**：不是热加载，是 Bash 工具 cwd 恒为 `/workspace`（非 git 仓），旧版只认 `payload.cwd` → 必然静默 | 我 | 已加三级回退（cwd → command 内 `cd`/`git -C` → last_repo）与 `--probe` 自检；新会话首条 Bash 后跑 `python3 ~/.codebuddy/hooks/next_anchor.py --probe`：`hit:true` 且看到 `⏭` 行=成立；`via` 有值但 hit:false=匹配未中；`（无调用记录）`=平台未调用 PreToolUse → 改挂点或还原 `settings.json.bak-20261114` | 下一次新会话首条 Bash |
 | P2 | 云端收件箱 2 个测试库待删 | 用户 | 在资料库 App 内手动点删 | 用户确认删除即完 |
 | P2 | 手机端硬轨：App 无指令入口（2.8.0/2.9.1 两版实测）→ 每次新会话首条粘贴（14 条正文/13 条对应 B 编号；云端 doc v9） | 用户 | 每个新会话开始时，资料库打开「手机指令粘贴区（复制即用）」→ 从第 2 行起全选复制 → 作为该会话**第一条消息**发出，然后再提需求 | 已形成习惯（连续 2 个新会话都先粘贴）即算完 |
 | P2 | GitHub 账号双因子 | 用户 | 在账号安全设置里开启 2FA | 2026-12-08 前 |
