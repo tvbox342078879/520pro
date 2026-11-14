@@ -365,31 +365,45 @@ if [ "$DRY" = 0 ] && [ -d "$ROOT/.git/hooks" ]; then
   done
 fi
 
-# ★ v0.8.39：锚点钩子装到用户级（PreToolUse · Bash 前打印上一轮 Next）。
+# ★ v0.8.39：锚点钩子装到用户级（PreToolUse·Bash 提示 + UserPromptSubmit 注入）。
 #   为什么在用户级：钩子按宿主配置生效，只有 ~/.codebuddy/hooks + settings.json 这条链
 #   能跨项目工作；仓库内 hooks/next_anchor.py 只是真源，换机靠这一步重建。
-#   三条铁律见脚本头部：永不拦截 / 节流 15 分钟 / 除状态文件外只读。
+#   两条通道（v0.8.44 实测后分开，别合并）：
+#     UserPromptSubmit.additionalContext → 进模型上下文（模型侧锚点，每轮一次）
+#     PreToolUse 的 stdout → 只给用户看，实测不进模型上下文
+#   三条铁律见脚本头部：永不拦截 / Bash 提示节流 15 分钟 / 除状态文件外只读。
 #   settings.json 只做**幂等追加**，不覆盖既有 hooks；失败不阻断安装（只提示）。
 if [ "$DRY" = 0 ] && [ -f "$ROOT/hooks/next_anchor.py" ] && [ "$SCOPE" != "capability" ]; then
   if mkdir -p "$HOME/.codebuddy/hooks" 2>/dev/null \
      && cp "$ROOT/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/next_anchor.py" \
      && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py"; then
     python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" <<'PY' 2>/dev/null \
-      && echo " · 锚点钩子已装：~/.codebuddy/hooks/next_anchor.py（PreToolUse·Bash，新会话生效）" \
-      || echo " ⚠ 锚点钩子脚本已复制，但 settings.json 合并失败——手动在 hooks.PreToolUse 加一条 command"
+      && echo " · 锚点钩子已装：~/.codebuddy/hooks/next_anchor.py（UserPromptSubmit 注入 + PreToolUse·Bash 提示，新会话生效）" \
+      || echo " ⚠ 锚点钩子脚本已复制，但 settings.json 合并失败——手动在 hooks.UserPromptSubmit 加 command"
 import json, sys
 p, script = sys.argv[1], sys.argv[2]
 try:
     d = json.load(open(p, encoding='utf-8'))
 except Exception:
     d = {}
-d.setdefault('hooks', {}).setdefault('PreToolUse', [])
+d.setdefault('hooks', {})
+d['hooks'].setdefault('PreToolUse', [])
+changed = False
 cmds = [h.get('command', '') for e in d['hooks']['PreToolUse'] for h in e.get('hooks', [])]
 if not any('next_anchor.py' in c for c in cmds):
     d['hooks']['PreToolUse'].append({
         'matcher': 'Bash',
         'hooks': [{'type': 'command', 'command': 'python3 ' + script}],
     })
+    changed = True
+d['hooks'].setdefault('UserPromptSubmit', [])
+cmds2 = [h.get('command', '') for e in d['hooks']['UserPromptSubmit'] for h in e.get('hooks', [])]
+if not any('next_anchor.py' in c for c in cmds2):
+    d['hooks']['UserPromptSubmit'].append({
+        'hooks': [{'type': 'command', 'command': 'python3 ' + script, 'timeout': 10}],
+    })
+    changed = True
+if changed:
     json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 sys.exit(0)
 PY

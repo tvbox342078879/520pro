@@ -17,11 +17,18 @@
   ② 从 command 里解析最后一个 `cd <绝对路径>` / `git -C <绝对路径>` → 用它；
   ③ 都不中 → 用 state 里记的 last_repo（仅当它仍是 git 仓）。
 
+挂点与投递通道（2026-11-14 实测，别凭直觉改）：
+  · **PreToolUse**：exit 0 时 stdout **不进模型上下文**——实测命中后 state 有记录、
+    工具输出里却看不到 `⏭` 行。所以这个挂点只算「给用户看的 UI 提示」，不能当 AI 锚点。
+  · **UserPromptSubmit**：官方文档明确 `hookSpecificOutput.additionalContext` 会注入模型
+    上下文。模型侧的锚点必须走这里（每轮一次，不节流；Bash 太密才需要节流）。
+  · 两者的仓库定位共用同一套三级回退，避免两套逻辑各错一半。
+
 状态文件：~/.codebuddy/hooks/.next_anchor_state
   {"repos": {仓库根: 最后打印时间}, "last_repo": 路径, "probe": 最后一次调用快照}
   旧版扁平格式 {仓库根: 时间} 读取时自动迁移。
 
-自检：`python3 next_anchor.py --probe` 打印最后一次调用的 tool/cwd/root/via/hit，
+自检：`python3 next_anchor.py --probe` 打印最后一次调用的 event/tool/cwd/root/via/hit，
 用来区分「平台没调用钩子」与「调用了但没匹配上」——没有它，生效与否永远无法判定。
 """
 import json
@@ -158,15 +165,35 @@ def main():
         return 0
 
     data = _payload()
+    event = data.get('hook_event_name') or ''
     tool = data.get('tool_name') or data.get('toolName') or ''
     cwd = data.get('cwd') or data.get('workingDirectory') or os.getcwd()
     ti = data.get('tool_input') if isinstance(data.get('tool_input'), dict) else {}
     command = data.get('command') or ti.get('command') or ''
 
     d = _read_state()
-    probe = {'ts': int(time.time()), 'tool': tool, 'cwd': cwd,
+    probe = {'ts': int(time.time()), 'event': event, 'tool': tool, 'cwd': cwd,
              'cmd': str(command)[:CMD_HEAD], 'root': '', 'via': 'none', 'hit': False}
 
+    # ---- 模型侧锚点：UserPromptSubmit 注入 additionalContext（每轮一次，不节流）----
+    if event == 'UserPromptSubmit':
+        root = _resolve_root(d, cwd, command, probe)
+        probe['root'] = root
+        nxt = _next_line(root) if root else ''
+        if not nxt:
+            probe['via'] += '+no-next'
+            _save(d, probe)
+            return 0
+        d['last_repo'] = root
+        _save(d, probe, hit=True)
+        msg = '⏭ 上一轮定的下一步（%s）：%s' % (os.path.basename(root), nxt[:400])
+        print(json.dumps({'continue': True,
+                          'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
+                                                 'additionalContext': msg}},
+                         ensure_ascii=False))
+        return 0
+
+    # ---- 用户侧提示：PreToolUse·Bash 前打印（stdout 不进模型，只给人看）----
     if tool and tool != 'Bash':                         # 只挂 Bash：Edit/Write 太频繁
         probe['via'] = 'skip-tool'
         _save(d, probe)
