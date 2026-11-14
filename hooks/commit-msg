@@ -60,6 +60,14 @@ printf '%s' "$N" | grep -q '起点：' \
   || fail "Next 缺「起点」" "没起点 = 没锚点，下一轮只能自由发挥（主次不分就是这么来的）"
 printf '%s' "$N" | grep -q '完成判据：' \
   || fail "Next 缺「完成判据」" "没判据 = 做一半就宣布完成"
+# ②-补（v0.8.39）：B-14 禁词——无 owner 无判据的懒词，写得出来就等于没方向。
+# 词表真源是 core-8 B-14，此处只留指针、不复制条文（M2）。查形式不查语义：
+# 「深入研究 X」这类合法含糊拦不了，但四种懒词能拦住。
+LAZY_RE='待跟进|后续优化|有空再说|继续完善|TBD'
+if printf '%s' "$N" | grep -qE "$LAZY_RE"; then
+  fail "Next 用了 B-14 明令禁止的懒词（无 owner / 无判据）" \
+       "「待跟进 / 后续优化 / 有空再说 / 继续完善 / TBD」都不算方向；改写具体动作 + 起点 + 完成判据"
+fi
 
 # ── ③ Lesson：经验回流（不新建存储，接现有病历）────────────────
 L="$(field Lesson)"
@@ -97,6 +105,24 @@ else
       || fail "Reuse 声明新建 $f，但本次提交没有新增它" \
               "改 Reuse，或把该文件 git add 进暂存"
   done
+fi
+
+# ── ④-补（v0.8.39）：新增的「事实类」文件是否已登记 docs/registry.md ──
+# **软提示，不阻断**：registry 登记的是「事实真源」，不是每个实现文件，
+# 硬拦会把正常新增的测试也挡掉。范围收窄到 docs/*.md 与 hooks/*——
+# 只有这两类才可能是「新的一类事实」；verify/*.py 是实现件，靠 Reuse 行交代即可。
+if [ -n "$ACTUAL" ] && [ -f docs/registry.md ]; then
+  UNREG=""
+  for f in $ACTUAL; do
+    case "$f" in
+      docs/*.md|hooks/*)
+        grep -qF "\`$f\`" docs/registry.md || UNREG="$UNREG $f" ;;
+    esac
+  done
+  if [ -n "$UNREG" ]; then
+    echo "⚠ 提示：新文件未在 docs/registry.md 登记真源类别：$UNREG"
+    echo "   若确属新的一类事实 → 补一行登记；纯实现细节 → 在 Reuse 行写明即可（不阻断）"
+  fi
 fi
 
 echo "✓ commit-msg 通过（Verify / Lesson / Next / Reuse 齐，且 Reuse 与暂存清单一致）"

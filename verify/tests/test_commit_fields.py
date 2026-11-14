@@ -197,6 +197,37 @@ def case10_lesson_with_ledger(d):
           f'rc={r.returncode} out={r.stdout[-140:]}')
 
 
+def case11_lazy_next(d):
+    """B-14 禁词：三段齐全但内容是懒词——形式合规、语义为零，也算没方向。"""
+    msg = GOOD.replace('Next: 做事 — 起点：a.py — 完成判据：跑通',
+                       'Next: 后续优化 — 起点：a.py — 完成判据：跑通')
+    assert '后续优化' in msg, '变异未落盘'
+    r = run_hook(d, msg)
+    check('例11 Next 用 B-14 懒词「后续优化」→ 拒',
+          r.returncode != 0 and '懒词' in r.stdout,
+          f'rc={r.returncode} out={r.stdout[-120:]}')
+
+
+def case12_registry_hint(d):
+    """软提示：新建 docs/*.md 未登记 registry → 放行但有 ⚠（不是硬拦）。"""
+    os.makedirs(os.path.join(d, 'docs'), exist_ok=True)
+    with open(os.path.join(d, 'docs', 'registry.md'), 'w', encoding='utf-8') as f:
+        f.write('| 事实 | 真源 |\n|---|---|\n| 版本 | `VERSION` |\n')
+    # 只 add 新文件，不把 registry.md 带进暂存（钩子只看工作区文件是否存在）
+    p = os.path.join(d, 'docs', '新机制.md')
+    with open(p, 'w', encoding='utf-8') as f:
+        f.write('x\n')
+    sh(['git', 'add', 'docs/新机制.md'], d)
+    staged = sh(['git', '-c', 'core.quotepath=false', 'diff', '--cached', '--name-only'], d).stdout
+    check('例12 前置：新文件真进了暂存', 'docs/新机制.md' in staged.splitlines(), f'staged={staged!r}')
+    msg = GOOD.replace('Reuse: docs/工程纪律.md 扩展',
+                       'Reuse: 新建 docs/新机制.md —— 已查 registry/工程纪律/通病台账/verify，无重叠')
+    r = run_hook(d, msg)
+    check('例12 新文件未登记 registry → 放行但出声（软提示）',
+          r.returncode == 0 and '⚠' in r.stdout and 'registry.md' in r.stdout,
+          f'rc={r.returncode} out={r.stdout[-160:]}')
+
+
 def main():
     if not os.path.exists(HOOK):
         check('hooks/commit-msg 存在', False, HOOK)
@@ -210,7 +241,8 @@ def main():
         for fn in (case1_missing_next, case2_next_no_criteria, case3_lesson_no_ledger,
                    case4_reuse_lie, case5_meta_mutation, case6_good_passes,
                    case7_declared_but_not_added, case8_new_without_four_checks,
-                   case9_new_disease_no_ledger, case10_lesson_with_ledger):
+                   case9_new_disease_no_ledger, case10_lesson_with_ledger,
+                   case11_lazy_next, case12_registry_hint):
             clean(d)
             fn(d)
     finally:
