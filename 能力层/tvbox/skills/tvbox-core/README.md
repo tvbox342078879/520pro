@@ -27,8 +27,13 @@
 
 | 库 | database id | 条数 | 是什么 |
 |---|---|---|---|
-| **线路源库** | `pNwZ9uBOTz6FzRuvu8nryI` | 620 | 原 py 112 + 原 csp 508，用 `源类型` 字段区分（`py线路`/`csp线路`） |
-| **成品源库** | `8JBrhSwsJ3pnPYtoGLo9XV` | 109 | 全部 http，带 `真实测活`/`测活证据`，可直接进包 |
+| **线路源库** | `VyMY26JsNOlLI0pHZyQvJQ` | **0**（原 620） | 原 py 112 + 原 csp 508，用 `源类型` 字段区分（`py线路`/`csp线路`） |
+| **成品源库** | `c1tHi95CbcbAJjNllnj5uD` | **0**（原 109） | 全部 http，带 `真实测活`/`测活证据`，可直接进包 |
+
+> ⚠️ **2026-11-14 重建**：上表两个 `database id` 是重建后的新库，**当前为空**。
+> 旧 id（`pNwZ9uBOTz…` / `8JBrhSwsJ3…`）连同失信库、上游监测册、搜索候选册、采集候选册共 6 库，
+> 经实测全部返回 `12607 permission denied`，而纯假 id 返回 `11510 not found` —— 证明节点**仍在索引但属另一账号的空间**，
+> 当前账号无权读取。620 条线路 + 109 条成品随旧空间不可达而**丢失**，无法从 AI 侧恢复。重建空库后需重新采集填充。
 | ~~py线路源库~~（旧） | ~~`2jgIs29ilgqIIFVU61cIyf`~~ | **0** | S160 并入线路源库；已清空并改名「🗑【已废弃】」，**勿再读写** |
 | ~~csp线路源库~~（旧） | ~~`LIksN7jSFuo4uWFaUSz2iz`~~ | **0** | 同上 |
 | ~~成品源库~~（旧） | ~~`IGz9Q1jashp1JTTastBKGM`~~ | **0** | S160 重建到新 id；旧库已清空并标注废弃 |
@@ -353,7 +358,7 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 
 | 极 | 载体 | ID | 记什么 |
 |---|---|---|---|
-| ① 源数据库 | 线路源库 + 成品源库（见 §1） | `pNwZ9uBOTz6FzRuvu8nryI` / `8JBrhSwsJ3pnPYtoGLo9XV` | 线路 + 可用体系 |
+| ① 源数据库 | 线路源库 + 成品源库（见 §1） | `VyMY26JsNOlLI0pHZyQvJQ` / `c1tHi95CbcbAJjNllnj5uD` | 线路 + 可用体系 |
 | ② 底包库 | 📁 底包·底包总库 | `GCLJWbFGS1BmYbj6JCX9it` | 整包 + 体系分类 |
 | ③ 会话台账 | 🔗 会话台账 | `TO4LwsjVVdR8JRAUlkejk3` | **业务**经验（某接口怎么处理） |
 | ④ 资料库经验库 | 📚 资料库操作经验库 | `XTuuj8mKtqnZSolDdeDxkq` | **平台**经验（资料库怎么用才不踩坑） |
@@ -433,13 +438,13 @@ S111 修正后：`直链系 112 / jar系 508`，全表 620 行与 `classify()` *
 ```bash
 export SID=~/.codebuddy/skills/library
 # ① 查某条源（S160 起 py/csp 同库，**一次查完**，不必分别查）
-python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+python3 $SID/database/db_query.py --target VyMY26JsNOlLI0pHZyQvJQ --target-kind id \
   --ask records --filter '{"conditions":[{"field":"api接口","operator":"contains","value":"<关键字>"}]}'
 # ①b 只要 csp 类（用 源类型 字段筛，不是换库）
-python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+python3 $SID/database/db_query.py --target VyMY26JsNOlLI0pHZyQvJQ --target-kind id \
   --ask records --filter '{"conditions":[{"field":"源类型","operator":"is","value":"csp线路"}]}'
 # ② 按可用体系筛（例：只要能在 A 系用的）——两库字段已统一，任一库都可筛
-python3 $SID/database/db_query.py --target pNwZ9uBOTz6FzRuvu8nryI --target-kind id \
+python3 $SID/database/db_query.py --target VyMY26JsNOlLI0pHZyQvJQ --target-kind id \
   --ask records --filter '{"conditions":[{"field":"可用体系","operator":"contains","value":"A·CatVod标准系"}]}'
 ```
 

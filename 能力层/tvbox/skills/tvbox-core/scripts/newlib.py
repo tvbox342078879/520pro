@@ -35,7 +35,7 @@ PROBE_DIR = os.path.expanduser('~/.codebuddy/skills/probe-hub/scripts')
 SPACE = '8w5cnqCqQJ0wNoF2Hb6efH'          # TVBox 生态空间
 PARENT = 'GCLJWbFGS1BmYbj6JCX9it'        # 底包库根（新库挂在它下面）
 DB_SRC = '[源库联合]'                     # S159：原写死旧库（S144 已清空）→ 索引恒空
-DB_UPSTREAM = 'aCSvley568A0aW3sggzJwA'   # 上游仓库监测册
+DB_UPSTREAM = 'wbWD9SlgjsJm7GMaYkDiSM'   # 上游仓库监测册
 IDS_FILE = os.path.join(HERE, 'newlib_ids.json')
 
 sys.path.insert(0, HERE)

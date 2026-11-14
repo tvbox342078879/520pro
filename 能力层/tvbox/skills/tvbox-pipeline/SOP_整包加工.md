@@ -440,7 +440,7 @@ python3 $HOME/.codebuddy/skills/library/space_api.py space.importer.create-doc \
 > **四极坐标 + L1~L6 链路图 + 自动触发表** 正本：`tvbox-source-hub/SKILL.md §6.5`。**此处不抄**（M-R38：同一四极写两份必漂移）。
 
 **本技能必须记住的三条**：
-1. **ID 速查**：源库＝两库（线路源库 `pNwZ9uBOTz6FzRuvu8nryI` ｜ 成品源库 `8JBrhSwsJ3pnPYtoGLo9XV`；S160 前为 py/csp/成品三库，均已废弃）｜ 底包库根 `GCLJWbFGS1BmYbj6JCX9it`（space `8w5cnqCqQJ0wNoF2Hb6efH`）｜ 台账 `TO4LwsjVVdR8JRAUlkejk3` ｜ 经验库 `XTuuj8mKtqnZSolDdeDxkq`
+1. **ID 速查**：源库＝两库（线路源库 `VyMY26JsNOlLI0pHZyQvJQ` ｜ 成品源库 `c1tHi95CbcbAJjNllnj5uD`；S160 前为 py/csp/成品三库，均已废弃）｜ 底包库根 `GCLJWbFGS1BmYbj6JCX9it`（space `8w5cnqCqQJ0wNoF2Hb6efH`）｜ 台账 `TO4LwsjVVdR8JRAUlkejk3` ｜ 经验库 `XTuuj8mKtqnZSolDdeDxkq`
    > ⚠️ 旧「数据源总库」`wW5xpbS…` 已于 S144 清空废弃（0 条），**勿再读写**——读它不报错，只会静默返回空表。
 2. **触发即执行**（不等指令）：收到接口 URL → 全链路 → L1 提源 → L4 写台账；整包入库完成 → **立刻** L1；遇到报错/返工 → **当场**记台账（不等会话结束）；新会话开工 → 先查同类历史。
 3. **双池各落各的**：业务经验写③台账（`tvbox log`），平台坑写④经验库（`tvbox lib-log`）——漏落④=复盘不完整。

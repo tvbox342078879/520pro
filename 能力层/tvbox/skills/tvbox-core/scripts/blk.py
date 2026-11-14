@@ -11,14 +11,14 @@
   review [--limit N]         复测失效 host，判断是否复活（复活则从库移除）
   stats                     失效库统计
 
-失效库 database: hGwE41OpJDOR8CW0sLUwRx
+失效库 database: f0635YubuSqG0t9CCkIVRG
 """
 import os, sys, json, time, argparse, subprocess
 from urllib.parse import urlparse
 from collections import Counter
 
 LIB=os.path.expanduser('~/.codebuddy/skills/library')
-DB_DEAD='hGwE41OpJDOR8CW0sLUwRx'   # 🗑 失效源库
+DB_DEAD='f0635YubuSqG0t9CCkIVRG'   # 🗑 失效源库
 # S159：源库已非单库。原 DB_SRC 指向 S144 已清空的旧库 →
 #   `blk mark`（整域拉黑）在空集上算 ha/hd，`full=[]` → 打印「无新增」，
 #   **整域拉黑整体失效且不报错**；`blk archive` 读源库状态表也为空，

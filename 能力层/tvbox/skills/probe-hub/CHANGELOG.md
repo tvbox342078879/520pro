@@ -1,3 +1,17 @@
+## v1.28.0 — 探源 6 库坐标重建（520 v0.8.50，2026-11-14）
+- **背景**：探源家族 6 个库（线路/成品/失信host/上游监测册/搜索候选册/采集候选册）全部返回 `12607 permission denied`。
+  判据对照：纯假 id 与已废弃库返回 `11510 node index not found`，**错误码分族** ⇒ 12607 是「存在但无权」，
+  节点仍在索引、只是属另一账号的空间（用户当日确认）。数据不可从 AI 侧恢复。
+- **重建**：走 `database/db_create.py --stdin` 正本建 6 个空库，落「🔍 探源产出 / 源数据」下，
+  字段集按代码反推（线路 15 列 / 成品 12 / 失信 17 / 监测册 18 / 搜索 12 / 采集 12，select 选项取自
+  `PLATFORM_FORMS` / `_COLS` / `_cloud_sync_*` 的写入键），建后逐库 `list-nodes` 回读 **6/6 命中**、
+  `db_query --ask stats` 逐库 **6/6 返回 KS_DB_QUERY_OK**。
+- **坐标迁移 17 处**：`core.SRC_DBS`(2) / `probe.py` 四常量(4) / `backfill_system.py`(1) / `blk.py`(2) /
+  `link.py`(1) / `newlib.py`(1) / `space_hub.py` 空间别名表(6)。7 文件 `py_compile` 全过，代码侧旧 id 零残留。
+- **文档**：6 份现行文档坐标同步（SKILL/README/黑名单说明/拉黑判据/SOP/manual）；CHANGELOG 与 `flow.json`
+  的历史条目**保留旧 id 不改**（历史事实，改了即篡改账目）。
+- **不做的事**：不把 620/109 条历史数据凭空造回来（无快照、无备份），README 条数列已标注 `0（原 620/109）`。
+
 ## v1.27.2 — database 正本迁移（520 v0.8.33，2026-11-13）
 - 8 处旧调用失配（`query_database_record` / `batch_add` / `batch_update` / `batch_delete`），其中 5 处走 `api('database/…')` 间接入口，**第一版引用检查器完全扫不到**（模式级盲区，已补 `_run_lib|api` 匹配）
 - 新增 `_db_edit_api`（写入/更新合一，强制 `_cache=False`——写操作走 api() 缓存会拿到上次回执、根本不发请求）、`_db_delete_api`（二段式：先 IMPACT 再确认）、`_tag_of`

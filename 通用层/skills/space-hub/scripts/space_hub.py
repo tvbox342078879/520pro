@@ -121,12 +121,12 @@ TERRITORY = {
     'kqNrwHd53K9qr1DFBUPglZ': ('ecosys-conductor', '用户需求事件库'),
     # ── 探源司子树内的关键库 ──
     'GCLJWbFGS1BmYbj6JCX9it': ('tvbox-interface', '📁 底包·底包总库'),
-    'pNwZ9uBOTz6FzRuvu8nryI': ('tvbox-source-hub', '探源司·线路源库'),
-    '8JBrhSwsJ3pnPYtoGLo9XV': ('tvbox-source-hub', '探源司·成品源库'),
-    'aCSvley568A0aW3sggzJwA': ('probe-hub', '上游仓库监测册'),
-    'khHl458xi8qK15lVaYfbvU': ('probe-hub', '探源司·搜索候选册'),
-    'E5I6T2UXIS7CB5r0AkimRl': ('probe-hub', '探源司·采集候选册'),
-    'hGwE41OpJDOR8CW0sLUwRx': ('tvbox-source-blacklist', '探源司·失信host库'),
+    'VyMY26JsNOlLI0pHZyQvJQ': ('tvbox-source-hub', '探源司·线路源库'),
+    'c1tHi95CbcbAJjNllnj5uD': ('tvbox-source-hub', '探源司·成品源库'),
+    'wbWD9SlgjsJm7GMaYkDiSM': ('probe-hub', '上游仓库监测册'),
+    'db7bzHGt0tEUrJuXz2wIKS': ('probe-hub', '探源司·搜索候选册'),
+    'gPPG9r2wnjNfoncbj8N3LK': ('probe-hub', '探源司·采集候选册'),
+    'f0635YubuSqG0t9CCkIVRG': ('tvbox-source-blacklist', '探源司·失信host库'),
     # ── 生态四库（资料库侧）──
     'T4kODtANe7rSrtZTu4sIND': ('ecosys-conductor', '🧩 TVBox技能生态登记库'),
     'XTuuj8mKtqnZSolDdeDxkq': ('unfinished-audit', '📚 资料库操作经验库'),

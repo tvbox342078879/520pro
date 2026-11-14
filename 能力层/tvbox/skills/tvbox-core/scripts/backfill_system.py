@@ -33,7 +33,7 @@ import core                                      # noqa: E402
 from guard import Triage                        # noqa: E402
 from link import classify                       # noqa: E402
 
-DB = 'pNwZ9uBOTz6FzRuvu8nryI'   # 线路源库
+DB = 'VyMY26JsNOlLI0pHZyQvJQ'   # 线路源库
 
 
 def dump_rows():

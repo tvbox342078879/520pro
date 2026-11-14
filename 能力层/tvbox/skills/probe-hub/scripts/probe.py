@@ -171,11 +171,11 @@ _SRC_BY_NAME = dict(_SRC_DBS)
 # ★ S160：py/csp 两库合并为「线路源库」，原按名取 'py线路源库'/'成品源库' 会 KeyError。
 #   本技能**实际只读 DB_DEAD / DB_PROD**；DB_SRC 仅作兼容别名，勿新增读取。
 DB_SRC = _SRC_BY_NAME['线路源库']         # 兼容别名；本技能不读它，勿新增读取
-DB_DEAD = 'hGwE41OpJDOR8CW0sLUwRx'     # 🚫 探源司·失信host库（1017 新建，取代旧「失效源库」）
+DB_DEAD = 'f0635YubuSqG0t9CCkIVRG'     # 🚫 探源司·失信host库（1017 新建，取代旧「失效源库」）
 DB_DEAD_LEGACY = '92dSuG6uUbxitGuyx4Saaf'  # 🗑 旧失效源库（已清空废弃，仅留 ID 供回溯）
-DB_UPSTREAM = 'aCSvley568A0aW3sggzJwA'  # 📡 上游仓库监测册（S088 建库；空=退回本地登记册）
-DB_CANDIDATE = 'khHl458xi8qK15lVaYfbvU'  # 🔍 搜索候选册（S095 建库；空=仅本地）
-DB_HARVEST = 'E5I6T2UXIS7CB5r0AkimRl'    # 📥 采集候选册（S095 建库；空=仅本地）
+DB_UPSTREAM = 'wbWD9SlgjsJm7GMaYkDiSM'  # 📡 上游仓库监测册（S088 建库；空=退回本地登记册）
+DB_CANDIDATE = 'db7bzHGt0tEUrJuXz2wIKS'  # 🔍 搜索候选册（S095 建库；空=仅本地）
+DB_HARVEST = 'gPPG9r2wnjNfoncbj8N3LK'    # 📥 采集候选册（S095 建库；空=仅本地）
 DB_PROD = _SRC_BY_NAME['成品源库']        # ✅ 成品源库（坐标取自 core，勿再写死）
                                           #    只存"真实测活通过"的成品线路源——拿来即可放进 json
 
