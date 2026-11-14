@@ -282,4 +282,4 @@ learn self-check      # 跑全部命门探针，输出 N/N
 - **探源司** `probe-hub`：网盘取料、容器解包（`pan` / `pak`）——本技能采集环节直接复用
 - **云库** `library`：成品归档与检索
 - **子技能**：`exam-generator` / `knowledge-framework-builder` / `office-kejian` / `pdf-converter` / `scan-pdf-ocr` / `wechat-article-scraper`
-- **治理**：`ecosys-conductor`（责任田登记）、`skill-evolution`（三件套体检）
+- **治理**：`inspect-hub`（8 面巡检 · 责任田与体检；原 `skill-evolution` 已于 v0.8.41 退役）

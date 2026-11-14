@@ -328,7 +328,7 @@ check "VERSION"
 
 if [ "$SHAPE" = full ]; then
   check "通用层/rules/core-8.md"
-  for s in artifact-store feature-gate machine-bootstrap skill-evolution learn-hub space-hub inspect-hub; do
+  for s in artifact-store machine-bootstrap learn-hub space-hub inspect-hub; do
     check "通用层/skills/$s/SKILL.md"
   done
   for s in probe-hub tvbox-pipeline; do

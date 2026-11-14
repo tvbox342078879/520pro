@@ -52,7 +52,7 @@ def with_edit(old, new, fn):
 print('【正例】真仓库应无撞车')
 r = H.chk_triggers(REPO, {}, {})
 check('状态为 green', r['status'], 'green')
-check('覆盖率 9/9', (r['covered'], r['total']), (9, 9))
+check(f"覆盖率 {r['covered']}/{r['total']}（须全覆盖）", r['covered'], r['total'])
 check('触发词总数 > 200', r['words'] > 200, True)
 check('必须输出"只查字面"的边界说明',
       any('只查字面' in t for t in texts()), True)

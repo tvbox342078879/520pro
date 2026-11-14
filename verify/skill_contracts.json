@@ -33,35 +33,11 @@
       "entry": "",
       "trigger_samples": "references/trigger-samples.md"
     },
-    "feature-gate": {
-      "kind": "skill",
-      "layer": "通用层",
-      "path": "通用层/skills/feature-gate",
-      "version": "1.0.2",
-      "required_files": [
-        "SKILL.md",
-        "CHANGELOG.md"
-      ],
-      "entry": "",
-      "trigger_samples": "references/trigger-samples.md"
-    },
     "machine-bootstrap": {
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/machine-bootstrap",
       "version": "1.0.4",
-      "required_files": [
-        "SKILL.md",
-        "CHANGELOG.md"
-      ],
-      "entry": "",
-      "trigger_samples": "references/trigger-samples.md"
-    },
-    "skill-evolution": {
-      "kind": "skill",
-      "layer": "通用层",
-      "path": "通用层/skills/skill-evolution",
-      "version": "1.1.1",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md"

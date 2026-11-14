@@ -18,6 +18,10 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 技能数以契约表为真源（M1）——写死数字会在每次新增/退役技能时假红
+_CONTRACTS = json.load(open(os.path.join(REPO, 'verify', 'skill_contracts.json'), encoding='utf-8'))
+_K = _CONTRACTS.get('skills', _CONTRACTS)
+N_SKILLS = sum(1 for v in _K.values() if v.get('kind') == 'skill')
 SCRIPT = os.path.join(REPO, 'export_skill_cards.py')
 fails = []
 
@@ -40,7 +44,7 @@ print('【①】真仓库全量导出')
 r = run('--json')
 check('退出码 0', r.returncode, 0)
 d = json.loads(r.stdout)
-check('9 个技能', len(d['cards']), 9)
+check(f'{N_SKILLS} 个技能（=契约表 kind:skill）', len(d['cards']), N_SKILLS)
 check('无坏技能', d['broken'], [])
 names = [c['name'] for c in d['cards']]
 check('按层排序（通用层在前）', names[0], 'artifact-store')
@@ -63,7 +67,7 @@ try:
         y = yaml.safe_load(body)
         assert y['name'] and y['version'] and len(y['description']) > 40, y.get('name')
         okc += 1
-    check('9 张卡片均可解析', okc, 9)
+    check(f'{N_SKILLS} 张卡片均可解析', okc, N_SKILLS)
 except ImportError:
     print('  · 无法判定：无 pyyaml，跳过解析校验（不计入通过）')
 
@@ -97,8 +101,6 @@ print('【⑥】导出内容跟仓库同步（抓"手改文档"的老路）')
 # 取一个改动过触发词的技能，确认卡片里有新词
 sh = [c for c in d['cards'] if c['name'] == 'space-hub'][0]
 check('space-hub 卡片含 2.7.x 版本', sh['version'].startswith('2.7'), True)
-fg = [c for c in d['cards'] if c['name'] == 'feature-gate'][0]
-check('feature-gate 新补的触发词在卡片里', '灰度' in fg['triggers'], True)
 
 print()
 if fails:

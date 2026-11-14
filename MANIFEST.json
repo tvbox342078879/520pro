@@ -29,14 +29,6 @@
           "alwaysApply": true,
           "role": "项目级文档/输出纪律契约（项目隔离模式才装）"
         },
-        "skills/skill-evolution/SKILL.md": {
-          "role": "复发问题固化成技能",
-          "version": "1.1.1"
-        },
-        "skills/feature-gate/SKILL.md": {
-          "role": "特性开关+绞杀者切流",
-          "version": "1.0.2"
-        },
         "skills/machine-bootstrap/SKILL.md": {
           "role": "一键换机/克隆工作副本",
           "version": "1.0.4"

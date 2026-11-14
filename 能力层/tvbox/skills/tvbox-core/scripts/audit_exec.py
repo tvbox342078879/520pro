@@ -25,7 +25,7 @@ import sys
 
 ECO_SKILLS = [
     'probe-hub', 'tvbox-core', 'tvbox-pipeline',
-    'skill-evolution', 'machine-bootstrap', 'feature-gate', 'artifact-store',
+    'machine-bootstrap', 'artifact-store',
 ]
 
 # 本文件与被审工具自身豁免

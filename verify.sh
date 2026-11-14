@@ -120,7 +120,7 @@ if [ "$REPO_ONLY" = 1 ]; then
 else
 echo "[通用层·用户级]"
 [ -f "$U/rules/core-8.md" ] && ok "rules/core-8.md" || no "rules/core-8.md 缺失"
-for s in skill-evolution feature-gate machine-bootstrap artifact-store; do
+for s in machine-bootstrap artifact-store; do
   [ -d "$U/skills/$s" ] && ok "skills/$s" || no "skills/$s 缺失"
 done
 # 学习工坊（v0.5.0 起）：通用层业务技能，自带网盘取料模块（原 probe-hub harvest pan）
