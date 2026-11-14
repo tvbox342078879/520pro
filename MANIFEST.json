@@ -107,7 +107,7 @@
           "entry": "scripts/probe.py",
           "critical": "单独安装必报 ModuleNotFoundError: No module named 'core'",
           "contains": "SKILL.md · scripts/probe.py · scripts/{forge,quality,livecheck,hls_clean,forge_gate,shellcrack}.py · repair/ · forgekit/ · verify/ · references/",
-          "version": "1.28.2"
+          "version": "1.28.3"
         },
         "tvbox/skills/tvbox-pipeline/": {
           "user_install": "~/.codebuddy/skills/tvbox-pipeline/",

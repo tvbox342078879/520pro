@@ -6,7 +6,7 @@
 
 ## 1. 当前主线（一句话）
 
-v0.8.53 重采链路打通（单仓库验证）：`harvest scan --repo lxcjy/IPTV2` → 50 条候选入库，复跑幂等（新增 0 / 更新 50），`db_query stats` 独立确认 50 行。沿途修三个真 bug：①`harvest_candidates/` 运行态目录不存在 → 首次采集必崩（代码补 makedirs + 安装侧登记）；②`_cloud_upsert` 的 select_cols 硬编码，与重建后 schema 错位 → **改为按库 schema 决定包装**；③`_harvest_select_options` 硬拼不存在的脚本路径 → 改走 `db_query schema`。病14 记第 2 次（选项 + 类型双错），probe-hub v1.28.2。**全量 123 个存活仓库未跑**。
+v0.8.54 探源司 AI项目监测板块落地：登记册加「类目」字段（枚举 TVBox上游|AI项目，真源=_schema + 云端 DB_UPSTREAM 类目列 field_id iNNfspEf），`monitor add --category` 拒非法枚举；首个目标 Memory-Palace（AGI-is-going-to-arrive/Memory-Palace）已登记入库（云端 187 行：TVBox上游 186 / AI项目 1，db_query csv 实拉核验）并首跑 check 真实取证——存活=存活（API 元信息依据已显形）、活跃度=停滞（近30天提交=0）、文件数=516、指纹=9b097cc1f903（AI 项目指纹改锚 README，跳过 TVBox 4 猜名与生命周期自报——version 文件是代码版本非作者自报，首跑误报「自报正式→风险」已修）。probe-hub v1.28.3。**v0.8.53 遗留：全量 123 个存活仓库批量重采未跑**。：`harvest scan --repo lxcjy/IPTV2` → 50 条候选入库，复跑幂等（新增 0 / 更新 50），`db_query stats` 独立确认 50 行。沿途修三个真 bug：①`harvest_candidates/` 运行态目录不存在 → 首次采集必崩（代码补 makedirs + 安装侧登记）；②`_cloud_upsert` 的 select_cols 硬编码，与重建后 schema 错位 → **改为按库 schema 决定包装**；③`_harvest_select_options` 硬拼不存在的脚本路径 → 改走 `db_query schema`。病14 记第 2 次（选项 + 类型双错），probe-hub v1.28.2。**全量 123 个存活仓库未跑**。
 
 **下一步**：`git log -1 --format=%B | sed -n 's/^Next: //p'`（正文即细则）
 
@@ -16,7 +16,7 @@ v0.8.53 重采链路打通（单仓库验证）：`harvest scan --repo lxcjy/IPT
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.53
+- 版本：0.8.54
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）

@@ -1,3 +1,14 @@
+## v1.28.3 — AI项目监测板块：监测范围扩到 AI 仓库（2026-11-14）
+- **需求**：探源司增加「AI 项目」板块，首个目标 Memory-Palace（`AGI-is-going-to-arrive/Memory-Palace`，MIT）。
+- **实现**（判据复用 repo 四类信号，不另造轮子）：
+  ① 登记册加「类目」字段，枚举 `TVBox上游 | AI项目`（真源=`monitor_targets.example.json` _schema + 云端 DB_UPSTREAM「类目」select 列，field_id `iNNfspEf`）；`monitor add --category` 非法值拒收并报合法枚举（B-10）；
+  ② `_cloud_row_to_target` 补读「类目」列——修复云端权威合并把本地类目冲掉的断链（首跑 status 不显示分布即此根因）；旧 186 目标缺省显式化为 TVBox上游 上云；
+  ③ `monitor status` 加类目分布行 + AI 项目行 🤖 标记；
+  ④ AI项目指纹改锚 README（config.json 等 4 个 TVBox 猜名对 AI 仓库是无效探测，白耗 4 请求）；README 也取不到时 note 明写 why（S193 口径）；
+  ⑤ 生命周期自报交叉对 AI项目 **跳过**——探针只认 TVBox mark.json/version 约定，`version` 是代码版本文件，首跑把 Memory-Palace 误判「自报正式→风险」（真阳性误报，已修）。
+- **首跑取证**（monitor check --repo github-agi-is-going-to-arrive-memory-palace）：存活=存活（GitHub API 正常；存活依据=API元信息，主页不可达已显形）、活跃度=停滞（近30天提交=0）、文件数=516、指纹=9b097cc1f903（README）。三态齐、幂等复跑一致。
+- **判据**：云端 187 行类目分布 TVBox上游 186 / AI项目 1（db_query csv 实拉核验）；本地 187 条 1 条 AI项目。
+
 ## v1.28.2 — 云端写入类型错位根治：按库 schema 决定包装（2026-11-14）
 - **真阳性（比 v1.28.1 更隐蔽）**：采集到了、文件落了、回执也回了，但**云端 0 条**。
   两层错：

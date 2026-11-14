@@ -13,7 +13,7 @@
   monitor diff  [--repo URL]                    快照对比（本次 vs 上次）
   monitor forecast [--repo URL] [--json]        活跃度趋势外推→弃更风险（S093）
   monitor status                                监测目标总览表
-  monitor add --url URL [--author X] [--cadence 每周] [--branch main] [--config-path P] [--related 底包]
+  monitor add --url URL [--author X] [--cadence 每周] [--branch main] [--config-path P] [--related 底包] [--category TVBox上游|AI项目]
   monitor due                                   列出到期未检查目标
   search  github --topic tvbox [--limit N]
   search  gitee  --keyword tvbox [--limit N]
@@ -824,7 +824,7 @@ def _cloud_row_to_target(r):
     t = {}
     for k in ('id', '仓库名', '仓库URL', '作者', '平台', '分支', '配置路径',
               '监测周期', '关联底包', '存活状态', '当前commit', '内容指纹',
-              '活跃度', '上次检查', '下次到期', '变更摘要'):
+              '活跃度', '上次检查', '下次到期', '变更摘要', '类目'):
         t[k] = _txt(r.get(k))
     for k in ('文件数', '近30天提交'):
         v = r.get(k)
@@ -1154,9 +1154,14 @@ def _cloud_save_targets(targets):
     """
     _COLS = {'id', '仓库名', '仓库URL', '作者', '平台', '分支', '配置路径',
              '监测周期', '关联底包', '存活状态', '当前commit', '内容指纹',
-             '活跃度', '上次检查', '下次到期', '变更摘要', '文件数', '近30天提交'}
+             '活跃度', '上次检查', '下次到期', '变更摘要', '文件数', '近30天提交',
+             '类目'}
     rows = []
     for t in (targets or []):
+        # 类目缺省显式化：旧目标无「类目」字段（2026-11-14 前登记）按 TVBox上游 上云，
+        # 不让云端 select 列吃空值（枚举真源=云端列 options，与 _schema 同步维护）。
+        if isinstance(t, dict):
+            t.setdefault('类目', 'TVBox上游')
         # ★ S199 修复：发布源型（pub-package）与域名型同源——结构字段（kind/
         #   发布源URL/包类型）走 companion 本地真源，云端无这些列。若不过滤直接
         #   rows.append(t) 上传，非标列会触发云端整条拒收，连 18 列里的健康字段
@@ -1174,7 +1179,7 @@ def _cloud_save_targets(targets):
             rows.append(t)
     ok, n_add, n_upd = _cloud_upsert(
         rows, DB_UPSTREAM, 'id',
-        select_cols=('平台', '监测周期', '存活状态', '活跃度'),
+        select_cols=('平台', '监测周期', '存活状态', '活跃度', '类目'),
         num_cols=('文件数', '近30天提交'),
         # ★S169：这两列在库里是 date 类型，按 text 写会**静默丢列**（回执仍 success）。
         date_cols=('上次检查', '下次到期'),
@@ -2183,19 +2188,31 @@ def _probe_repo(t):
     #   指纹走 raw.githubusercontent.com（**不带 token、本网络需走镜像**）——
     #   所以"目录树取到了、指纹取不到"是完全可能的组合，不能共用一条结论。
     cfg = t.get('配置路径', '') or ''
-    raw_base, cands = _find_config_path(owner, repo, branch, platform, host)
-    cand_list = [cfg] if cfg else cands
-    _cfg_try = []
-    for c in cand_list:
-        st, txt = _fetch(raw_base + c)
-        _cfg_try.append(f'{c}={st}')
+    if (t.get('类目') or '') == 'AI项目' and not cfg:
+        # AI项目板块（2026-11-14）：AI 仓库没有 TVBox 主配置，config.json 等 4 个
+        # 猜名全是无效探测（白耗 4 个 raw 请求）。指纹改锚 README——存在率最高、
+        # 内容变更即反映；README 也取不到就明写 why（同 S193「None 必须带 why」）。
+        raw_base, _ = _find_config_path(owner, repo, branch, platform, host)
+        st, txt = _fetch(raw_base + 'README.md')
         if st == 'ok' and txt:
             rec['content_sha'] = _content_sha(txt)
-            rec['config_path'] = c
-            break
-    if not rec['content_sha']:
-        rec['note'] = (rec.get('note') or '') + \
-            f'；内容指纹未取到（试过 {", ".join(_cfg_try[:4])}）'
+            rec['config_path'] = 'README.md'
+        else:
+            rec['note'] = (rec.get('note') or '') + f'；内容指纹未取到（README={st}）'
+    else:
+        raw_base, cands = _find_config_path(owner, repo, branch, platform, host)
+        cand_list = [cfg] if cfg else cands
+        _cfg_try = []
+        for c in cand_list:
+            st, txt = _fetch(raw_base + c)
+            _cfg_try.append(f'{c}={st}')
+            if st == 'ok' and txt:
+                rec['content_sha'] = _content_sha(txt)
+                rec['config_path'] = c
+                break
+        if not rec['content_sha']:
+            rec['note'] = (rec.get('note') or '') + \
+                f'；内容指纹未取到（试过 {", ".join(_cfg_try[:4])}）'
 
     return rec
 
@@ -2766,7 +2783,12 @@ def cmd_monitor_check(a):
                   f'  近30天提交={_nc_s}  指纹={rec.get("content_sha") or "—"}')
         # ★ S199：生命周期声明 × 实测活跃度 正交交叉（pub-package 自动跑；
         #   repo 型仅在单目标 --repo 指定时跑，避免常规巡检拖慢全量）
-        _do_life = (t.get('kind') == 'pub-package') or bool(a.repo)
+        #   AI项目板块（2026-11-14）：**跳过**——自报探针只认 TVBox 生态的
+        #   mark.json/version 约定；对 AI 仓库，`version` 是代码版本文件而非
+        #   作者生命周期自报，实测 Memory-Palace 被误判成「自报正式→风险」
+        #   （首跑真阳性误报）。AI 项目生命周期适用性未验证前不启用。
+        _do_life = (((t.get('kind') == 'pub-package') or bool(a.repo))
+                    and (t.get('类目') or 'TVBox上游') != 'AI项目')
         if _do_life:
             _decl = scan_lifecycle_decl(t)
             _cross = cross_lifecycle(_decl, t.get('活跃度'))
@@ -3036,11 +3058,20 @@ def cmd_monitor_status(a):
         print('ℹ️ 尚无监测目标。用 `tvbox probe monitor add --url <repo_url>` 登记。')
         return
     print(f'📡 上游仓库监测台（{len(targets)} 个目标）\n')
+    # AI项目板块（2026-11-14）：类目分布总览——只统计展示，不改判据；
+    # 旧目标无「类目」字段一律按 TVBox上游 计（缺省语义，不回填不改账）。
+    _cats = {}
+    for t in targets:
+        _c = t.get('类目') or 'TVBox上游'
+        _cats[_c] = _cats.get(_c, 0) + 1
+    if len(_cats) > 1:
+        print('  类目分布：' + ' · '.join(f'{k} {v}' for k, v in sorted(_cats.items())) + '\n')
     print(f'  {"owner/repo":<34} {"平台":<7} {"存活":<10} {"活跃度":<6} {"上次检查":<20}')
     print('  ' + '─' * 90)
     for t in targets:
         nm = _target_label(t)[:32]
-        print(f'  {nm:<34} {t.get("平台",""):<7} {t.get("存活状态","待查"):<10} '
+        _mark = '🤖' if (t.get('类目') or 'TVBox上游') == 'AI项目' else '  '
+        print(f'  {_mark}{nm:<34} {t.get("平台",""):<7} {t.get("存活状态","待查"):<10} '
               f'{t.get("活跃度","待查"):<6} {(t.get("上次检查") or "—")[:19]:<20}')
         # ★ S169：存活若靠 API 元信息判的（主页不可达），必须显形——
         #   否则「存活」是个结论，用户看不出仓库主页其实连不上（M-R113）。
@@ -3129,6 +3160,15 @@ def cmd_monitor_add(a):
     if not owner:
         print(f'❌ URL 无法解析出 owner/repo：{url}')
         sys.exit(1)
+    # AI项目板块（2026-11-14）：监测范围从 TVBox 上游扩展到 AI 项目仓库。
+    # 枚举不许凭感觉写（病14 两例教训）：合法值只有 _schema 登记的两档；
+    # 非法值拒收并给出 reason 与合法枚举，不静默降级（B-10）。
+    _CATS = ('TVBox上游', 'AI项目')
+    cat = (getattr(a, 'category', None) or 'TVBox上游').strip()
+    if cat not in _CATS:
+        print(f'❌ 类目非法：{cat}（合法枚举：{" / ".join(_CATS)}；'
+              f'要扩档先改 monitor_targets.example.json 的 _schema 登记，再改此处元组）')
+        sys.exit(1)
     # S195：id 改「平台-作者-仓库名」复合键——仓库名做 id 会让重名仓（tvbox×3、TVBox×3）
     # 在云端 id_map 里互踩，后写覆盖前写（实测 2026-10-21 批量登记暴露）。
     tid = f'{platform.lower()}-{owner}-{repo}'.lower()
@@ -3143,13 +3183,14 @@ def cmd_monitor_add(a):
     rec = {
         'id': tid, '仓库名': repo, '仓库URL': url, '作者': a.author or owner,
         '平台': platform, '分支': branch or a.branch, '配置路径': a.config_path or '',
+        '类目': cat,
         '监测周期': a.cadence, '关联底包': a.related or '',
         '存活状态': '待查', '当前commit': '', '内容指纹': '',
         '活跃度': '待查', '上次检查': '', '下次到期': '', '变更摘要': '',
     }
     targets.append(rec)
     ck, lk = save_targets(targets)
-    print(f'✅ 已登记监测目标：{repo}（{platform}·{a.cadence}）')
+    print(f'✅ 已登记监测目标：{repo}（{platform}·{a.cadence}·类目={cat}）')
     print(f'   id={tid}  URL={url}  分支={rec["分支"]}')
     _persist_note(ck, lk)
     if not a.config_path:
@@ -8850,7 +8891,7 @@ def build_parser():
     d = ms.add_parser('diff'); d.add_argument('--repo')
     fc = ms.add_parser('forecast'); fc.add_argument('--repo'); fc.add_argument('--json', action='store_true')
     ms.add_parser('status')
-    ad = ms.add_parser('add'); ad.add_argument('--url', required=True); ad.add_argument('--author'); ad.add_argument('--cadence', default='每周'); ad.add_argument('--branch', default='main'); ad.add_argument('--config-path'); ad.add_argument('--related')
+    ad = ms.add_parser('add'); ad.add_argument('--url', required=True); ad.add_argument('--author'); ad.add_argument('--cadence', default='每周'); ad.add_argument('--branch', default='main'); ad.add_argument('--config-path'); ad.add_argument('--related'); ad.add_argument('--category', default='TVBox上游', help='类目：TVBox上游 | AI项目（枚举真源=monitor_targets.example.json _schema）')
     im = ms.add_parser('import', help='从 seed JSON 批量登记监测目标（离线种子基线）')
     im.add_argument('--file', required=True, help='seed JSON：[{name, urls:[...], kind, seed_baseline}]')
     rm = ms.add_parser('remove', help='撤登记（按 id 或 URL 片段；须 --yes 确认）')
