@@ -2521,6 +2521,28 @@
    "result": "ok",
    "event_ref": "commit 1b829d9",
    "note": "F02 方法论：真跑通判据三态分层 + 识别范围=对象范围（形态+修法+实例坐标）；commit 1b829d9"
+  },
+  {
+   "ts": "2026-11-17T00:35:57",
+   "round": "archive 方法论_病15_selftest断言假红与rc假绿双形态.md @bbf03e9",
+   "artifact": "方法论_病15_selftest断言假红与rc假绿双形态.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "k866WpHQlIHxB5lUWQVNYl",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit bbf03e9",
+   "note": "病15 selftest断言假红+rc假绿双形态；形态/修法/实例坐标；commit bbf03e9"
+  },
+  {
+   "ts": "2026-11-17T00:36:06",
+   "round": "archive 子项目演进_换机司check-env落地与冷启动补全.md @bbf03e9",
+   "artifact": "子项目演进_换机司check-env落地与冷启动补全.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "b1Yfbpm5Ka7xn86g4uM0JQ",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit bbf03e9",
+   "note": "换机司check-env落地+冷启动补全；逐版交付说明；commit bbf03e9"
   }
  ]
 }

@@ -5,8 +5,8 @@
 
 ## 1. clone 失败 / 卡住 / 权限拒绝
 
-- **先查**：`BOOTSTRAP_REPO` 环境变量是否设置且可达；私有仓是否配了凭据（凭据只走环境变量，不落盘）。
-- **怎么办**：确认 URL 与分支；用 `bootstrap.sh <repo> full <dir>` 正门重跑，它幂等。
+- **先查**：传给 `bootstrap.sh` 的**第 1 个位置参数**（`<repo_url_or_path>`）是否正确且可达；私有仓是否配了凭据（凭据只从 `$GITHUB_TOKEN` / `gh auth token` 读，不落盘）。脚本里**没有** `BOOTSTRAP_REPO` 环境变量，旧文档写法已废（2026-11-16 修断链）。
+- **怎么办**：确认 URL 与分支；用 `bash bootstrap.sh <repo> full <dir>` 正门重跑，它幂等；不确定参数就先看 `bash bootstrap.sh --help`。
 - **别做**：不要把 token 写进脚本或命令行历史——零明文凭证（B-05）。
 
 ## 2. 稀疏检出后少了目录 / 技能起不来

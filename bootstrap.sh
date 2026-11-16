@@ -157,8 +157,12 @@ scrub_remote() {
 [ -n "${TOKEN_URL:-}" ] && trap scrub_remote EXIT
 
 # ────────────────────── 稀疏检出（MANIFEST 为单一真源）──────────────────────
-FALLBACK_FULL=( "MANIFEST.json" "install.sh" "verify.sh" "README.md" "TEST.md" "手机指令.md" "通用层/" "能力层/" "docs/" )
-FALLBACK_LITE=( "MANIFEST.json" "install.sh" "verify.sh" "通用层/rules/" "通用层/skills/" "能力层/tvbox/skills/probe-hub/" "能力层/tvbox/skills/tvbox-core/" "能力层/tvbox/scripts/" )
+# 回退清单须与 MANIFEST.json 的 sync_shape 对齐（2026-11-16 修）：
+# 旧 full 仅 9 项、lite 仅 8 项，缺 verify/ / secret_scan.py / hooks/ 等检出闸必需件——
+# MANIFEST 不可读时回退清单缺治理文件 → 步骤4 的 verify.sh --repo-only 必崩（假失败）。
+# 现按 sync_shape.full 17 项 / lite 13 项逐项对齐；改 MANIFEST 时两处同步（M5 变更连带）。
+FALLBACK_FULL=( "MANIFEST.json" "install.sh" "bootstrap.sh" "verify.sh" "VERSION" "secret_scan.py" "export_skill_cards.py" "README.md" "TEST.md" "手机指令.md" "通用层/" "能力层/" "docs/" "verify/" "hooks/git_push_safe.sh" "hooks/pre-commit" ".github/workflows/verify.yml" )
+FALLBACK_LITE=( "MANIFEST.json" "install.sh" "bootstrap.sh" "verify.sh" "VERSION" "secret_scan.py" "通用层/rules/" "通用层/skills/" "能力层/tvbox/skills/probe-hub/" "能力层/tvbox/skills/tvbox-core/" "能力层/tvbox/scripts/" "verify/" "hooks/git_push_safe.sh" )
 
 apply_sparse() {
   local -a sets=() raw=()
@@ -477,7 +481,12 @@ migrate_to_0_8_10() {
   say "  · [0.8.10] 探源司 1.26.2：库坐标接回 core.SRC_DBS，两脚本三态修正"
 }
 
+# 迁移基线声明（2026-11-16 修）：MIGRATIONS 只登记「有一次性部署态动作」的版本，不是逐版流水。
+# 0.8.10 之后至当前 VERSION 的各版均为功能/判据/文档改动，无一次性迁移动作——
+# 故不捏造空 migrate 函数（那是假交付）；区间内无迁移定义 = 正常，不需告警"标记超前"。
+# 新版本若真有一次性动作（清残留/改部署布局），才在此追加函数 + 登记版本。
 MIGRATIONS=( "0.6.0" "0.7.0" "0.7.1" "0.8.0" "0.8.1" "0.8.2" "0.8.3" "0.8.4" "0.8.5" "0.8.6" "0.8.7" "0.8.8" "0.8.9" "0.8.10" )
+MIGRATION_BASELINE="0.8.10"   # 最后一个有一次性动作的版本；之后各版无需迁移
 
 say "[步骤4] 版本迁移（已部署 v$DEPLOYED_VER → 目标 v${TARGET_VER:-未知}）..."
 if [ -z "$TARGET_VER" ]; then
@@ -499,7 +508,13 @@ else
     printf '%s\n' "$TARGET_VER" > "$STATE_DIR/version"
     say "  ✔ 迁移完成，已部署标记更新为 v$TARGET_VER"
   fi
-  [ "$applied" -eq 0 ] && say "  ⚠ 无迁移被应用（目标版本未高于已部署？标记可能超前）"
+  # applied=0 在区间内本就无一次性动作时是正常的（如部署 0.8.10 → 目标 0.8.76），
+  # 不能误报"标记超前"。仅当已部署版本已越过迁移基线却仍未应用任何迁移时，才提示复核。
+  if [ "$applied" -eq 0 ] && v_ge "$DEPLOYED_VER" "$MIGRATION_BASELINE"; then
+    say "  · 区间 v$DEPLOYED_VER→v$TARGET_VER 内无一次性迁移动作（基线 $MIGRATION_BASELINE 之后均为功能/判据改动），正常"
+  elif [ "$applied" -eq 0 ]; then
+    say "  ⚠ 无迁移被应用（已部署 v$DEPLOYED_VER 低于基线 $MIGRATION_BASELINE，请复核标记）"
+  fi
 fi
 
 say "=========================================="

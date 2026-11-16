@@ -48,7 +48,7 @@ enabled: true
 
 ## 6. 安全红线
 
-9. → 见 `B-05`（绝不写明文 token / 凭证）。项目补充：`machine-bootstrap` 的 `BOOTSTRAP_REPO` 走环境变量，不落盘。
+9. → 见 `B-05`（绝不写明文 token / 凭证）。项目补充：`machine-bootstrap` 从第 1 个位置参数取仓库地址，凭据只走 `$GITHUB_TOKEN` / `gh auth token`，不落盘、不写 `.git/config`。
 
 ## 7. 输出形态
 

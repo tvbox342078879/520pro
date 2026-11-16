@@ -53,6 +53,16 @@ bash bootstrap.sh "<本生态 git 地址>" full ~/520pro --install
 ## SOP 对齐
 - 第 16 章：git 永久历史的拉取端。第 19 章：换机后校验三通道。第 16 章安全红线：零明文 token。
 
+## 换机前裸机体检（第 0 步 · 解决鸡生蛋）
+
+> 新设备上仓库还没 clone、钩子没装、`check-env.sh`/`verify.sh` 都还在仓库里——此时唯一能跑的是
+> `scripts/preflight.sh`：不依赖仓库/git 的独立单文件，纯 bash+coreutils 体检缺什么
+> （git/curl/python3/node/jq/unzip、网络、凭据），三态报告 + 修复顺序，只读、不下载、不读 token 值。
+> **分工**：preflight = 换机**前**侦察（缺件是预期发现，rc=0 表体检跑完）；
+> check-env = 换机**后**验收（缺件=不该发生，有 A/B/C 即 rc=2）。顺序：preflight 补齐 → 手机指令.md
+> 第 0 步 curl 拉 bootstrap → 换机 → check-env 验收。设计来源见 `references/cold-start-design.md`
+> （旧生态 368817 冷启动 6 步 + L0–L3 验收框架的方法论，硬编码坐标不照搬）。
+
 ## 环境自检：三态链路审计（W8-B1 吸收 MilkCode env-audit 机制）
 
 > 换机/迁移后或用户说「环境查缺 / 查漏补缺 / 环境体检 / 链路检查」时，用本节口径做一次自检。

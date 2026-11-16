@@ -1,5 +1,14 @@
 # machine-bootstrap · CHANGELOG
 
+## 换机司冷启动缺陷修复（2026-11-16；未 bump：脚本判据修复 + 设计参考，无版本交付承诺）
+- **check-env.sh 修 rc 假绿**：旧版空仓报 A3/B2 仍 rc=0（体检失败被当通过）；现 A/B/C 命中累计并 `exit 2`，真仓全绿才 rc=0。`--selftest` 7→8 例（新增「空仓 rc≠0」回归反例）。
+- **镜像对账 2→5 文件**：补 `scripts/check-env.sh`/`docs/TROUBLESHOOTING.md`/`references/trigger-samples.md`，篡改任一用户级副本必报 B；仍避开 runtime_assets 226MB 大文件。
+- **bootstrap.sh 回退清单对齐**：FALLBACK_FULL 9→17 项、LITE 8→13 项，与 MANIFEST `sync_shape` 逐项一致——MANIFEST 不可读时不再因缺 `verify/`/`secret_scan.py`/`hooks/` 让检出闸假崩。迁移表加基线声明（0.8.10 后无一次性动作，不捏造空函数）。
+- **修文档断链**：TROUBLESHOOTING.md:8 与 zh-style.md:51 的 `BOOTSTRAP_REPO`（脚本里不存在的变量）改指真实位置参数 $1。
+- **新增 `scripts/preflight.sh`**：换机第 0 步之前的裸机前置体检——不依赖仓库/git，纯 bash+coreutils 体检 git/curl/python3/node/jq/unzip + 网络 + 凭据，三态报告 + 修复顺序；只读、不下载正文、不读 token 值。`--selftest` 6/6。与 check-env 的分工见脚本头。
+- **新增 `references/cold-start-design.md`**：旧生态 368817 冷启动 6 步 + L0–L3 验收框架的方法论参考（硬编码坐标不照搬）。
+- **登记**：`verify/skill_contracts.json` required_files 加 `scripts/preflight.sh`；`手机指令.md` 第 0 步前加 preflight 前置。未 bump 版本：判据/文档修复，不制造资料库交付承诺（避免假交付闸误判）。
+
 ## v1.0.4 — 环境体检正门 scripts/check-env.sh（2026-11-16；未 bump：原则落成可执行脚本，无资料库交付承诺）
 - 新增 `scripts/check-env.sh`：把 W8-B1 吸收的两节原则落成可执行体检正门——①三态链路审计（7 工具两级验证 command -v + 真跑退出码；B 类 JAVA_HOME/git 仓库链路；A 未补全/C 假就绪）；②技能安装边界（比对 MANIFEST 登记技能 SKILL.md sha 验内置不可覆盖 + 来源白名单/精确 id/只落文件不执行三条策略自证）；③换机后版本对账（VERSION + git HEAD）。`--selftest` 正反 7 例（缺工具=A/假就绪=C/仓库不可识别=B/镜像缺失=B/sha漂移=B/正向两级过/镜像一致）全绿。
 - 镜像对账只比 SKILL.md/CHANGELOG.md 的 sha，刻意不遍历 runtime_assets（226MB）——避开 W8-D 大文件。
