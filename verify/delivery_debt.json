@@ -1975,6 +1975,57 @@
    "note": "豁免至 2027-02-04：本会话未绑定 spaceengine 资料库 connector（list/reconnect 均拒），无法经 space-hub archive 正门真补落库；显式豁免留痕，到期自动转 open 待资料库可用时真补，与前批 D-7b1769d/D-c1fd64d 同期限统一处理，不假称已还、不改成 closed 洗绿",
    "waived_by": "agent",
    "waived_ts": "2026-11-16T09:19:48"
+  },
+  {
+   "id": "D-e9d5022-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "e9d5022",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "fix(bootstrap): 换机司冷启动缺陷修复 — rc假绿/回退清单/断链/裸机体检 + 欠账真落库",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15（第17次）把「MCP connector 请求被拒」误判为「落库通道不可用」——识别范围（Agent 用的 connector）≠ 对象范围（技能脚本走",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 方法论_病15_selftest断言假红与rc假绿双形态.md @e9d5022 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-e9d5022-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "e9d5022",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "fix(bootstrap): 换机司冷启动缺陷修复 — rc假绿/回退清单/断链/裸机体检 + 欠账真落库",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 通用层/skills/machine-bootstrap/CHANGELOG.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 子项目演进_换机司check-env落地与冷启动补全.md @e9d5022 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-e9d5022-F06",
+   "flow": "F06",
+   "folder": "🧬 520进化论/05-复盘与判例",
+   "commit": "e9d5022",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "fix(bootstrap): 换机司冷启动缺陷修复 — rc假绿/回退清单/断链/裸机体检 + 欠账真落库",
+   "expect": "判例文档（含事件指针 event_ref）",
+   "evidence": "改动文件: docs/通病台账.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 判例_病15第17例_connector与auth-proxy通道混淆.md @e9d5022 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
   }
  ]
 }
