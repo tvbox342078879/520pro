@@ -67,7 +67,7 @@
 | 事实类别 | 唯一真源 | 说明 |
 |---|---|---|
 | 验收判据 | `verify.sh`（全量判据 + 分级 ✓/✗/⚠） | 判据数量与红绿是这个脚本的输出，不许手工报 |
-| 推送纪律 | `hooks/git_push_safe.sh` | 向 GitHub 推送一律走它（重试 + 远端 sha 终验），禁止裸 `git push` |
+| 推送纪律 | `hooks/git_push_safe.sh` | 向 GitHub 推送一律走它（重试 + 远端 sha 终验），禁止裸 `git push`。平台技能 github-connector 的裸 push + token 拼 URL 法在本仓不适用：无 sha 终验、token 明文违 B-05 |
 | 一行收尾入口 | `sync.sh`（仓库根） | 优化完跑 `bash sync.sh` = verify.sh → fetch 对账 → git_push_safe；不做自动提交（过 pre-commit 闸）、不强制推送、不内嵌令牌 |
 | 技能契约判据代码 | `verify/skill_contract_check.py` | 只读 contracts.json，不在脚本里写死技能清单 |
 | 口径机检 | `verify/terminology_check.py` | 编号连续 + 引用断链 + 规则↔验证器互引（CHANGELOG/测试记录不查） |

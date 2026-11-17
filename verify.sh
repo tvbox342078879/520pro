@@ -131,6 +131,15 @@ if grep -q 'timeout 300 git push "\$ssh_url"' "$TARGET/hooks/git_push_safe.sh" 2
 else
   no "git_push_safe SSH 段未限时——兜底推送可能挂死"
 fi
+# 3b) 推送纪律冲突裁决指针防删（v0.8.82 增量）：registry.md 推送纪律行必须显式声明
+#     平台技能裸 push 法在本仓不适用。两段跨层文本无法合并，只能写死优先级；删这句
+#     就退回「两套说法都像对的」——agent 读技能层可能踩裸 push（无 sha 终验+明文 token）。
+#     锚定「推送纪律」行再找「本仓不适用」，避免病15 全文件乱匹配别的"不适用"。
+if grep '推送纪律' "$TARGET/docs/registry.md" 2>/dev/null | grep -q '本仓不适用'; then
+  ok "推送纪律行含『平台技能在本仓不适用』裁决指针（跨层冲突边界写死，防删）"
+else
+  no "registry.md 推送纪律行缺『本仓不适用』裁决——平台技能裸 push 法将与本仓纪律冲突"
+fi
 # 4) git 自愈通道行为级判据：8 条同步命令调 check() 必须零命中——
 #    将来谁往 guard_cmd 加了拦 git 同步的规则，这条直接红（防传播死：旧设备被旧钩子咬时拉不了修复）
 gchk="$(python3 -c "
