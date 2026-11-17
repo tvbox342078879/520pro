@@ -52,7 +52,8 @@
           "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
           "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2",
           "not_tvbox": "与 TVBox 无关，纯通用层",
-          "version": "1.4.3"
+          "domains": "library/domains/agriculture.json —— 农业领域包（权威源+验证规则+受众适配；分类树真源仍在 learn.py::_tree_spec）",
+          "version": "1.4.4"
         },
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",

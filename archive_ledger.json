@@ -2898,6 +2898,39 @@
    "result": "ok",
    "event_ref": "commit a99ddab",
    "note": "销欠账 D-a99ddab-F02：归档落未归类先查 _match_rule 命中别急建新声明（病15识别范围窄）；一次性素材污染装副本C5镜像；形态+修法+实例坐标；commit a99ddab"
+  },
+  {
+   "ts": "2026-11-18T00:45:52",
+   "round": "archive 农业技术_农药_植物生长调节剂_农户操作卡 @9f59b07",
+   "artifact": "农业技术_农药_植物生长调节剂_农户操作卡",
+   "target": "📚 学习资料/成品",
+   "node_id": "pFp9eWMXgnyKC0CrabY3tE",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 9f59b07",
+   "note": "1 文件｜主文档 植物生长调节剂_农户操作卡.md｜整包 农业技术_农药_植物生长调节剂_农户操作卡.zip 同夹"
+  },
+  {
+   "ts": "2026-11-18T00:45:55",
+   "round": "archive 农业技术_农药_植物生长调节剂_农户操作卡.zip @9f59b07",
+   "artifact": "农业技术_农药_植物生长调节剂_农户操作卡.zip",
+   "target": "📚 学习资料/成品",
+   "node_id": "wxL1km6fTnijQPjbOPknRk",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 9f59b07",
+   "note": "整包·随主记录「农业技术_农药_植物生长调节剂_农户操作卡」"
+  },
+  {
+   "ts": "2026-11-18T00:48:29",
+   "round": "archive method_领域包架构与单一真源_调节剂P0.md @9f59b07",
+   "artifact": "method_领域包架构与单一真源_调节剂P0.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "vZFSPAUByV6gNyTzErxsFd",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 9f59b07",
+   "note": "销 learn-hub v1.4.4 交付：领域包架构（内核通用+领域可插拔）+单一真源+调节剂端到端P0；形态/修法/实例/接口缺口四段齐备"
   }
  ]
 }
