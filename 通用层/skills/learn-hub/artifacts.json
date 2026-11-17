@@ -3,7 +3,7 @@
   "artifacts": [
     {
       "name": "学习产出",
-      "match": ["learn_", "学习", "素材包"],
+      "match": ["learn_", "学习", "素材包", "资料整理"],
       "category": "文档",
       "target": "📚 学习资料/成品",
       "source": "学习工坊·产出",

@@ -2876,6 +2876,17 @@
    "result": "ok",
    "event_ref": "commit 42baff5",
    "note": "交付报告：批1 database 永久豁免+12判据、批2 C4补两处变异；test_database_exempt 12/0、契约变异9条全红、verify 0✗；event_ref 42baff5"
+  },
+  {
+   "ts": "2026-11-17T23:59:16",
+   "round": "archive 禁用农药_资料整理_20261117.md @2d025a8",
+   "artifact": "禁用农药_资料整理_20261117.md",
+   "target": "📦 产物归档/未归类",
+   "node_id": "ZJ1As1pjw4xiFDGkKZUAoN",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 2d025a8",
+   "note": "3篇微信原文素材，46条有出处0条无出处，3/3覆盖"
   }
  ]
 }
