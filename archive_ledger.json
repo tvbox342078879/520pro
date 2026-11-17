@@ -2645,6 +2645,17 @@
    "event_ref": "commit c4af400",
    "note": "大白话实测版：A全新手机/B换电脑/C新会话三场景，每步给敲什么+看到啥算过+看到啥算挂，退出码表+四层验收+失败对照+空白测试记录表",
    "moved_from": "🧬 520进化论/01-方法论"
+  },
+  {
+   "ts": "2026-11-17T12:28:12",
+   "round": "archive 方法论_归类边界靠判据根治不靠手工归位_20261117.md @64ddf7b",
+   "artifact": "方法论_归类边界靠判据根治不靠手工归位_20261117.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "vXiPmN6NlRSNUQQdldlZAI",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 64ddf7b",
+   "note": "commit 64ddf7b：归类边界靠判据根治不靠手工归位；形态+修法+实例坐标+病15误红实例"
   }
  ]
 }

@@ -2028,6 +2028,23 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-64ddf7b-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "64ddf7b",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "fix(space-hub): 归类边界消歧根治——交付物归产物归档， methodological 留主题夹",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 复发——归类判据初版把 base_blueprint 中\"引用旧措辞说明其已废弃\"的句子也判为残留，误红（同通病台账病15「判据识别范围≠对象范围」型：文本包含",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 方法论_归类边界靠判据根治不靠手工归位_20261117.md @64ddf7b @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-e9d5022-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",
