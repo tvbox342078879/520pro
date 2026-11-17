@@ -735,6 +735,15 @@ def cmd_scan(a):
             t = (n.get('title') or '').strip()
             if not nid or (inbox and nid == inbox):
                 continue
+            # ★ 遗留登记:8（2026-11-14 8 节点误挪）：database 是数据容器不是垃圾，
+            #   scan **永不投递** database 节点——即使标题含废弃KW、即使命中 dedup
+            #   同名副本。旧版靠「folder 限定」歪打正着不投，但 dedup 路径不看 kind，
+            #   同名空库副本仍会被登记进 dup_groups → 被 cmd_add 护栏二次拦；显式豁免
+            #   让意图可见、不靠副作用。一律登记候选交人工核对（空库≠垃圾）。
+            if kind == 'database':
+                nocontent.append({'id': nid, 'title': t, 'looks_like_keep': True,
+                                  'verdict': 'database 节点永久豁免（空库≠垃圾，scan 不投递）'})
+                continue
             # 重复检测（同父同名，>1）：组登记，仅告警不投
             if t and cnt.get(t, 0) > 1:
                 dup_groups.setdefault((pid, t), []).append(nid)
@@ -2216,7 +2225,15 @@ def cmd_classify(a):
     plan, skipped = {}, []
     for n in _kids(''):
         nid, title, kind = n.get('id'), (n.get('title') or '').strip(), n.get('kind')
-        if kind == 'folder' or nid == inbox_id or not nid:
+        if not nid or nid == inbox_id:
+            continue
+        # ★ 遗留登记:8（2026-11-14 8 节点误挪）：空库≠垃圾，database 是数据容器，
+        #   不是散落文档——classify 永不归纳它，即使标题命中规则也不移动。
+        #   旧版只跳 folder，database 落到下方规则匹配后被 --yes 搬走（真缺口）。
+        if kind == 'database':
+            skipped.append((nid, title, 'database 节点豁免（空库≠垃圾，classify 不归纳不移动）'))
+            continue
+        if kind == 'folder':
             continue
         if any(kw in title for kw in KW):
             skipped.append((nid, title, '命中废弃标记 → 归 scan 管辖，classify 不抢'))

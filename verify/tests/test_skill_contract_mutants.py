@@ -26,6 +26,7 @@ verify.sh 每天报「技能契约 84 项通过」，但在此之前没有任何
 
 退出码：0 全通 / 1 有用例未按预期变红
 """
+import json
 import os
 import re
 import shutil
@@ -162,6 +163,35 @@ def mut_c4(repo, install):
     return (lambda: write(p, orig)), orig
 
 
+def mut_c4_contracts(repo, install):
+    """C4 版本四处·contracts 漂移（复刻 v1.28.4→5 事故：只改 SKILL/CHANGELOG 漏 contracts）。"""
+    p = os.path.join(repo, 'verify/skill_contracts.json')
+    orig = read(p)
+    d = json.loads(orig)
+    target = d['skills']['probe-hub']
+    assert target['version'] == '1.28.9', f"contracts 版本已变（{target['version']}），变异失效"
+    target['version'] = '0.0.1'
+    new = json.dumps(d, ensure_ascii=False, indent=2)
+    write(p, new)
+    assert json.loads(read(p))['skills']['probe-hub']['version'] == '0.0.1', '变异未落盘'
+    return (lambda: write(p, orig)), orig
+
+
+def mut_c4_manifest(repo, install):
+    """C4 版本四处·MANIFEST 漂移（probe-hub 有 version 登记，改错应触发 C4 MANIFEST 硬对账）。"""
+    p = os.path.join(repo, 'MANIFEST.json')
+    orig = read(p)
+    target = '"tvbox/skills/probe-hub/": {'
+    i = orig.find(target)
+    assert i >= 0, 'MANIFEST 无 probe-hub 条目'
+    seg_end = orig.find('"version": "1.28.9"', i)
+    assert 0 <= seg_end < i + 600, 'probe-hub 段内无 version 1.28.9'
+    new = orig[:seg_end] + '"version": "0.0.1"' + orig[seg_end + len('"version": "1.28.9"'):]
+    write(p, new)
+    assert read(p) != orig, '变异未落盘'
+    return (lambda: write(p, orig)), orig
+
+
 def mut_c5(repo, install):
     """C5 镜像一致：仓内改一个字节，安装副本不动。"""
     p = os.path.join(repo, '通用层/skills/learn-hub/scripts/learn.py')
@@ -204,6 +234,10 @@ CASES = [
     ('C2 version 非法 semver', 'C2', 'space-hub', '非 semver', mut_c2),
     ('C3 删 description 负边界', 'C3', 'artifact-store', 'negative_boundary', mut_c3),
     ('C4 CHANGELOG 版本改错', 'C4', 'inspect-hub', '版本不一致', mut_c4),
+    ('C4 contracts 版本漂移（事故复刻）', 'C4', 'probe-hub', '版本不一致', mut_c4_contracts,
+     'verify/skill_contracts.json'),
+    ('C4 MANIFEST 版本漂移', 'C4', 'probe-hub', 'MANIFEST 登记', mut_c4_manifest,
+     'MANIFEST.json'),
     ('C5 仓内改动不重装', 'C5', 'learn-hub', '内容不同', mut_c5),
     ('C6 触发样本 T 组不足', 'C6', 'probe-hub', '样本分组不足', mut_c6),
     ('C7 SKILL.md 超体积上限', 'C7', 'artifact-store', '上限', mut_c7),
@@ -224,7 +258,9 @@ def main():
         print(f'    {base}')
 
         print('\n逐条变异（每条都必须变红）')
-        for desc, cid, name, keyword, fn in CASES:
+        for case in CASES:
+            desc, cid, name, keyword, fn = case[:5]
+            path_override = case[5] if len(case) > 5 else None
             undo, orig = fn(repo, install)
             try:
                 out, rc = run(repo, install)
@@ -247,7 +283,8 @@ def main():
                 undo()
                 # 还原校验：文件必须**在**且内容逐字相同。
                 # 不能写成「不存在也算过」——C1 删的正是文件，undo 失败时该分支会放行。
-                rp = _path_of(cid, name, repo)
+                rp = (os.path.join(repo, path_override) if path_override
+                      else _path_of(cid, name, repo))
                 check(f'{desc} → 已还原',
                       os.path.exists(rp) and read(rp) == orig,
                       '还原后文件缺失或内容不一致')
@@ -262,7 +299,7 @@ def main():
     if fails:
         print(f'✗ {len(fails)} 项未通过：{fails[:5]}')
         return 1
-    print(f'✓ C1-C7 判据全部可按预期变红（{len(CASES)} 条）')
+    print(f'✓ C1-C7 判据全部可按预期变红（{len(CASES)} 条，含 C4 四处版本三处漂移覆盖）')
     return 0
 
 
