@@ -2810,6 +2810,28 @@
    "result": "ok",
    "event_ref": "VERSION=0.8.82 · commit 045c480；契约机检 96✓/0✗；artifact.py self-check 6/6；变异语法坏→",
    "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-17T22:19:18",
+   "round": "archive method_对象身份判据_34f9309.md @34f9309",
+   "artifact": "method_对象身份判据_34f9309.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "Ta2ZXAERG8zeKQEY1zw66u",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 34f9309",
+   "note": "方法论：派活闸对象身份用 tool_name 白名单不用字段特征（形态+修法+实例坐标）；event_ref 34f9309"
+  },
+  {
+   "ts": "2026-11-17T22:19:27",
+   "round": "archive case_派活闸误伤记账工具_34f9309.md @34f9309",
+   "artifact": "case_派活闸误伤记账工具_34f9309.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "L6pRHELvYGZtpWSCPXOJlj",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 34f9309",
+   "note": "判例：子任务时限闸误伤 TaskCreate，含 event_ref 34f9309 + 处置四步 + 验证凭据"
   }
  ]
 }
