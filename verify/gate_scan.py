@@ -247,7 +247,10 @@ def collect_impl(root):
         dirs[:] = [d for d in dirs
                    if d not in ('.git', '__pycache__', 'node_modules', '.venv', 'archive')]
         for f in files:
-            if not (f.endswith('.py') or f.endswith('.sh') or f in ('commit-msg', 'pre-commit')):
+            # pre-push 是 git 钩子（无扩展名），与 commit-msg/pre-commit 同类——
+            # 它写 # impl: 标记必须被收集，否则标记成了没人认的死声明（病15 家族）。
+            if not (f.endswith('.py') or f.endswith('.sh')
+                    or f in ('commit-msg', 'pre-commit', 'pre-push')):
                 continue
             p = os.path.join(dirpath, f)
             try:

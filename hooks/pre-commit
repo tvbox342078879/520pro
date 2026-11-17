@@ -21,25 +21,38 @@ if ! python3 secret_scan.py --strict >>"$LOG" 2>&1; then
   exit 1
 fi
 
-echo "[pre-commit] ② 手机指令云端副本同步"
-# 只在「手机指令.md 进本次提交」时跑：其它改动不该被网络请求拖慢。
-# ★ 必须加 -c core.quotepath=false：git 默认把非 ASCII 文件名转义成 "\346\211\213\346..."，
-#   直接 grep '手机指令.md' 永远匹配不上——首版就是这样静默跳过的（还说"未改该文件"），
-#   自动同步形同虚设。这类"看起来在工作"的判据必须有正样本证明它会命中。
-if git -c core.quotepath=false diff --cached --name-only --diff-filter=ACMR | grep -qx '手机指令.md'; then
-  sout="$(python3 sync_phone_directive.py --repo "$ROOT" 2>&1)"
-  src=$?
-  printf '%s\n' "$sout" >>"$LOG"
-  if [ "$src" -eq 0 ]; then
-    git add docs/手机指令云端副本.json 2>/dev/null || true
-    # 如实转述脚本结论：NOOP（内容没变）与 SYNCED（真写了）是两回事，不合并成"已同步"
-    echo "  ✓ $(printf '%s' "$sout" | tail -1)"
-  else
-    echo "  ⚠ 同步未成功（rc=$src）；判据会因此变红并拒提交"
-    printf '%s\n' "$sout" | tail -3 | sed 's/^/   /'
+echo "[pre-commit] ② 三通道自动同步（v0.8.78：触发权不在人，每次提交都跑，幂等）"
+# ★ 原来手机云端副本只在「手机指令.md 进本次提交」时同步（条件在旧版 29 行）：
+#   改了别处却没把该文件带进同一提交，云端就静默过期——触发权压在"记得改哪个文件"上，
+#   正是"说了自动更新却没更新"的根因。改成无条件调用：sync_phone_directive.py 自带
+#   sha 的 NOOP 保护，内容没变只算一次本地 sha、不发网络请求（见该文件 do_sync）。
+#   规则文本无法自动推送到手机 App（只能手动粘），这里同步的是"云端副本 doc"这一通道。
+
+# ②a 用户级规则 + 项目薄壳副本（纯本地，快）
+if [ -f "$ROOT/hooks/sync_channels.sh" ]; then
+  chout="$(bash "$ROOT/hooks/sync_channels.sh" 2>&1)"
+  chrc=$?
+  printf '%s\n' "$chout" >>"$LOG"
+  printf '%s\n' "$chout" | sed 's/^/   /'
+  if [ "$chrc" -ne 0 ]; then
+    echo "✗ 提交被拒：本地通道副本同步失败（复制失败/回读不一致；静默放行=假闭环）"
+    exit 1
   fi
 else
-  echo "  · 本次提交未改 手机指令.md，跳过"
+  echo "  ⚠ hooks/sync_channels.sh 缺失——本地通道未同步（判据会报缺件，B-10 不静默吞）"
+fi
+
+# ②b 手机指令云端副本（sha 一致则 NOOP，不联网）
+sout="$(python3 sync_phone_directive.py --repo "$ROOT" 2>&1)"
+src=$?
+printf '%s\n' "$sout" >>"$LOG"
+if [ "$src" -eq 0 ]; then
+  git add docs/手机指令云端副本.json 2>/dev/null || true
+  # 如实转述脚本结论：NOOP（内容没变）与 SYNCED（真写了）是两回事，不合并成"已同步"
+  echo "  ✓ 云端副本：$(printf '%s' "$sout" | tail -1)"
+else
+  echo "  ⚠ 云端副本同步未成功（rc=$src）；新鲜度判据（④ verify）会变红并拒提交"
+  printf '%s\n' "$sout" | tail -3 | sed 's/^/   /'
 fi
 
 echo "[pre-commit] ③ 真源联动提醒（G6 轻量版·v0.8.28，advisory 不阻断）"

@@ -2656,6 +2656,17 @@
    "result": "ok",
    "event_ref": "commit 64ddf7b",
    "note": "commit 64ddf7b：归类边界靠判据根治不靠手工归位；形态+修法+实例坐标+病15误红实例"
+  },
+  {
+   "ts": "2026-11-17T15:07:26",
+   "round": "evolve-log 0.8.78",
+   "artifact": "版本演化台账记录 0.8.78",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.78 · VERSION=0.8.78 · 技能快照 41ccc291d47e · 技能 22 个",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
   }
  ]
 }

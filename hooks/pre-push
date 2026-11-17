@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# impl: B-05 S1   ← 防明文凭证/带病代码被推送出网
+# 520pro · 推送前本地闸（pre-push）
+# ------------------------------------------------------------------
+# 装法：bash install.sh 自动装到 <仓库根>/.git/hooks/pre-push
+# 触发：git push 时（含 hooks/git_push_safe.sh 内部的 push）自动跑
+# 绕过：git push --no-verify（能绕，但终局闸在 CI；绕过须写明理由）
+#
+# ★ 铁律：本钩子只做校验，绝不调 git_push_safe.sh、绝不执行任何 git push。
+#   git_push_safe.sh 内部会 git push → 再触发 pre-push → 无限递归。
+#   校验判据复用现成脚本（secret_scan.py / verify.sh），不重写第二套（M1）。
+# ★ 为什么需要它：pre-commit 可用 --no-verify 绕过；绕过后的代码若被 push，
+#   本地再无闸，只有远端 CI 拦。pre-push 把终局闸前移到本地最后一次机会。
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 1
+LOG="${TMPDIR:-/tmp}/_520_prepush.log"
+: >"$LOG"
+
+echo "[pre-push] ① 密钥/卫生扫描（strict，防明文凭证出网 B-05）"
+if ! python3 "$ROOT/secret_scan.py" --strict >>"$LOG" 2>&1; then
+  echo "✗ 推送被拒：密钥/卫生扫描未通过"
+  grep -E '✗|->' "$LOG" | head -6 | sed 's/^/   /'
+  echo "   完整日志：$LOG"
+  echo "   处置：删掉明文凭证后重新提交（确属误报再改判据）"
+  exit 1
+fi
+
+echo "[pre-push] ② 仓库自检（--repo-only，防 --no-verify 绕过 commit 闸的带病代码出网）"
+if ! bash "$ROOT/verify.sh" --repo-only >>"$LOG" 2>&1; then
+  echo "✗ 推送被拒：仓库自检未通过"
+  grep -E '  ✗' "$LOG" | head -8 | sed 's/^/   /'
+  echo "   完整日志：$LOG"
+  echo "   处置：逐条修红项；不许 --no-verify 硬推"
+  exit 1
+fi
+
+echo "✓ pre-push 通过（密钥干净 + 仓库自洽，可推送）"
+exit 0

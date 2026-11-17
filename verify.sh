@@ -104,6 +104,19 @@ else
   no "hooks/git_push_safe.sh 缺失或语法错误——推送纪律没有执行体"
 fi
 
+# ★ v0.8.78：pre-push 本地闸——commit 可 --no-verify 绕过，push 前必须有最后一道本地校验。
+#   只验"源在位 + 语法过 + 装门白名单含它"；落点(.git/hooks/pre-push)由 install.sh 负责装，
+#   这里不验落点（--repo-only/换机检出还没装，验了是环境噪声不是仓库问题，B-02 不折叠）。
+if [ -f "$TARGET/hooks/pre-push" ] && bash -n "$TARGET/hooks/pre-push" 2>/dev/null; then
+  if grep -qE 'for h in .*pre-push' "$TARGET/install.sh" 2>/dev/null; then
+    ok "hooks/pre-push（push 前本地闸在位 + 语法过 + install.sh 装门接线）"
+  else
+    no "hooks/pre-push 在位，但 install.sh 装门白名单没含它——钩子不会真装上"
+  fi
+else
+  no "hooks/pre-push 缺失或语法错误——push 前无本地闸（仅 CI 兜底）"
+fi
+
 # ★ v0.8.29：一行收尾入口——存在 + 语法过即可（不发起网络动作，推送本体由
 #   git_push_safe.sh 判据与真实调用覆盖）
 if [ -f "$TARGET/sync.sh" ] && bash -n "$TARGET/sync.sh" 2>/dev/null; then
@@ -837,7 +850,8 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_build_rail test_classify_routing test_linkage_notice test_secret_scan_size test_trigger_frontload \
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
-         test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard; do
+         test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
+         test_pre_push test_sync_channels; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"
