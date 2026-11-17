@@ -2766,6 +2766,17 @@
    "result": "ok",
    "event_ref": "commit 2ab4749",
    "note": "F11 流+提交时预检机制化：每轮产物区必有报告，缺则 commit 被拒；只落资料库不进手机产物区；正反实证 rc=3/rc=0"
+  },
+  {
+   "ts": "2026-11-17T18:48:23",
+   "round": "archive judgement_核销凭据时序死锁_v0.8.81修.md @3e457d1",
+   "artifact": "judgement_核销凭据时序死锁_v0.8.81修.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "gPQ1CljN8M5dubR9slexgQ",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 3e457d1",
+   "note": "判例：核销凭据时序死锁——先落物后成事只能用落物时已存在标识；F11 close_match=version + target_version 全流落值 + selftest 同源；event_ref 3e457d1"
   }
  ]
 }

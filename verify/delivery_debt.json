@@ -2045,6 +2045,23 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-3e457d1-F11",
+   "flow": "F11",
+   "folder": "📦 产物归档/文档",
+   "commit": "3e457d1",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "feat(ledger): v0.8.81 每轮交付报告机制化——F11 账本流 + 提交时预检",
+   "expect": "交付报告文档（标题含版本号，回执 event_ref 指回本 commit 短 sha 供机器核销）",
+   "evidence": "VERSION 0.8.80 → 0.8.81",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 交付报告_交付报告机制化_v0.8.81_20261117.md @2ab4749 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-629b3eb-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",

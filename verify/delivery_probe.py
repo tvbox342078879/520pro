@@ -158,7 +158,11 @@ def probe_commit(commit, flows, ledger_rows):
             'id': f'D-{commit.get("short", "")[:7]}-{f["id"]}',
             'flow': f['id'], 'folder': f['folder'],
             'commit': commit.get('short', ''), 'commit_date': commit.get('date', ''),
-            'target_version': (commit.get('version') or (None, None))[1] if f['id'] == 'F09' else '',
+            # v0.8.81 修：原只 F09 写当版版本 → F11 账 target_version 空，核销重判反推 version=(None,None)
+            # 退化成「回执须含本 commit sha」→ 提交前落报告永远销不上（D-3e457d1-F11 实测）。
+            # 凡 version_bump 信号流都必须落当版版本，核销凭据才成立。
+            'target_version': ((commit.get('version') or (None, None))[1] or '')
+                              if (f.get('signal') or {}).get('type') == 'version_bump' else '',
             'title': (commit.get('msg', '').splitlines() or [''])[0][:80],
             'expect': f.get('action', ''), 'evidence': ev[:160],
             'status': 'open', 'age_commits': 0,
@@ -426,9 +430,15 @@ def scan(limit=None, quiet=False):
             continue
         fl = next((x for x in flows if x.get('id') == d['flow']), None) \
             or {'id': d['flow'], 'folder': d['folder']}
+        # target_version 空（历史账）时从 evidence「VERSION a → b」取 b：判据修正后旧账能自动还，
+        # 不必人工 waive/删账（机器核销优先于人手改状态）
+        tv = d.get('target_version') or ''
+        if not tv and fl.get('close_match') == 'version':
+            m = re.search(r'VERSION\s*[\d.]+\s*→\s*([\d.]+)', d.get('evidence') or '')
+            tv = m.group(1) if m else ''
         fake = {'short': d['commit'], 'date': d.get('commit_date', ''),
                 'msg': d.get('evidence', ''),
-                'version': (None, d.get('target_version') or None)}
+                'version': (None, tv or None)}
         hit = _closed(d['folder'], fl, fake, ledger_rows)
         if hit:
             d['status'] = 'closed'
@@ -546,17 +556,11 @@ def precheck():
 
 def selftest():
     """正反向四用例（纯函数，不碰真实数据）。"""
-    flows = [
-        {'id': 'F02', 'kind': 'folder', 'folder': '🧬 520进化论/01-方法论', 'probe': 'debt',
-         'action': '方法论条目', 'signal': {'type': 'lesson', 'match': 'nonempty'}},
-        {'id': 'F09', 'kind': 'ledger', 'folder': '🧬 520进化论/版本演化台账', 'probe': 'debt',
-         'action': '版本台账记录', 'signal': {'type': 'version_bump'}},
-        {'id': 'F06', 'kind': 'folder', 'folder': '🧬 520进化论/05-复盘与判例', 'probe': 'debt',
-         'action': '判例', 'signal': {'type': 'diff_paths', 'glob': 'docs/通病台账.md'}},
-        # v0.8.81（用户 2026-11-17 要求机制化）：每笔 bump＝一次交付事件，必须有交付报告落库
-        {'id': 'F11', 'kind': 'folder', 'folder': '📦 产物归档/文档', 'probe': 'debt',
-         'action': '交付报告', 'signal': {'type': 'version_bump'}},
-    ]
+    # 与真源同源（病15 第19例同族：判据环境里的对象清单手写必脱钩）：
+    # 旧实现手写一份 flows 副本，F11 补 close_match 后副本没跟上 → 正向用例假红。
+    # 改为直读 content_sources.json，真源改流 selftest 自动跟上，副本不再存在。
+    flows = json.load(open(os.path.join(REPO, 'verify', 'content_sources.json'),
+                           encoding='utf-8'))['flows']
     ok = True
 
     def case(name, commit, ledger, want_debts, want_adv=0):
@@ -611,20 +615,22 @@ def selftest():
                      'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
          [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
            'note': '记了 0.8.67'}], 1)
-    print('── F11 反向：bump + 台账 + 交付报告回执（含本 commit sha）→ 零欠账')
+    print('── F11 反向：bump + 台账 + 交付报告回执（含当版版本号）→ 零欠账')
+    # 核销凭据＝当版版本号（close_match=version），非本 commit sha：
+    # F11 要求提交前落报告，彼时 sha 尚未生成，用 sha 会成鸡生蛋死锁（D-3e457d1-F11 实测）。
     case('台账报告双齐', {'short': 'jjj0000', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
                      'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
          [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
            'note': '记了 0.8.67'},
           {'result': 'ok', 'target': '📦 产物归档/文档', 'ts': '2026-11-15T10:05:00',
-           'event_ref': 'commit jjj0000'}], 0)
-    print('── F11 反向：报告回执不指向本 commit → 仍欠账（他人报告不核销）')
+           'event_ref': '交付报告 v0.8.67'}], 0)
+    print('── F11 反向：报告版本不对（上一版）→ 仍欠账（他人/旧报告不核销）')
     case('他人报告', {'short': 'kkk1111', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
                    'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
          [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
            'note': '记了 0.8.67'},
           {'result': 'ok', 'target': '📦 产物归档/文档', 'ts': '2026-11-15T10:05:00',
-           'event_ref': 'commit zzz9999'}], 1)
+           'event_ref': '交付报告 v0.8.66'}], 1)
 
     # ── F11 交付报告预检（纯函数两例，绕开 probe_commit 串扰）
     print('── F11 预检：账本回执须含当版版本号')

@@ -7,7 +7,7 @@
   "probe": "debt=该产未产写欠账 / advisory=只提示不记账（需语义判断）/ online=离线不可判记 unknown / derived=派生流不独立探测",
   "close_by": "核销：ledger 中 result=ok 且 target 以 folder 开头、ts>=commit 日期"
  },
- "version": "2.1.0",
+ "version": "2.1.1",
  "updated": "2026-11-17",
  "probe": {
   "window_commits": 40,
@@ -168,9 +168,10 @@
     "type": "version_bump"
    },
    "producer": "会话收口时写交付报告（目标/交付物清单/实证/三态边界/遗留三齐）经 space-hub archive 落 📦 产物归档/文档",
-   "action": "交付报告文档（标题含版本号，回执 event_ref 指回本 commit 短 sha 供机器核销）",
+   "action": "交付报告文档（标题含当版版本号；核销凭据＝回执含当版版本号，与 --precheck 同一判据）",
    "probe": "debt",
-   "note": "v2.1.0（2026-11-17）：用户三次遭遇「收口了但产物区没报告」——把交付报告从人的习惯升级为账本制流，缺则 verify 红"
+   "note": "v2.1.0（2026-11-17）：用户三次遭遇「收口了但产物区没报告」——把交付报告从人的习惯升级为账本制流，缺则 verify 红｜v2.1.1（2026-11-17 修鸡生蛋死锁）：原缺 close_match 走「回执须含本 commit sha」分支——但 F11 要求提交前落报告，彼时本笔 sha 尚未生成（报告回执只能写当时 HEAD），提交后该账永远核销不上（实测 D-3e457d1-F11）。改为 close_match=version：核销凭据＝当版版本号，与 precheck 的 _ledger_has_report 同源，两处判据不再脱钩（病15 家族）。",
+   "close_match": "version"
   }
  ]
 }
