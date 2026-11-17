@@ -117,12 +117,14 @@ if [ -f "$TARGET/docs/防卡死检查单.md" ]; then
 else
   no "docs/防卡死检查单.md 缺失——防卡死口径无真源，闸将成无判据散件"
 fi
-# 2) 等待闸在位+语法过（会话层防 block=true 轮询死等）
-if [ -f "$TARGET/hooks/task_wait_guard.py" ] && python3 -m py_compile "$TARGET/hooks/task_wait_guard.py" 2>/dev/null; then
-  ok "hooks/task_wait_guard.py（等待闸在位，语法过——同任务第3次阻塞等待 deny）"
-else
-  no "hooks/task_wait_guard.py 缺失或语法错误——会话层等待死无执行闸"
-fi
+# 2) 等待闸在位+语法过（会话层防 block=true 轮询死等）；v0.8.80 连带子任务时限闸
+for gw in task_wait_guard agent_turns_guard; do
+  if [ -f "$TARGET/hooks/$gw.py" ] && python3 -m py_compile "$TARGET/hooks/$gw.py" 2>/dev/null; then
+    ok "hooks/$gw.py（防卡死闸在位，语法过）"
+  else
+    no "hooks/$gw.py 缺失或语法错误——防卡死执行闸缺件"
+  fi
+done
 # 3) SSH 兜底段限时——兜底不是法外之地
 if grep -q 'timeout 300 git push "\$ssh_url"' "$TARGET/hooks/git_push_safe.sh" 2>/dev/null; then
   ok "git_push_safe SSH 段 timeout 300（兜底段限时在位）"

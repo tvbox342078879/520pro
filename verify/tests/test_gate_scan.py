@@ -49,19 +49,28 @@ def w(path, text):
 # ── ① 正向：真源仓库三 gate 全绿 ──
 # 用合成 settings 而非宿主机那份：判据本身要能跨机器复现，
 # 不能让「本机装没装钩子」决定测试红绿（那测的是环境，不是判据）。
+# ★ v0.8.80 机制级修（病15 第 19 例升级为模式）：fixture 条目不再手写——
+#   直接用 gate_scan.declared_events 从 install.sh 提取「脚本→事件」声明自动生成注册，
+#   与 hook-registered 同一条提取逻辑。真源每加一个钩子，fixture 自动跟上，
+#   彻底断「静态清单随真源扩展脱钩 → 声明一致用例恒红」这一类红。
 def _fake_settings(path, drop=None, hollow=None):
-    cfg = {'hooks': {
-        'PreToolUse': [{'matcher': 'Bash',
-                        'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]},
-                       {'matcher': 'Write|Edit',
-                        'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]},
-                       # v0.8.79：等待闸注册（install.sh 新声明 TaskOutput matcher，fixture 必须同步，
-                       # 否则「声明挂 TaskOutput 而合成 settings 没有」恒红——fixture 落后于真源）
-                       {'matcher': 'TaskOutput',
-                        'hooks': [{'type': 'command', 'command': 'python3 /x/task_wait_guard.py'}]}],
-        'UserPromptSubmit': [{'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]}],
-        'Stop': [{'hooks': [{'type': 'command', 'command': 'python3 /x/stop_guard.py'}]}],
-    }}
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(ROOT, 'verify'))
+    from gate_scan import declared_events
+    decl = declared_events(open(os.path.join(ROOT, 'install.sh'),
+                                encoding='utf-8').read())
+    cfg = {'hooks': {}}
+    for script, events in decl.items():
+        entry = {'matcher': 'Bash|Write|Edit|TaskOutput|Agent|Task',
+                 'hooks': [{'type': 'command', 'command': 'python3 /x/' + script}]}
+        for ev in events:
+            cfg['hooks'].setdefault(ev, []).append(entry)
+    # next_anchor 挂两条 matcher（Bash 与 Write|Edit），声明提取只到事件级——补齐
+    pre = cfg['hooks'].get('PreToolUse', [])
+    for e in list(pre):
+        if 'next_anchor.py' in e['hooks'][0]['command']:
+            pre.append(dict(e))
+            break
     if drop:
         cfg['hooks'].pop(drop, None)
     if hollow:

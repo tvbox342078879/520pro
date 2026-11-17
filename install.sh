@@ -384,14 +384,16 @@ if [ "$DRY" = 0 ] && [ -f "$ROOT/hooks/next_anchor.py" ] && [ "$SCOPE" != "capab
   # stop_guard.py（v0.8.56 起）独立挂 Stop 事件，B-13 完成态凭落点。
   # task_wait_guard.py（v0.8.79 起）挂 PreToolUse·TaskOutput，防会话 block=true 轮询死等
   #（真源 docs/防卡死检查单.md；fail-open 设计，闸故障不锁会话）。
+  # agent_turns_guard.py（v0.8.80 起）挂 PreToolUse·Agent|Task，派子代理强制带 max_turns。
   if mkdir -p "$HOME/.codebuddy/hooks" 2>/dev/null \
      && cp "$ROOT/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/next_anchor.py" \
      && cp "$ROOT/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/guard_cmd.py" \
      && cp "$ROOT/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/stop_guard.py" \
      && cp "$ROOT/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" \
-     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py"; then
-    python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" <<'PY' 2>/dev/null \
-      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）——新会话生效" \
+     && cp "$ROOT/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" \
+     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py"; then
+    python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" <<'PY' 2>/dev/null \
+      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）、agent_turns_guard.py（子任务时限闸：派 Agent 缺 max_turns deny）——新会话生效" \
       || echo " ⚠ 锚点钩子脚本已复制，但 settings.json 合并失败——手动在 hooks.UserPromptSubmit 加 command"
 import json, sys
 p, script = sys.argv[1], sys.argv[2]
@@ -442,6 +444,7 @@ if stop_script:
         json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 
 # 等待闸：PreToolUse·TaskOutput（v0.8.79 防卡死，真源 docs/防卡死检查单.md）
+# 子任务时限闸：PreToolUse·Agent|Task（v0.8.80 同上）
 # 独立 matcher 注册（同 B-05 先例：matcher 不同即两条独立注册，不合并防老机器迁移断裂）
 task_guard = sys.argv[4] if len(sys.argv) > 4 else ''
 if task_guard:
@@ -451,6 +454,17 @@ if task_guard:
         d['hooks']['PreToolUse'].append({
             'matcher': 'TaskOutput',
             'hooks': [{'type': 'command', 'command': 'python3 ' + task_guard, 'timeout': 10}],
+        })
+        json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+
+agent_guard = sys.argv[5] if len(sys.argv) > 5 else ''
+if agent_guard:
+    d.setdefault('hooks', {}).setdefault('PreToolUse', [])
+    cmds5 = [h.get('command', '') for e in d['hooks']['PreToolUse'] for h in e.get('hooks', [])]
+    if not any('agent_turns_guard.py' in c for c in cmds5):
+        d['hooks']['PreToolUse'].append({
+            'matcher': 'Agent|Task',
+            'hooks': [{'type': 'command', 'command': 'python3 ' + agent_guard, 'timeout': 10}],
         })
         json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 sys.exit(0)

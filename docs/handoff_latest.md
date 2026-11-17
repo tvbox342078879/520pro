@@ -6,7 +6,9 @@
 
 ## 1. 当前主线（一句话）
 
-**v0.8.79 防卡死闭环（用户 2026-11-17「开工」= 批准落地两案合并的防卡死方案：防卡死盘点 + flow_gate 自锁复盘）已收口**：真源 `docs/防卡死检查单.md`（四类死法×既有防线对账、设计总原则"任何锁必须自带不依赖外部条件的自救出口——逃生口在被锁实体可达层、放闸门最上游、死状态自动过期"、装闸 7 条检查单、硬判据落点表）；执行闸 `hooks/task_wait_guard.py` 挂 PreToolUse·TaskOutput（同任务第 3 次 block=true deny 并提示改非阻塞；非阻塞恒放行且清账；计数 >1h 化石过期；fail-open 闸故障不锁会话）；verify 四硬判据（检查单真源在位 / 等待闸在位+语法 / git_push_safe SSH 段 timeout 300 兜底段限时 / git 自愈通道行为级判据——pull/fetch/checkout/restore/switch/merge/rebase/clone 八条同步命令调 guard_cmd.check() 零命中，防将来加闸误伤自救通道）+ verify.sh 顶部 exec timeout 900 自包裹总时限（环境变量防嵌套）。实证：task_wait_guard selftest 7/7、test_task_wait_guard 8/8（含 DENY_AT 3→2 与 EXPIRE_SEC 失效两路元变异）、test_gate_scan fixture 同步 TaskOutput 注册后 37/0、全量 verify 0✗（2 不适用为既有离线项）、install.sh 幂等注册已落用户级 settings.json（实读回证 TaskOutput matcher 在位）。**三态**：等待闸运行时是否真触发依赖平台对非 Bash 工具的 PreToolUse 支持——配置确定、运行未测（首次真实阻塞等待时看 deny 提示即实证）。**上游两案**：0.8.78（pre-push 闸 + 三通道提交自动同步）已收口，远端 main=28e4e14 实证一致。**下一步**：推 git → 远端 main=HEAD 收口。
+**v0.8.80 防卡死边界补完（用户 2026-11-17「补」= 补上 0.8.79 报告的两处诚实边界）已收口**：① **等待闸运行时实证**——对真实后台任务连发 3 次 block=true，第 3 次被 PreToolUse·TaskOutput 真拦，deny 提示原文弹出（"防卡死闸（等待死）：任务 xkvnNu 已连续 3 次…"），事后 block=false 清账、probe 回读 hit 空——task_wait_guard 从「运行未测」翻成「运行时已证」。② **子任务时限闸 agent_turns_guard.py**——挂 PreToolUse·Agent|Task：派 Agent/Task 缺 max_turns 即 deny 并提示补参（探查型 10/施工型 30）；对象范围限定（病15 预防）只校验含 prompt/description 的派活调用，Bash 形态 tool_input 恒放行；fail-open、无状态；selftest 8/8（含合规路径被改死的元变异）。③ **fixture 脱钩断根（病15 第 19 例升格为模式）**——install.sh 再加新钩子后 test_gate_scan fixture 第三次恒红，手工同步不是机制；改 `_fake_settings` 用 `gate_scan.declared_events` 从 install.sh 声明**自动生成**注册清单，与 hook-registered 同一条提取逻辑，真源加钩子 fixture 自动跟上。install.sh 已注册 Agent|Task matcher（settings.json 实读回证）。真源 `docs/防卡死检查单.md` 同步：等待死行、判据落点表、三态边界翻转。全量 verify 0✗（2 不适用既有离线项）。**下一步**：推 git → 远端 main=HEAD 收口（三件落库照走 F02/F06/F09）。
+
+**v0.8.79 防卡死闭环已收口**（远端 main=4dc26e0 实证）：真源 docs/防卡死检查单.md + 等待闸 task_wait_guard.py + 四硬判据（SSH 段 timeout 300 / git 自愈通道行为级 / verify 总时限 900s）+ 三件落库核销（方法论 YH5X7TgeyItyjtiVr7Uzmv、flow_gate 判例 sKNt80hPSQU1Gh9VHdxM11、版本台账 E0GETdD3JaFiEQg6y0MqlO）。
 
 **换机司 machine-bootstrap 环境体检正门（W8-B1，v0.8.77 收口）已推远端**：`通用层/skills/machine-bootstrap/scripts/check-env.sh` 三态体检+安装边界+版本对账，selftest 7/7，契约机检过。
 
@@ -48,7 +50,7 @@
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.79
+- 版本：0.8.80
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
