@@ -52,7 +52,13 @@ def w(path, text):
 def _fake_settings(path, drop=None, hollow=None):
     cfg = {'hooks': {
         'PreToolUse': [{'matcher': 'Bash',
-                        'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]}],
+                        'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]},
+                       {'matcher': 'Write|Edit',
+                        'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]},
+                       # v0.8.79：等待闸注册（install.sh 新声明 TaskOutput matcher，fixture 必须同步，
+                       # 否则「声明挂 TaskOutput 而合成 settings 没有」恒红——fixture 落后于真源）
+                       {'matcher': 'TaskOutput',
+                        'hooks': [{'type': 'command', 'command': 'python3 /x/task_wait_guard.py'}]}],
         'UserPromptSubmit': [{'hooks': [{'type': 'command', 'command': 'python3 /x/next_anchor.py'}]}],
         'Stop': [{'hooks': [{'type': 'command', 'command': 'python3 /x/stop_guard.py'}]}],
     }}

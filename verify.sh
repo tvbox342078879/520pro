@@ -2,6 +2,12 @@
 # 520pro 安装自检：检查关键落点是否存在，并做脚本语法/可执行性冒烟
 # 用法：bash verify.sh [--target <项目目录>]
 set -uo pipefail
+# ★ v0.8.79（防卡死检查单 §四）：verify 自身总时限——判据链慢可以，死不行。
+#   防嵌套：经环境变量标记，只包裹一层；pre-commit/pre-push/CI 调本脚本同样受保护。
+#   超时 rc=124 非零，闸照样拦——不会出现"verify 卡死→钩子卡死→会话卡死"连锁。
+if [ -z "${_520_VERIFY_TL:-}" ] && command -v timeout >/dev/null 2>&1; then
+  exec env _520_VERIFY_TL=1 timeout 900 bash "$0" "$@"
+fi
 # ★ H2（v0.8.20）：参数可任意顺序（--target 与 --selftest 能并存，CI 会同时给）
 TARGET="$(pwd)"
 SELFTEST=0
@@ -102,6 +108,41 @@ if [ -f "$TARGET/hooks/git_push_safe.sh" ] && bash -n "$TARGET/hooks/git_push_sa
   ok "hooks/git_push_safe.sh（推送安全包装在位，语法过）"
 else
   no "hooks/git_push_safe.sh 缺失或语法错误——推送纪律没有执行体"
+fi
+
+# ★ v0.8.79（防卡死检查单，真源 docs/防卡死检查单.md）：四条硬判据
+# 1) 检查单真源在位——防检查单成死文件
+if [ -f "$TARGET/docs/防卡死检查单.md" ]; then
+  ok "docs/防卡死检查单.md（防卡死口径真源在位）"
+else
+  no "docs/防卡死检查单.md 缺失——防卡死口径无真源，闸将成无判据散件"
+fi
+# 2) 等待闸在位+语法过（会话层防 block=true 轮询死等）
+if [ -f "$TARGET/hooks/task_wait_guard.py" ] && python3 -m py_compile "$TARGET/hooks/task_wait_guard.py" 2>/dev/null; then
+  ok "hooks/task_wait_guard.py（等待闸在位，语法过——同任务第3次阻塞等待 deny）"
+else
+  no "hooks/task_wait_guard.py 缺失或语法错误——会话层等待死无执行闸"
+fi
+# 3) SSH 兜底段限时——兜底不是法外之地
+if grep -q 'timeout 300 git push "\$ssh_url"' "$TARGET/hooks/git_push_safe.sh" 2>/dev/null; then
+  ok "git_push_safe SSH 段 timeout 300（兜底段限时在位）"
+else
+  no "git_push_safe SSH 段未限时——兜底推送可能挂死"
+fi
+# 4) git 自愈通道行为级判据：8 条同步命令调 check() 必须零命中——
+#    将来谁往 guard_cmd 加了拦 git 同步的规则，这条直接红（防传播死：旧设备被旧钩子咬时拉不了修复）
+gchk="$(python3 -c "
+import sys
+sys.path.insert(0, '$TARGET/hooks')
+import guard_cmd as g
+cmds=['git pull','git fetch origin','git checkout main','git restore .','git switch main','git merge origin/main','git rebase main','git clone https://github.com/x/y.git']
+hits=[c for c in cmds if g.check(c)]
+print('命中:' + ','.join(hits) if hits else '')
+" 2>&1)"
+if [ -z "$gchk" ]; then
+  ok "git 自愈通道恒通（pull/fetch/checkout/restore/switch/merge/rebase/clone 零命中 G 闸，行为级实证）"
+else
+  no "git 自愈通道被 G 闸拦：$gchk——传播死风险，闸锁死设备将拉不到修复"
 fi
 
 # ★ v0.8.78：pre-push 本地闸——commit 可 --no-verify 绕过，push 前必须有最后一道本地校验。
@@ -851,7 +892,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
-         test_pre_push test_sync_channels; do
+         test_pre_push test_sync_channels test_task_wait_guard; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

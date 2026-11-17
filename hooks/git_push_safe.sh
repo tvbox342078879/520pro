@@ -172,7 +172,8 @@ main() {
   path_part="$(git remote get-url "$REMOTE" | sed -E 's#https://github\.com/##; s#\.git$##')"
   ssh_url="git@ssh.github.com:${path_part}.git"
   # ServerAliveInterval=30：SSH 协议内加密心跳，防 NAT/防火墙掐空闲连接（业内共识值）
-  if GIT_SSH_COMMAND="ssh -p 443 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ServerAliveCountMax=3" git push "$ssh_url" "$BRANCH" 2>&1 | tail -3; then
+  # timeout 300（v0.8.79 防卡死）：SSH 兜底段同样限时——兜底不是法外之地，挂死即失败走终验
+  if GIT_SSH_COMMAND="ssh -p 443 -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ServerAliveCountMax=3" timeout 300 git push "$ssh_url" "$BRANCH" 2>&1 | tail -3; then
     if verify_pushed; then
       log "✓ SSH over 443 推送成功并经 rev-parse 确认"
       exit 0
