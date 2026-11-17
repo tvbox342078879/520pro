@@ -2843,6 +2843,17 @@
    "result": "ok",
    "event_ref": "commit 9d8f4cd",
    "note": "交付报告：子任务时限闸误伤 TaskCreate 修复；selftest 15/15、verify 0✗、F02/F06 真补核销；event_ref 34f9309/9d8f4cd"
+  },
+  {
+   "ts": "2026-11-17T22:44:08",
+   "round": "archive 交付报告_推送纪律跨层冲突裁决_20261117.md @bd801d5",
+   "artifact": "交付报告_推送纪律跨层冲突裁决_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "oR2OYK4ynMgETowzFS1Y7q",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit bd801d5",
+   "note": "交付报告：跨层冲突写死优先级+防删判据，正反向 rc=0→2→0；event_ref bd801d5"
   }
  ]
 }
