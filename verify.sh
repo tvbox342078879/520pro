@@ -403,6 +403,17 @@ else
   no "未找到脚本目录，跳过冒烟"
 fi
 
+# artifact-store（本地轻量化总闸）：执行体真跑判据（v0.8.82）
+# 只查目录存在＝纸面生效——脚本被换掉/语法坏/自省挂了照样绿。
+# 对齐机器司 check-env.sh、巡检司 inspect_hub.py 先例：在位之外必须真跑 self-check。
+if [ -f "$U/skills/artifact-store/scripts/artifact.py" ]; then
+  python3 "$U/skills/artifact-store/scripts/artifact.py" self-check >/dev/null 2>&1 \
+    && ok "artifact-store/scripts/artifact.py self-check 通过（LRU 归档候选自省）" \
+    || no "artifact-store 执行体 self-check 失败——技能在位是纸面，自省挂了"
+else
+  no "artifact-store/scripts/artifact.py 缺失——本地轻量化总闸无执行体"
+fi
+
 # 巡检司（v0.7.0 起）：520 自家健康巡检（八卦八门面板）
 if [ -f "$U/skills/inspect-hub/scripts/inspect_hub.py" ]; then
   ok "skills/inspect-hub（巡检司）"

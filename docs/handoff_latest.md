@@ -6,7 +6,9 @@
 
 ## 1. 当前主线（一句话）
 
-**v0.8.81 交付报告机制化（用户 2026-11-17「每轮结束在产物区都要有交付报告，从机制上闭环，盯了几次了」）已收口**：把交付报告从人的习惯升级为账本制——① `verify/content_sources.json` 新增 **F11 流**（kind=folder，folder=`📦 产物归档/文档`，signal=version_bump）：每笔 VERSION bump 提交＝一次交付事件，缺报告记欠账；② **提交时预检** `delivery_probe.py --precheck`（`hooks/commit-msg` ⑤ 段调用，逻辑在正本不另造判据）：暂存含 VERSION 变更且账本无当版报告回执（含版本号）→ **commit 直接被拒**，不等下一笔探测；③ selftest 补三例纯函数（有报告放行/版本不符不算/落错夹不算），bump 用例期望 +1（F09+F11 双流）。**正反向实证**：未落报告 precheck rc=3 拒（原文打印）→ 落库后 rc=0 放行。**落点口径（用户明确）**：交付报告只落云端资料库 `📦 产物归档/文档`，不进手机端本地产物区。**下一步**：推 git → 远端 main=HEAD 收口。
+**v0.8.82 artifact-store 真生效收口（用户 2026-11-17「肯定要真正生效，不然装了干嘛」）**：上一轮报"生效"只是配置层绿，本轮变异实证发现执行体无判据守——把 scripts/artifact.py 从真源移走，C1 仍报"结构齐备（2件）"。三项修复：① `verify/skill_contracts.json` 把 scripts/artifact.py 纳入 required_files（对齐 machine-bootstrap），C1 变 3 件；② `verify.sh` 加用户级 artifact.py self-check 真跑判据（对齐 inspect-hub），失败即红；③ 修 trigger-samples.md 过期自述（"纯方法论无脚本"→"方法论总闸+可选执行体"）。正反向：契约 96✓/0✗、C9/C10/C11 触发链全过、self-check 6/6 rc=0、两副本 sha 一致；变异把执行体改语法坏→verify 报"执行体 self-check 失败，技能在位是纸面"汇总 3 红，还原 0✗——判据有牙。**附带发现（已登记待办）**：agent_turns_guard 的 Agent|Task matcher 误伤 TaskCreate（病15 家族新例），owner=我/next=收窄matcher+正反用例/due=下次收口前。**下一步**：推 git → 远端 main=HEAD 收口。
+
+**v0.8.81 已收口**（F11 交付报告账本流 + 提交时预检），见版本台账与产物归档。
 
 **v0.8.80 已收口**（等待闸运行时实证 + 子任务时限闸 agent_turns_guard + fixture 同源生成断根），交付报告落库节点 UkbkBSNVLGcob96gjEKAeT（0.8.79/80 合并报告）。
 
@@ -52,7 +54,7 @@
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.81
+- 版本：0.8.82
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）

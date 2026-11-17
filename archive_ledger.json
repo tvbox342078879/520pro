@@ -2788,6 +2788,17 @@
    "result": "ok",
    "event_ref": "commit e2d6994",
    "note": "方法论：落物-成事时序自洽法（可得性/自洽性/排他性三判据 + 同源要求 + 历史账机器重核销）；event_ref 3e457d1 e2d6994"
+  },
+  {
+   "ts": "2026-11-17T22:02:25",
+   "round": "archive 交付报告_artifact-store真生效_v0.8.82_20261117.md @07d319c",
+   "artifact": "交付报告_artifact-store真生效_v0.8.82_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "8pyGDlgn2L7geM3DnKKWLY",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 07d319c",
+   "note": "交付报告：执行体纳入契约+真跑 self-check 判据+变异证有牙；触发链 C1-C11 全过；附带发现 agent_turns_guard 误伤 TaskCreate 登记待办"
   }
  ]
 }
