@@ -2799,6 +2799,17 @@
    "result": "ok",
    "event_ref": "commit 07d319c",
    "note": "交付报告：执行体纳入契约+真跑 self-check 判据+变异证有牙；触发链 C1-C11 全过；附带发现 agent_turns_guard 误伤 TaskCreate 登记待办"
+  },
+  {
+   "ts": "2026-11-17T22:04:28",
+   "round": "evolve-log 0.8.82",
+   "artifact": "版本演化台账记录 0.8.82",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.82 · commit 045c480；契约机检 96✓/0✗；artifact.py self-check 6/6；变异语法坏→",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
   }
  ]
 }

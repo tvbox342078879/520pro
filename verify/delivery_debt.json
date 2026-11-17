@@ -1977,6 +1977,24 @@
    "waived_ts": "2026-11-16T09:19:48"
   },
   {
+   "id": "D-045c480-F09",
+   "flow": "F09",
+   "folder": "🧬 520进化论/版本演化台账",
+   "commit": "045c480",
+   "commit_date": "2026-11-17",
+   "parent": "07d319c",
+   "target_version": "0.8.82",
+   "title": "feat(skill): v0.8.82 artifact-store 真生效——执行体纳入契约+真跑判据+变异证有牙",
+   "expect": "版本台账记录一条（版本/日期/类型/摘要/证据）",
+   "evidence": "VERSION 0.8.81 → 0.8.82",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "evolve-log 0.8.82 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-2282824-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",
