@@ -2587,6 +2587,28 @@
    "result": "ok",
    "event_ref": "commit 8b197ca",
    "note": "S-01…S-09 用户级真源 + 全项目生效通道 + S-06 机制闭环；verify rc=0/✗0；commit 待提交"
+  },
+  {
+   "ts": "2026-11-17T09:06:23",
+   "round": "evolve-log 0.8.77",
+   "artifact": "版本演化台账记录 0.8.77",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.77 · commit 629b3eb · verify rc=0",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-17T09:10:42",
+   "round": "archive 方法论_新编号段落独立文件避闸双红_20261117.md @629b3eb",
+   "artifact": "方法论_新编号段落独立文件避闸双红_20261117.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "0Fj6EqvqkIVZJeMb9zZHiW",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 629b3eb",
+   "note": "v0.8.77 commit 629b3eb：新编号段写独立文件避 T4/T5 双红；版本 bump 漏同步 handoff 被 C4 拦（病历②型）"
   }
  ]
 }
