@@ -834,7 +834,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
-         test_build_rail test_linkage_notice test_secret_scan_size test_trigger_frontload \
+         test_build_rail test_classify_routing test_linkage_notice test_secret_scan_size test_trigger_frontload \
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard; do

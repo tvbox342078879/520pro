@@ -2581,12 +2581,13 @@
    "ts": "2026-11-17T08:59:24",
    "round": "archive 交付报告_施工纪律真源化_20261117.md @8b197ca",
    "artifact": "交付报告_施工纪律真源化_20261117.md",
-   "target": "🧬 520进化论/03-子项目演进",
+   "target": "📦 产物归档/文档",
    "node_id": "JNhIniLgejIfuQiANyl7mx",
    "idx_row": "",
    "result": "ok",
    "event_ref": "commit 8b197ca",
-   "note": "S-01…S-09 用户级真源 + 全项目生效通道 + S-06 机制闭环；verify rc=0/✗0；commit 待提交"
+   "note": "S-01…S-09 用户级真源 + 全项目生效通道 + S-06 机制闭环；verify rc=0/✗0；commit 待提交",
+   "moved_from": "🧬 520进化论/03-子项目演进"
   },
   {
    "ts": "2026-11-17T09:06:23",
@@ -2625,23 +2626,25 @@
    "ts": "2026-11-17T11:06:57",
    "round": "archive 520pro换机SOP_v0.8.77.md @3fbbda4",
    "artifact": "520pro换机SOP_v0.8.77.md",
-   "target": "🧬 520进化论/01-方法论",
+   "target": "📦 产物归档/文档",
    "node_id": "4y6owR1JYCG4bNJRkN69DF",
    "idx_row": "",
    "result": "ok",
    "event_ref": "commit 3fbbda4",
-   "note": "四块：能力边界/流程产出/四类资产矩阵/三场景换机流程；真源逐条标文件+行号"
+   "note": "四块：能力边界/流程产出/四类资产矩阵/三场景换机流程；真源逐条标文件+行号",
+   "moved_from": "🧬 520进化论/01-方法论"
   },
   {
    "ts": "2026-11-17T11:37:04",
    "round": "archive 520pro换机SOP_实测手册_v0.8.77.md @c4af400",
    "artifact": "520pro换机SOP_实测手册_v0.8.77.md",
-   "target": "🧬 520进化论/01-方法论",
+   "target": "📦 产物归档/文档",
    "node_id": "WyuRty4tNDg0SUMzWPhmEM",
    "idx_row": "",
    "result": "ok",
    "event_ref": "commit c4af400",
-   "note": "大白话实测版：A全新手机/B换电脑/C新会话三场景，每步给敲什么+看到啥算过+看到啥算挂，退出码表+四层验收+失败对照+空白测试记录表"
+   "note": "大白话实测版：A全新手机/B换电脑/C新会话三场景，每步给敲什么+看到啥算过+看到啥算挂，退出码表+四层验收+失败对照+空白测试记录表",
+   "moved_from": "🧬 520进化论/01-方法论"
   }
  ]
 }
