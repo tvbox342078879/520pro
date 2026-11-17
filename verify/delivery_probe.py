@@ -111,6 +111,12 @@ def _closed(folder, flow, commit, ledger_rows):
     fid = flow.get('id', '')
     cm = flow.get('close_match', '')
     sha = (commit.get('short') or '')[:7]
+    # ★ 病15 第 20 例（时序死锁）通用解：F02/F06 这类「改真源即触发」的流，正文必须在提交前写、
+    # 报告在提交前落库，落库那一刻本笔 sha 尚未诞生，回执只能写当时 HEAD（＝本 commit 的父）。
+    # 若只认本 commit sha，这类账永远核销不上（实测 D-e2d6994-F02/F06）。故 sha 锚 = 本 commit
+    # 或其直接父提交——两者都发生在「落物时刻或之后」，语义上都能指回本 commit，且仍排他
+    # （不会命中无关他人回执，那正是第 ⑧⑬⑮ 例要防的串味）。
+    sha_anchors = [a for a in (sha, (commit.get('parent') or '')[:7]) if a]
     ver = commit.get('version') or (None, None)
     want_ver = ver[1] if (fid == 'F09' or cm == 'version') else None
     bumped = ver[1] if (ver[0] != ver[1] and ver[1]) else None
@@ -131,8 +137,8 @@ def _closed(folder, flow, commit, ledger_rows):
         elif msg_anchors:
             if not any(a in blob for a in msg_anchors):
                 continue
-        elif sha:
-            if sha not in blob:
+        elif sha_anchors:
+            if not any(a in blob for a in sha_anchors):
                 continue
         return e
     return None
@@ -161,6 +167,7 @@ def probe_commit(commit, flows, ledger_rows):
             # v0.8.81 修：原只 F09 写当版版本 → F11 账 target_version 空，核销重判反推 version=(None,None)
             # 退化成「回执须含本 commit sha」→ 提交前落报告永远销不上（D-3e457d1-F11 实测）。
             # 凡 version_bump 信号流都必须落当版版本，核销凭据才成立。
+            'parent': (commit.get('parent') or '')[:7],
             'target_version': ((commit.get('version') or (None, None))[1] or '')
                               if (f.get('signal') or {}).get('type') == 'version_bump' else '',
             'title': (commit.get('msg', '').splitlines() or [''])[0][:80],
@@ -256,8 +263,12 @@ def read_commits(limit=None, after_sha=None):
                                  '--format=', short).splitlines() if p.strip()]
         v_new = _git('show', f'{short}:VERSION').strip()
         v_old = _git('show', f'{short}^:VERSION').strip() or v_new
+        # 父提交短 sha：落库发生在「父 HEAD」时刻，回执写的是它（先落物后成事的流），
+        # 核销时须把父 sha 也算作「能指回本 commit」的凭据（病15 第20例同族，见 _closed）。
+        parent = _git('rev-parse', '--short', f'{short}^').strip()
         out.append({'short': short, 'full': full, 'date': date, 'msg': msg,
-                    'paths': paths, 'version': (v_old, v_new) if v_new else None})
+                    'paths': paths, 'parent': parent,
+                    'version': (v_old, v_new) if v_new else None})
     out.reverse()   # 时间正序
     return out
 
@@ -436,8 +447,15 @@ def scan(limit=None, quiet=False):
         if not tv and fl.get('close_match') == 'version':
             m = re.search(r'VERSION\s*[\d.]+\s*→\s*([\d.]+)', d.get('evidence') or '')
             tv = m.group(1) if m else ''
+        # 历史账落盘时没有 parent 字段 → 现查一次并回写，否则父锚判据对它恒空（同第19例：
+        # 环境/记录里的对象字段缺项会让判据静默退化）。查不到就留空，不猜。
+        pv = d.get('parent') or ''
+        if not pv and d.get('commit'):
+            pv = _git('rev-parse', '--short', str(d['commit']) + '^').strip()
+            if pv:
+                d['parent'] = pv
         fake = {'short': d['commit'], 'date': d.get('commit_date', ''),
-                'msg': d.get('evidence', ''),
+                'msg': d.get('evidence', ''), 'parent': pv,
                 'version': (None, tv or None)}
         hit = _closed(d['folder'], fl, fake, ledger_rows)
         if hit:
@@ -633,6 +651,22 @@ def selftest():
            'event_ref': '交付报告 v0.8.66'}], 1)
 
     # ── F11 交付报告预检（纯函数两例，绕开 probe_commit 串扰）
+    # ── 父提交锚（病15 第20例通用解）：F02/F06 这类「改真源即触发」的流，报告在提交前落库，
+    # 回执写的是落库那一刻的 HEAD ＝ 本 commit 的父；只认本 sha 则永远核销不上（D-e2d6994 实测）。
+    # 注：F11 走 close_match=version（版本号锚），不适用本组用例。
+    print('── 父锚：F02 回执指向父提交 → 核销（落库发生在父 HEAD 时刻）')
+    case('报告写父sha', {'short': 'mmm3333', 'parent': 'ppp2222', 'date': '2026-11-15',
+                     'msg': 'fix: x\n\nLesson: 病15(第21例) 核销凭据时序',
+                     'paths': [], 'version': None},
+         [{'result': 'ok', 'target': '🧬 520进化论/01-方法论', 'ts': '2026-11-15T10:05:00',
+           'event_ref': 'commit ppp2222'}], 0)
+    print('── 父锚反向：回执指向无关 commit → 仍欠账（不误销他人回执）')
+    case('报告写无关sha', {'short': 'nnn4444', 'parent': 'ppp2222', 'date': '2026-11-15',
+                      'msg': 'fix: x\n\nLesson: 病15(第21例) 核销凭据时序',
+                      'paths': [], 'version': None},
+         [{'result': 'ok', 'target': '🧬 520进化论/01-方法论', 'ts': '2026-11-15T10:05:00',
+           'event_ref': 'commit zzz9999'}], 1)
+
     print('── F11 预检：账本回执须含当版版本号')
     _r1 = _ledger_has_report('0.8.81', [
         {'result': 'ok', 'target': '📦 产物归档/文档', 'event_ref': '报告 v0.8.81'}])

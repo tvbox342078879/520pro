@@ -2777,6 +2777,17 @@
    "result": "ok",
    "event_ref": "commit 3e457d1",
    "note": "判例：核销凭据时序死锁——先落物后成事只能用落物时已存在标识；F11 close_match=version + target_version 全流落值 + selftest 同源；event_ref 3e457d1"
+  },
+  {
+   "ts": "2026-11-17T18:51:27",
+   "round": "archive method_落物成事时序自洽法_e2d6994.md @e2d6994",
+   "artifact": "method_落物成事时序自洽法_e2d6994.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "9I8cf0ga4cYka48i0XwdlX",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit e2d6994",
+   "note": "方法论：落物-成事时序自洽法（可得性/自洽性/排他性三判据 + 同源要求 + 历史账机器重核销）；event_ref 3e457d1 e2d6994"
   }
  ]
 }
