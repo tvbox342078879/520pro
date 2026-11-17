@@ -2667,6 +2667,39 @@
    "result": "ok",
    "event_ref": "VERSION=0.8.78 · VERSION=0.8.78 · 技能快照 41ccc291d47e · 技能 22 个",
    "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-17T15:45:47",
+   "round": "archive method_防卡死装闸法_394b72e.md @394b72e",
+   "artifact": "method_防卡死装闸法_394b72e.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "YH5X7TgeyItyjtiVr7Uzmv",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 394b72e",
+   "note": "防卡死装闸法：任何锁自带自救出口+7条检查单；等待闸/自愈通道判据坐标"
+  },
+  {
+   "ts": "2026-11-17T15:45:51",
+   "round": "archive judgement_flowgate自锁事故_394b72e.md @394b72e",
+   "artifact": "judgement_flowgate自锁事故_394b72e.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "sKNt80hPSQU1Gh9VHdxM11",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 394b72e",
+   "note": "flow_gate 自锁四层死锁判例+三重自救豁免修复；event_ref 394b72e/4d9b03e"
+  },
+  {
+   "ts": "2026-11-17T15:46:02",
+   "round": "evolve-log 0.8.79",
+   "artifact": "版本演化台账记录 0.8.79",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.79 · commit 394b72e；test_task_wait_guard 8/8；test_gate_scan 37/0",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
   }
  ]
 }
