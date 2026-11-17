@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # agent_turns_guard.py —— 子任务时限闸（防卡死检查单·等待死另一半，v0.8.80）
-# 挂 PreToolUse·Agent|Task（install.sh 幂等注册）。防的卡死：派出的子代理无时限
+# 挂 PreToolUse·Agent（install.sh 幂等注册；matcher 由 Agent|Task 收窄，见病15 第21例）。
+# 防的卡死：派出的子代理无时限
 # 跑飞（死循环/无限重试），主会话白等——B-11「派子任务必须带时限」的执行闸。
 #
 # 设计四条（自审过 docs/防卡死检查单.md 检查单 7 条）：
@@ -9,8 +10,11 @@
 #   ③ 无死状态：纯输入校验，不落状态文件，天然不永久锁门；
 #   ④ fail-open：任何异常 exit 0 放行——本闸绝不锁死派活通道。
 #
-# 判据：Agent/Task 调用缺 max_turns 字段 → deny，提示带时限（建议 15–30 回合）。
-# 字段名兼容：tool_input 里 max_turns 缺失即拦；显式 null 同样算缺。
+# 判据：tool_name 为派活工具（Agent/Task）且缺 max_turns → deny，提示带时限（15–30 回合）。
+# 对象判定用 tool_name 精确白名单（病15 第21例根因）：旧版用「tool_input 含 prompt 或
+# description」当派活特征，而 TaskCreate/Update/Get 等记账工具也带 description，于是
+# matcher Agent|Task 把它们路由进来后误拦——识别范围（字段特征）宽于对象范围（派活）。
+# 字段名兼容：只认 tool_name 白名单；max_turns 缺失或显式 null 算缺。
 
 import json
 import sys
@@ -42,10 +46,14 @@ def main():
     if not isinstance(ti, dict):
         sys.exit(0)
 
-    # ⓪ 对象范围限定（病15 预防）：只校验 Agent/Task 特征调用（含 prompt 或
-    #    description）。其他工具（Bash 的 tool_input 是 command 等）即使平台误路由
-    #    到本闸也一律放行——识别范围=派活调用，不许扩成"一切调用"。
-    if 'prompt' not in ti and 'description' not in ti:
+    # ⓪ 对象范围限定（病15 第21例修复）：只校验真正的「派活调用」，判据是 tool_name
+    #    精确白名单，不再用 tool_input 的 prompt/description 字段特征。旧特征把带
+    #    description 的记账工具（TaskCreate/Update/Get/List）也算成派活并误拦——
+    #    识别范围宽于对象范围。派活工具白名单：Agent（主）、Task（兼容平台别名）。
+    #    其余工具即使平台误路由到本闸（如 Bash/其他）一律放行。
+    SPAWN_TOOLS = ('Agent', 'Task')
+    tool_name = inp.get('tool_name')
+    if tool_name not in SPAWN_TOOLS:
         sys.exit(0)
 
     # ① 已合规：带 max_turns（含 0/数字）恒放行
@@ -55,9 +63,9 @@ def main():
 
     # ② 缺时限：deny（逃生口=补参数即可，会话侧可达）
     deny_payload(
-        '防卡死闸（子任务时限）：派 Agent/Task 未带 max_turns——子代理跑飞时主会话会'
-        '无限白等（B-11：派子任务必须带时限）。补 max_turns（建议 15–30）后重发；'
-        '探查型给小值（如 10），施工型给大值（如 30）。')
+        '防卡死闸（子任务时限）：派子代理（Agent/Task）未带 max_turns——子代理跑飞时'
+        '主会话会无限白等（B-11：派子任务必须带时限）。补 max_turns（建议 15–30）后重发；'
+        '探查型给小值（如 10），施工型给大值（如 30）。记账工具（TaskCreate 等）不受此闸。')
     sys.exit(0)
 
 
@@ -93,6 +101,26 @@ def selftest():
         case('空 payload 放行（不误伤非 Agent 调用）', rc6 == 0)
         rc6b, _ = run({'tool_name': 'Bash', 'tool_input': {'command': 'ls'}})
         case('Bash 形态 tool_input 放行（对象范围限定）', rc6b == 0)
+        # 病15 第21例回归：记账工具带 description 不得被当派活误拦（旧版会 deny）
+        for tgt in ('TaskCreate', 'TaskUpdate', 'TaskGet', 'TaskList', 'TaskOutput'):
+            rcx, outx = run({'tool_name': tgt, 'tool_input': {
+                'description': 'some task', 'subject': 'x'}})
+            case('%s 带 description 无 max_turns 放行（误伤回归）' % tgt, rcx == 0)
+        # 同一工具名缺失（None）——无法判定是不是派活，fail-open 放行而非误拦
+        rcn, _ = run({'tool_input': {'prompt': 'x'}})
+        case('tool_name 缺失放行（不误伤未知调用）', rcn == 0)
+        # 元变异①：把 tool_name 白名单判据改回字段特征 → 记账工具误伤回归用例必须转红
+        src = open(__file__, encoding='utf-8').read()
+        mut0 = src.replace(
+            "    if tool_name not in SPAWN_TOOLS:\n        sys.exit(0)",
+            "    if 'prompt' not in ti and 'description' not in ti:\n        sys.exit(0)", 1)
+        assert mut0 != src, '变异点0 不存在'
+        m0 = td + '/mut0.py'
+        open(m0, 'w', encoding='utf-8').write(mut0)
+        p0 = subprocess.run([sys.executable, m0], input=json.dumps(
+            {'tool_name': 'TaskCreate', 'tool_input': {'description': 'x'}}),
+            capture_output=True, text=True, env=dict(os.environ, HOME=td))
+        case('元变异:退回字段特征判据→TaskCreate 误伤回归红', p0.returncode == 2)
         # 元变异：合规放行分支改成 deny → 正向用例红（证判据贴着实现）
         src = open(__file__, encoding='utf-8').read()
         mut = src.replace("if mt is not None:\n        sys.exit(0)",
@@ -101,7 +129,7 @@ def selftest():
         mpath = td + '/mut.py'
         open(mpath, 'w', encoding='utf-8').write(mut)
         p7 = subprocess.run([sys.executable, mpath], input=json.dumps(
-            {'tool_input': {'prompt': 'x', 'max_turns': 25}}),
+            {'tool_name': 'Agent', 'tool_input': {'prompt': 'x', 'max_turns': 25}}),
             capture_output=True, text=True, env=dict(os.environ, HOME=td))
         case('元变异:合规路径被改死→正向红', p7.returncode != 0)
 

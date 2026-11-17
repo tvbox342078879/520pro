@@ -6,7 +6,9 @@
 
 ## 1. 当前主线（一句话）
 
-**v0.8.82 artifact-store 真生效收口（用户 2026-11-17「肯定要真正生效，不然装了干嘛」）**：上一轮报"生效"只是配置层绿，本轮变异实证发现执行体无判据守——把 scripts/artifact.py 从真源移走，C1 仍报"结构齐备（2件）"。三项修复：① `verify/skill_contracts.json` 把 scripts/artifact.py 纳入 required_files（对齐 machine-bootstrap），C1 变 3 件；② `verify.sh` 加用户级 artifact.py self-check 真跑判据（对齐 inspect-hub），失败即红；③ 修 trigger-samples.md 过期自述（"纯方法论无脚本"→"方法论总闸+可选执行体"）。正反向：契约 96✓/0✗、C9/C10/C11 触发链全过、self-check 6/6 rc=0、两副本 sha 一致；变异把执行体改语法坏→verify 报"执行体 self-check 失败，技能在位是纸面"汇总 3 红，还原 0✗——判据有牙。**附带发现（已登记待办）**：agent_turns_guard 的 Agent|Task matcher 误伤 TaskCreate（病15 家族新例），owner=我/next=收窄matcher+正反用例/due=下次收口前。**下一步**：推 git → 远端 main=HEAD 收口。
+**子任务时限闸误伤修复（v0.8.82 主线内增量，不 bump；用户 2026-11-17「修图中的问题」=修 agent_turns_guard 误拦 TaskCreate）**：实冲突——主会话调 TaskCreate 建清单被本闸真拦，坐实病15 第21例「识别范围宽于对象范围」。根因两处：matcher `Agent|Task` 把记账工具路由进来 + 脚本 ⓪ 段用「tool_input 含 description」当派活特征（`TaskCreate` 恰好带 description）。修法：① matcher 收窄为 `Agent`；② 对象判定改 `tool_name` 精确白名单（Agent/Task），记账工具恒放行；③ install.sh 幂等迁移——老机器重装把 `Agent|Task` 纠正为 `Agent`。正反向：selftest 15/15（5 类记账工具误伤回归 + 元变异①退回字段特征即转红 + 元变异②合规路径改死即红）、test_gate_scan 37/0、装机自检全过、用户级 matcher 实测 `Agent` + 脚本 sha 与真源一致、verify 0✗/2·。文档同步：防卡死检查单 §一/§五、通病台账病15 第21例、test_gate_scan fixture。**下一步**：推 git → 远端 main=HEAD 收口。
+
+**v0.8.82 artifact-store 真生效收口（用户 2026-11-17「肯定要真正生效，不然装了干嘛」）**：上一轮报"生效"只是配置层绿，本轮变异实证发现执行体无判据守——把 scripts/artifact.py 从真源移走，C1 仍报"结构齐备（2件）"。三项修复：① `verify/skill_contracts.json` 把 scripts/artifact.py 纳入 required_files（对齐 machine-bootstrap），C1 变 3 件；② `verify.sh` 加用户级 artifact.py self-check 真跑判据（对齐 inspect-hub），失败即红；③ 修 trigger-samples.md 过期自述（"纯方法论无脚本"→"方法论总闸+可选执行体"）。正反向：契约 96✓/0✗、C9/C10/C11 触发链全过、self-check 6/6 rc=0、两副本 sha 一致；变异把执行体改语法坏→verify 报"执行体 self-check 失败，技能在位是纸面"汇总 3 红，还原 0✗——判据有牙。**该轮附带发现（本轮增量已修）**：agent_turns_guard 的 Agent|Task matcher 误伤 TaskCreate（病15 第21例）。**v0.8.82 已推远端 main=HEAD=3c919aa**。
 
 **v0.8.81 已收口**（F11 交付报告账本流 + 提交时预检），见版本台账与产物归档。
 

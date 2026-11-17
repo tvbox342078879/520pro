@@ -61,7 +61,7 @@ def _fake_settings(path, drop=None, hollow=None):
                                 encoding='utf-8').read())
     cfg = {'hooks': {}}
     for script, events in decl.items():
-        entry = {'matcher': 'Bash|Write|Edit|TaskOutput|Agent|Task',
+        entry = {'matcher': 'Bash|Write|Edit|TaskOutput|Agent',
                  'hooks': [{'type': 'command', 'command': 'python3 /x/' + script}]}
         for ev in events:
             cfg['hooks'].setdefault(ev, []).append(entry)

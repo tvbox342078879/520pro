@@ -384,7 +384,8 @@ if [ "$DRY" = 0 ] && [ -f "$ROOT/hooks/next_anchor.py" ] && [ "$SCOPE" != "capab
   # stop_guard.py（v0.8.56 起）独立挂 Stop 事件，B-13 完成态凭落点。
   # task_wait_guard.py（v0.8.79 起）挂 PreToolUse·TaskOutput，防会话 block=true 轮询死等
   #（真源 docs/防卡死检查单.md；fail-open 设计，闸故障不锁会话）。
-  # agent_turns_guard.py（v0.8.80 起）挂 PreToolUse·Agent|Task，派子代理强制带 max_turns。
+  # agent_turns_guard.py（v0.8.80 起，本轮 matcher 收窄）挂 PreToolUse·Agent，
+  # 派子代理强制带 max_turns；matcher 不含 Task，避免把记账工具路由进来误拦（病15 第21例）。
   if mkdir -p "$HOME/.codebuddy/hooks" 2>/dev/null \
      && cp "$ROOT/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/next_anchor.py" \
      && cp "$ROOT/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/guard_cmd.py" \
@@ -444,7 +445,7 @@ if stop_script:
         json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 
 # 等待闸：PreToolUse·TaskOutput（v0.8.79 防卡死，真源 docs/防卡死检查单.md）
-# 子任务时限闸：PreToolUse·Agent|Task（v0.8.80 同上）
+# 子任务时限闸：PreToolUse·Agent（v0.8.80 起，本轮由 Agent|Task 收窄，病15 第21例）
 # 独立 matcher 注册（同 B-05 先例：matcher 不同即两条独立注册，不合并防老机器迁移断裂）
 task_guard = sys.argv[4] if len(sys.argv) > 4 else ''
 if task_guard:
@@ -460,13 +461,22 @@ if task_guard:
 agent_guard = sys.argv[5] if len(sys.argv) > 5 else ''
 if agent_guard:
     d.setdefault('hooks', {}).setdefault('PreToolUse', [])
-    cmds5 = [h.get('command', '') for e in d['hooks']['PreToolUse'] for h in e.get('hooks', [])]
-    if not any('agent_turns_guard.py' in c for c in cmds5):
-        d['hooks']['PreToolUse'].append({
-            'matcher': 'Agent|Task',
+    pre = d['hooks']['PreToolUse']
+    hits = [e for e in pre if any('agent_turns_guard.py' in h.get('command', '')
+                                  for h in e.get('hooks', []))]
+    if not hits:
+        pre.append({
+            'matcher': 'Agent',
             'hooks': [{'type': 'command', 'command': 'python3 ' + agent_guard, 'timeout': 10}],
         })
         json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+    else:
+        # 病15 第21例迁移：老机器注册的是 Agent|Task（误伤记账工具），
+        # 重装时把它的 matcher 纠正为 Agent——幂等，仅当不符才写。
+        for e in hits:
+            if e.get('matcher') != 'Agent':
+                e['matcher'] = 'Agent'
+                json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 sys.exit(0)
 PY
   else
