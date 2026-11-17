@@ -2887,6 +2887,17 @@
    "result": "ok",
    "event_ref": "commit 2d025a8",
    "note": "3篇微信原文素材，46条有出处0条无出处，3/3覆盖"
+  },
+  {
+   "ts": "2026-11-18T00:10:02",
+   "round": "archive method_归档未归类先查match与素材污染镜像_a99ddab.md @a99ddab",
+   "artifact": "method_归档未归类先查match与素材污染镜像_a99ddab.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "ZhRdUI4veWyhxQ80nX7qCK",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit a99ddab",
+   "note": "销欠账 D-a99ddab-F02：归档落未归类先查 _match_rule 命中别急建新声明（病15识别范围窄）；一次性素材污染装副本C5镜像；形态+修法+实例坐标；commit a99ddab"
   }
  ]
 }

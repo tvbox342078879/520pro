@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-17",
+ "updated": "2026-11-18",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -2269,6 +2269,24 @@
    "age_commits": 0,
    "first_seen": "2026-11-17",
    "closed_by": "archive 判例_病15第17例_connector与auth-proxy通道混淆.md @e9d5022 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-a99ddab-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "a99ddab",
+   "commit_date": "2026-11-18",
+   "parent": "2d025a8",
+   "target_version": "",
+   "title": "fix(learn-hub): 归档声明 match 补「资料整理」词，产物自动归 📚 学习资料/成品",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15 再现——归档落「未归类」先查 match 命中，别急建新声明；intake 临时素材留在技能目录会破坏装副本镜像 C5，用完即清",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "archive method_归档未归类先查match与素材污染镜像_a99ddab.md @a99ddab @ 2026-11-18",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
   }
