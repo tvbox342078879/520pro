@@ -2854,6 +2854,17 @@
    "result": "ok",
    "event_ref": "commit bd801d5",
    "note": "交付报告：跨层冲突写死优先级+防删判据，正反向 rc=0→2→0；event_ref bd801d5"
+  },
+  {
+   "ts": "2026-11-17T23:06:24",
+   "round": "archive 交付报告_插不了话源头机制四缺口_20261117.md @492f478",
+   "artifact": "交付报告_插不了话源头机制四缺口_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "3MBPM03N1clNAuBU4zimd5",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 492f478",
+   "note": "交付报告：P0-a orphan-guard/P0-b T6/P1 T7/P2 软层硬化；gate_scan 44/0、terminology 9变异全红、verify 0✗；event_ref 492f478"
   }
  ]
 }
