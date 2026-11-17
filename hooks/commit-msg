@@ -142,5 +142,16 @@ if [ -n "$ACTUAL" ] && [ -f docs/registry.md ]; then
   fi
 fi
 
+# ── ⑤ F11 交付报告预检（v0.8.81，用户 2026-11-17 要求机制化）──────────────
+# 本笔暂存含 VERSION 变更（一轮收口笔）时，账本必须已有当版交付报告回执
+# （📦 产物归档/文档，回执含版本号）。逻辑在 delivery_probe.py 正本（--precheck），
+# 本钩子只做调用——不另造第二套判据（B-08）。
+if [ -f "$ROOT/verify/delivery_probe.py" ]; then
+  if ! python3 "$ROOT/verify/delivery_probe.py" --precheck; then
+    fail "本笔 bump 缺交付报告（F11）" \
+         "先写交付报告经 space-hub archive 落 📦 产物归档/文档（回执含版本号），再提交"
+  fi
+fi
+
 echo "✓ commit-msg 通过（Verify / Lesson / Next / Reuse 齐，且 Reuse 与暂存清单一致）"
 exit 0

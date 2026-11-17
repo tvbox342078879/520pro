@@ -2744,6 +2744,28 @@
    "result": "ok",
    "event_ref": "commit e6f0ca1",
    "note": "阶段完工交付报告：交付物清单+四时序实证+三态边界+落库坐标+遗留三齐"
+  },
+  {
+   "ts": "2026-11-17T18:35:36",
+   "round": "evolve-log 0.8.81",
+   "artifact": "版本演化台账记录 0.8.81",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.81 · VERSION=0.8.81 · 技能快照 41ccc291d47e · 技能 22 个",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-17T18:36:13",
+   "round": "archive 交付报告_交付报告机制化_v0.8.81_20261117.md @2ab4749",
+   "artifact": "交付报告_交付报告机制化_v0.8.81_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "BSgh87I7iVf8JTgzy8hfHA",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 2ab4749",
+   "note": "F11 流+提交时预检机制化：每轮产物区必有报告，缺则 commit 被拒；只落资料库不进手机产物区；正反实证 rc=3/rc=0"
   }
  ]
 }

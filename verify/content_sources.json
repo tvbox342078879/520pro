@@ -1,14 +1,14 @@
 {
  "_doc": "内容供给源登记（内容流唯一真源）。原则：空夹不是病，供给事件已发生而内容没落才是病。v2.0.0 起每条 flow 的 source_event 必须配机器可测 signal——否则探测器对不可测条件空转（v1.0.0 的纸面漏洞，B-15 模式：登记即监测范围，未登记的流永远是盲区）。【不回溯原则】判据修正只对**上线后**的 commit 生效，不回溯重算历史——历史欠账由「全量对账」一次性处置（v0.8.67 已清偿 43 条）。若允许回溯，改一次判据就会冒几十条已无法追溯的旧账，反而淹没真信号。【判据修正后的处置流程（v2.0.4）】改了 signal/glob/取值链路的那一轮，必须紧接着做三件事：①`delivery_probe.py --audit N` 只读对账，列出窗口内被旧判据漏掉的账；②`--backfill N` 把未入账的补记入账（不许让它们随修复一起消失）；③逐条处置——能真补的经 space-hub archive 落库核销，不补的走 `--waive` 显式豁免（理由 ≥20 字 + 期限 ≤90 天，到期自动转 open）。三条缺一，等于「修完判据就把欠账藏起来了」。",
  "_schema": {
-  "id": "F01..F10 稳定编号，台账/欠账按 id 引用",
+  "id": "F01..F11 稳定编号，台账/欠账按 id 引用",
   "kind": "folder=云端夹（参与 chk_contentflow 断路判据）/ ledger=云端库（不参与夹断路，靠自身 flow 对账）",
   "signal.type": "lesson(nonempty|keyword) / message(all_of|any_of) / diff_paths(glob) / version_bump / online / derived",
   "probe": "debt=该产未产写欠账 / advisory=只提示不记账（需语义判断）/ online=离线不可判记 unknown / derived=派生流不独立探测",
   "close_by": "核销：ledger 中 result=ok 且 target 以 folder 开头、ts>=commit 日期"
  },
- "version": "2.0.4",
- "updated": "2026-11-15",
+ "version": "2.1.0",
+ "updated": "2026-11-17",
  "probe": {
   "window_commits": 40,
   "dedupe_key": "flow+commit",
@@ -158,6 +158,19 @@
    "producer": "space-hub archive_out 自动写索引（当前缺失，靠 db_insert 兜底）",
    "action": "索引库记录（node_id/标题/落点/时间）",
    "probe": "online"
+  },
+  {
+   "id": "F11",
+   "kind": "folder",
+   "folder": "📦 产物归档/文档",
+   "source_event": "每笔 VERSION bump 的 commit（一轮收口笔）＝一次交付事件，必须落交付报告（用户 2026-11-17 要求机制化：不靠人盯）",
+   "signal": {
+    "type": "version_bump"
+   },
+   "producer": "会话收口时写交付报告（目标/交付物清单/实证/三态边界/遗留三齐）经 space-hub archive 落 📦 产物归档/文档",
+   "action": "交付报告文档（标题含版本号，回执 event_ref 指回本 commit 短 sha 供机器核销）",
+   "probe": "debt",
+   "note": "v2.1.0（2026-11-17）：用户三次遭遇「收口了但产物区没报告」——把交付报告从人的习惯升级为账本制流，缺则 verify 红"
   }
  ]
 }

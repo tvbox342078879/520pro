@@ -499,6 +499,51 @@ def summary():
                        'title': d.get('title', '')[:60]} for d in op]}
 
 
+def _ledger_has_report(ver, rows):
+    """F11 纯函数：ledger 是否有 target=📦产物归档/文档 且 blob 含该版本号 的 ok 回执。"""
+    for e in rows or []:
+        if not isinstance(e, dict) or e.get('result') != 'ok':
+            continue
+        if not (e.get('target') or '').startswith('📦 产物归档/文档'):
+            continue
+        if ver and ver in json.dumps(e, ensure_ascii=False):
+            return True
+    return False
+
+
+def precheck():
+    """提交前预检（F11，v0.8.81）：本笔暂存含 VERSION 变更时，账本必须已有当版交付报告回执。
+
+    供 hooks/commit-msg 调用——把「bump 那笔就必须有交付报告」的拦截点提到提交时。
+    没有它时账本制只能事后探测（下一笔才报），用户仍得人盯一轮（2026-11-17 三次遭遇）。
+    rc: 0=无要求或已满足；3=缺报告（commit-msg 据非零拒）。
+    """
+    import subprocess
+    try:
+        ver = open(os.path.join(REPO, 'VERSION'), encoding='utf-8').read().strip()
+    except OSError:
+        return 0
+    try:
+        staged = subprocess.run(
+            ['git', '-c', 'core.quotepath=false', 'diff', '--cached', '--name-only'],
+            cwd=REPO, capture_output=True, text=True, timeout=30).stdout.split()
+    except Exception:
+        return 0  # 无法判定 fail-open，账本制事后探测仍兜底
+    if 'VERSION' not in staged:
+        return 0
+    try:
+        led = json.load(open(LEDGER, encoding='utf-8'))
+        rows = led.get('entries', []) if isinstance(led, dict) else led
+    except Exception:
+        print('  · [F11] 账本不可读，预检无法判定（不阻断；事后探测兜底）')
+        return 0
+    if _ledger_has_report(ver, rows):
+        return 0
+    print(f'  ✗ [F11] 本笔 bump {ver}，但账本无对应交付报告回执（📦 产物归档/文档，回执含版本号）')
+    print('     → 先写交付报告（目标/交付物/实证/边界/遗留）经 space-hub archive 落库，再提交')
+    return 3
+
+
 def selftest():
     """正反向四用例（纯函数，不碰真实数据）。"""
     flows = [
@@ -508,6 +553,9 @@ def selftest():
          'action': '版本台账记录', 'signal': {'type': 'version_bump'}},
         {'id': 'F06', 'kind': 'folder', 'folder': '🧬 520进化论/05-复盘与判例', 'probe': 'debt',
          'action': '判例', 'signal': {'type': 'diff_paths', 'glob': 'docs/通病台账.md'}},
+        # v0.8.81（用户 2026-11-17 要求机制化）：每笔 bump＝一次交付事件，必须有交付报告落库
+        {'id': 'F11', 'kind': 'folder', 'folder': '📦 产物归档/文档', 'probe': 'debt',
+         'action': '交付报告', 'signal': {'type': 'version_bump'}},
     ]
     ok = True
 
@@ -526,8 +574,8 @@ def selftest():
                           'msg': 'fix: x\n\nLesson: 病15(第8例) 判据识别范围过宽',
                           'paths': [], 'version': ('0.8.66', '0.8.66')}, [], 1)
     print('── 正向②：VERSION 变更 + 台账无该版本 → 必出欠账')
-    case('版本bump无台账', {'short': 'bbb2222', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
-                          'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')}, [], 1)
+    case('版本bump无台账无报告', {'short': 'bbb2222', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
+                          'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')}, [], 2)
     print('── 反向①：Lesson 写「无」 → 零欠账')
     case('无踩坑', {'short': 'ccc3333', 'date': '2026-11-15', 'msg': 'chore: y\n\nLesson: 无',
                   'paths': [], 'version': ('0.8.66', '0.8.66')}, [], 0)
@@ -554,10 +602,44 @@ def selftest():
                     'msg': 'chore: v\n\nLesson: 无（假正门属体检发现非踩坑，已订正登记并补四处清单）',
                     'paths': [], 'version': ('0.8.66', '0.8.66')}, [], 0, 1)
     print('── 正向③：台账回执不含目标版本号 → 不算核销（版本流专项）')
-    case('台账版本不符', {'short': 'ggg7777', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
+    case('台账版本不符且无报告', {'short': 'ggg7777', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
                        'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
          [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
-           'note': '记了 0.8.66'}], 1)
+           'note': '记了 0.8.66'}], 2)
+    print('── F11 正向：bump + 台账齐但无交付报告 → 仅 F11 欠账')
+    case('有台账无报告', {'short': 'iii9999', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
+                     'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
+         [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
+           'note': '记了 0.8.67'}], 1)
+    print('── F11 反向：bump + 台账 + 交付报告回执（含本 commit sha）→ 零欠账')
+    case('台账报告双齐', {'short': 'jjj0000', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
+                     'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
+         [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
+           'note': '记了 0.8.67'},
+          {'result': 'ok', 'target': '📦 产物归档/文档', 'ts': '2026-11-15T10:05:00',
+           'event_ref': 'commit jjj0000'}], 0)
+    print('── F11 反向：报告回执不指向本 commit → 仍欠账（他人报告不核销）')
+    case('他人报告', {'short': 'kkk1111', 'date': '2026-11-15', 'msg': 'v0.8.67 升级',
+                   'paths': ['VERSION'], 'version': ('0.8.66', '0.8.67')},
+         [{'result': 'ok', 'target': '🧬 520进化论/版本演化台账', 'ts': '2026-11-15T10:00:00',
+           'note': '记了 0.8.67'},
+          {'result': 'ok', 'target': '📦 产物归档/文档', 'ts': '2026-11-15T10:05:00',
+           'event_ref': 'commit zzz9999'}], 1)
+
+    # ── F11 交付报告预检（纯函数两例，绕开 probe_commit 串扰）
+    print('── F11 预检：账本回执须含当版版本号')
+    _r1 = _ledger_has_report('0.8.81', [
+        {'result': 'ok', 'target': '📦 产物归档/文档', 'event_ref': '报告 v0.8.81'}])
+    ok = ok and _r1
+    print(f'  {"✓" if _r1 else "✗"} F11预检-有报告放行（期望 True）')
+    _r2 = _ledger_has_report('0.8.81', [
+        {'result': 'ok', 'target': '📦 产物归档/文档', 'event_ref': '报告 v0.8.80'}])
+    ok = ok and (not _r2)
+    print(f'  {"✓" if not _r2 else "✗"} F11预检-版本不符不算数（期望 False）')
+    _r3 = _ledger_has_report('0.8.81', [
+        {'result': 'ok', 'target': '🧬 520进化论/01-方法论', 'event_ref': '报告 v0.8.81'}])
+    ok = ok and (not _r3)
+    print(f'  {"✓" if not _r3 else "✗"} F11预检-落错夹不算数（期望 False）')
 
     # ── 病15 第13例：msg_version 的核销凭据必须能指回本 commit（9 例正反向）
     #    直接测 _closed 纯函数，避开 probe_commit 里 F02/F09 串扰（识别范围=对象范围）。
@@ -676,6 +758,8 @@ if __name__ == '__main__':
         sys.exit(audit(_num('--audit', 40)))
     if '--backfill' in a:
         sys.exit(backfill(_num('--backfill', 40)))
+    if '--precheck' in a:
+        sys.exit(precheck())
     if '--waive' in a:
         ids, i = [], a.index('--waive') + 1
         while i < len(a) and not a[i].startswith('--'):

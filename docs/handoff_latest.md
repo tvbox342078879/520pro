@@ -6,7 +6,9 @@
 
 ## 1. 当前主线（一句话）
 
-**v0.8.80 防卡死边界补完（用户 2026-11-17「补」= 补上 0.8.79 报告的两处诚实边界）已收口**：① **等待闸运行时实证**——对真实后台任务连发 3 次 block=true，第 3 次被 PreToolUse·TaskOutput 真拦，deny 提示原文弹出（"防卡死闸（等待死）：任务 xkvnNu 已连续 3 次…"），事后 block=false 清账、probe 回读 hit 空——task_wait_guard 从「运行未测」翻成「运行时已证」。② **子任务时限闸 agent_turns_guard.py**——挂 PreToolUse·Agent|Task：派 Agent/Task 缺 max_turns 即 deny 并提示补参（探查型 10/施工型 30）；对象范围限定（病15 预防）只校验含 prompt/description 的派活调用，Bash 形态 tool_input 恒放行；fail-open、无状态；selftest 8/8（含合规路径被改死的元变异）。③ **fixture 脱钩断根（病15 第 19 例升格为模式）**——install.sh 再加新钩子后 test_gate_scan fixture 第三次恒红，手工同步不是机制；改 `_fake_settings` 用 `gate_scan.declared_events` 从 install.sh 声明**自动生成**注册清单，与 hook-registered 同一条提取逻辑，真源加钩子 fixture 自动跟上。install.sh 已注册 Agent|Task matcher（settings.json 实读回证）。真源 `docs/防卡死检查单.md` 同步：等待死行、判据落点表、三态边界翻转。全量 verify 0✗（2 不适用既有离线项）。**下一步**：推 git → 远端 main=HEAD 收口（三件落库照走 F02/F06/F09）。
+**v0.8.81 交付报告机制化（用户 2026-11-17「每轮结束在产物区都要有交付报告，从机制上闭环，盯了几次了」）已收口**：把交付报告从人的习惯升级为账本制——① `verify/content_sources.json` 新增 **F11 流**（kind=folder，folder=`📦 产物归档/文档`，signal=version_bump）：每笔 VERSION bump 提交＝一次交付事件，缺报告记欠账；② **提交时预检** `delivery_probe.py --precheck`（`hooks/commit-msg` ⑤ 段调用，逻辑在正本不另造判据）：暂存含 VERSION 变更且账本无当版报告回执（含版本号）→ **commit 直接被拒**，不等下一笔探测；③ selftest 补三例纯函数（有报告放行/版本不符不算/落错夹不算），bump 用例期望 +1（F09+F11 双流）。**正反向实证**：未落报告 precheck rc=3 拒（原文打印）→ 落库后 rc=0 放行。**落点口径（用户明确）**：交付报告只落云端资料库 `📦 产物归档/文档`，不进手机端本地产物区。**下一步**：推 git → 远端 main=HEAD 收口。
+
+**v0.8.80 已收口**（等待闸运行时实证 + 子任务时限闸 agent_turns_guard + fixture 同源生成断根），交付报告落库节点 UkbkBSNVLGcob96gjEKAeT（0.8.79/80 合并报告）。
 
 **v0.8.79 防卡死闭环已收口**（远端 main=4dc26e0 实证）：真源 docs/防卡死检查单.md + 等待闸 task_wait_guard.py + 四硬判据（SSH 段 timeout 300 / git 自愈通道行为级 / verify 总时限 900s）+ 三件落库核销（方法论 YH5X7TgeyItyjtiVr7Uzmv、flow_gate 判例 sKNt80hPSQU1Gh9VHdxM11、版本台账 E0GETdD3JaFiEQg6y0MqlO）。
 
@@ -50,7 +52,7 @@
 ## 2. 版本与位置
 
 - 仓库根：当前 clone 目录（用 `pwd -P` 确认，不在本文件写死绝对路径）
-- 版本：0.8.80
+- 版本：0.8.81
 - 远端：核对口径是 `git rev-parse HEAD` 与 `gh api repos/tvbox342078879/520pro/commits/main --jq .sha` **两值相等**——本文件不写死 sha，因为任何一次收尾提交都会让写死值过期（写方法不过期）；`ls-remote` 常因网络抖动超时，超时记「无法判定」不算通过
 - 推送一律走 `hooks/git_push_safe.sh`，不裸 push
 - 当前主线自检口径：`bash verify.sh` 应 **0 ✗ / 0 ⚠**；`python3 verify/skill_contract_check.py --require-mirror` 应无 ✗（体积项允许 ⚠）
