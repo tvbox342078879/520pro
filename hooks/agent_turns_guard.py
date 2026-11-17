@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# impl: B-11 S1  ← 派子任务带时限（缺 max_turns deny），孤儿闸归位
 # agent_turns_guard.py —— 子任务时限闸（防卡死检查单·等待死另一半，v0.8.80）
 # 挂 PreToolUse·Agent（install.sh 幂等注册；matcher 由 Agent|Task 收窄，见病15 第21例）。
 # 防的卡死：派出的子代理无时限

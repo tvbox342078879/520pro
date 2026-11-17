@@ -16,6 +16,14 @@
      必须真实存在（防实现漂移后映射还在假装有效）；manual 项必须写清怎么问，且不计为通过
   ④ 保留域前缀（F-8）：规则真源里出现的 `X-NN` 编号，前缀必须是 M4 登记的 B / M-R / V，
      否则就是自造了一个没人定义过的标签
+  ⑤ 账目-落点一致性（T6，v0.8.82 增量）：交接册（handoff）把某对象记「无法判定/未实测」，
+     但检查单/实证记录里同一对象已「已实证」——按 B-14「账目与落点冲突以落点为准」，
+     账目必须回写，否则读 handoff 的人以为还没做。只配**受控话题词**，不扫全文
+     "无法判定"（那会把三态诚实记录、历史档案全算成罪，病15 识别范围≠对象范围）。
+  ⑥ 矩阵-真源强度对账（T7，v0.8.82 增量）：软规则硬化矩阵的「当前强度」是手写中文，
+     rule_map.strength 是机器真源，两边会随扩展脱钩（实测 B-11 真源 S1、矩阵仍写 S6）。
+     T7 要求：rule_map 有强度登记的规则，矩阵当前强度列至少要出现其中一档；脱钩即红。
+     只认行首 `| B-` 规则行第 4 列，不扫全文（病15 精确锚定）。
 
 **故意不做的**（做不好会误报，留给人工/其他工具）：
   - 词表语义误用（M3）：需要理解上下文，关键词匹配必然误报
@@ -330,6 +338,104 @@ def check_reserved_prefix(repo):
         rec('T5', '✓', f'保留域前缀合规（{"/".join(sorted(seen))}，共 {sum(seen.values())} 处）')
 
 
+# T6 受控话题：只登记「交接册曾记未决、实证文件后来覆盖了」的对象。
+# 新增话题必须同时给 handoff 侧未决文件与 evidence 侧实证文件，缺一不算配对（病15）。
+LEDGER_TOPICS = {
+    'block=true': ('docs/handoff_latest.md', 'docs/防卡死检查单.md'),
+    'task_wait_guard': ('docs/handoff_latest.md', 'docs/防卡死检查单.md'),
+    'agent_turns_guard': ('docs/handoff_latest.md', 'docs/防卡死检查单.md'),
+}
+UNDECIDED = ('无法判定', '未实测', '无法实证', '本会话无法')
+PROVEN = ('已实证', '已实测', '真拦', '实测中')
+# 回写注记：handoff 行里出现任一，说明「旧记未决、现已实证」已被显式覆盖，不再报冲突
+WRITTEN_BACK = ('已实证', '已回写', '已纠偏', '→已', '回写')
+
+
+def check_ledger_evidence(repo):
+    """T6：交接册记未决、实证文件已实证的同一对象 → 红（逼回写，B-14 以落点为准）。
+
+    为什么用受控话题而不是扫全文：文档里合法的「无法判定」很多（三态记录、历史
+    档案、本会话边界），全扫必然误报（病15 识别范围宽于对象范围）。只查显式登记的
+    「曾未决→已实证」对象，命中才报，且报出两边行号供回写。
+    """
+    pairs = 0
+    for topic, (ledger_rel, ev_rel) in LEDGER_TOPICS.items():
+        lp, ep = os.path.join(repo, ledger_rel), os.path.join(repo, ev_rel)
+        if not (os.path.isfile(lp) and os.path.isfile(ep)):
+            continue
+        pairs += 1
+        ledger_lines = [(n, ln) for n, ln in enumerate(read(lp).splitlines(), 1)
+                        if topic in ln and any(w in ln for w in UNDECIDED)]
+        ev_lines = [(n, ln) for n, ln in enumerate(read(ep).splitlines(), 1)
+                    if topic in ln and any(w in ln for w in PROVEN)]
+        for ln_no, ln in ledger_lines:
+            if any(w in ln for w in WRITTEN_BACK):
+                continue  # 已显式回写
+            if ev_lines:
+                ev_at = ', '.join('%s:%d' % (ev_rel, n) for n, _ in ev_lines[:2])
+                rec('T6', '✗', '账目-落点冲突：话题「%s」在 %s:%d 记未决，但 %s 已实证——'
+                    '按 B-14 以落点为准回写交接册'
+                    % (topic, ledger_rel, ln_no, ev_at))
+    if not pairs:
+        rec('T6', '·', '受控话题的两份文档都不在——账目-落点一致性不适用')
+    elif not any(c == 'T6' and l == '✗' for c, l, _ in results):
+        rec('T6', '✓', '账目-落点一致：%d 个受控话题无「记未决但已实证」冲突'
+            % pairs)
+
+
+def check_matrix_strength(repo):
+    """T7：软规则硬化矩阵「当前强度」vs rule_map.strength 双向对账（M2 真源唯一）。
+
+    矩阵是给人读的中文说明，rule_map 是机器真源；两边各自手写会脱钩。T7 只做
+    一个可靠判断：rule_map 登记了某档强度的规则，矩阵当前强度列必须至少体现其中
+    一档（不要求全等——矩阵常只写最高档，rule_map 记多档是合法的）。
+    对象范围：只认行首 `| B-xx |` 表格行的第 4 列，不扫正文里的 S 字样（病15）。
+    """
+    mp = os.path.join(repo, 'docs', '软规则硬化矩阵.md')
+    rmp = os.path.join(repo, 'verify', 'rule_map.json')
+    if not (os.path.isfile(mp) and os.path.isfile(rmp)):
+        rec('T7', '·', '矩阵或 rule_map 不在——强度对账不适用')
+        return
+    try:
+        R = json.load(open(rmp, encoding='utf-8')).get('rules') or {}
+    except Exception:
+        rec('T7', '·', 'rule_map 无法解析——强度对账不适用')
+        return
+    mat = {}
+    for ln, line in enumerate(read(mp).splitlines(), 1):
+        if not line.startswith('| B-'):
+            continue
+        cells = [c.strip() for c in line.split('|')]
+        if len(cells) < 5:
+            continue
+        bid = cells[1]
+        cur = cells[4]
+        mat[bid] = (set(re.findall(r'S(\d)', cur)), ln)
+    if not mat:
+        rec('T7', '·', '矩阵里没有 `| B-xx |` 规则行——强度对账不适用')
+        return
+    bad = []
+    checked = 0
+    for bid, r in R.items():
+        truth = set((r.get('strength') or {}).keys())  # {'S1', 'S5', ...}
+        if not truth:
+            continue
+        checked += 1
+        if bid not in mat:
+            bad.append(f'{bid} 在 rule_map 有强度 {sorted(truth)}，矩阵里没有该规则行')
+            continue
+        shown, ln = mat[bid]
+        truth_n = {s.lstrip('S') for s in truth}
+        if not (truth_n & shown):
+            bad.append(f'{bid}:{ln} 矩阵当前强度写 S{"/S".join(sorted(shown)) or "无"}，'
+                       f'rule_map 已登记 {"/".join(sorted(truth))}——矩阵过期，回真源对齐')
+    if bad:
+        rec('T7', '✗', '矩阵-真源强度脱钩：' + '；'.join(bad[:5])
+            + (f'（共 {len(bad)} 处）' if len(bad) > 5 else ''))
+    else:
+        rec('T7', '✓', f'矩阵强度与真源对齐：{checked} 条有强度登记的规则当前强度均有体现')
+
+
 def main(argv):
     repo = DEFAULT_REPO
     as_json = False
@@ -348,6 +454,8 @@ def main(argv):
     check_links(repo)
     check_rule_map(repo)
     check_reserved_prefix(repo)
+    check_ledger_evidence(repo)
+    check_matrix_strength(repo)
     if as_json:
         print(json.dumps([{'id': c, 'level': l, 'msg': m} for c, l, m in results],
                          ensure_ascii=False, indent=2))

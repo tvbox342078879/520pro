@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# impl: B-11 S1  ← 后台结果非阻塞收（第3次 block=true deny），孤儿闸归位
 # task_wait_guard.py —— 会话层等待闸（防卡死检查单·等待死，v0.8.79）
 # 挂 PreToolUse·TaskOutput（install.sh 幂等注册）。防的卡死：会话对同一后台任务
 # 反复 block=true 前台死等（B-11 的执行闸——禁轮询从规则文字变成拦截）。

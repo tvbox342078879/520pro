@@ -29,6 +29,11 @@
   漏登（实物有标记、映射没写）/ 过期登记 / 写了没挂 / 字段是编的，五种都红。
   首版正则只要求「出现标记」，把本文件 docstring 里的示例行也算成了落点（病15 第 6 例），
   现要求整行注释。
+- orphan-guard（v0.8.82 增量，补「有闸没登记」的反向盲区）：impl-reconcile 只查
+  「谁声称守、谁真的标了守」，查不了「装了个钩子到用户机器、却没有任何规则认领它」。
+  从 install.sh 提取 cp 到用户级的独立钩子（排除被别的钩子 import 的依赖库），逐个要求
+  有 `# impl: B-xx Sn` 标记或 rule_map 点名；两者都无即红（改坏了没有判据会红）。
+  病15 精确锚定：对象=install.sh 真实 cp 的独立钩子，不扫 hooks/ 全目录的杂项脚本。
 
 诚实边界：行级扫描，多行 subprocess 列表会漏报——多行调用须写在同一行，
 或在本文件附近登记豁免理由（M7）。impl-reconcile 只对账「谁声称守、谁真的标了守」，
@@ -323,9 +328,76 @@ def gate_impl_reconcile(root, settings=None):
              % (proven, len(R) - proven))]
 
 
+def gate_orphan_guard(root, settings=None):
+    """反向核：install.sh 注册到用户机器的独立钩子，必须有规则归属。
+
+    impl-reconcile 是「从 rule_map 出发查实物」，本闸是反方向「从实物（已注册钩子）
+    出发查 rule_map」——补上「装了钩子却没人认领」的盲区。这类孤儿闸改坏了，
+    没有任何 strength/impl 对账会红，等于装了个没人守的守卫（假闭环）。
+
+    对象范围（病15 精确锚定）：install.sh 里 `cp "$ROOT/hooks/X" "$HOME/.codebuddy/hooks/"`
+    的脚本，且排除被别的钩子 import 的依赖库（如 guard_cmd 被 next_anchor import，
+    归属由引用方承担，不单独要求标记）。不扫 hooks/ 目录全部 .py——那是识别范围
+    宽于对象范围，会把测试用的临时脚本、未安装的存货也算成孤儿。
+
+    归属判定（两条任一即可，避免误伤）：
+      ① 脚本内有整行 `# impl: B-xx Sn` 标记；
+      ② rule_map 的 impl 数组或 strength 点名了该文件。
+    """
+    rmp = os.path.join(root, 'verify', 'rule_map.json')
+    if not os.path.isfile(rmp):
+        return [('·', 'rule_map.json 不存在——孤儿闸反向核无映射可比，不适用')]
+    try:
+        R = json.load(open(rmp, encoding='utf-8')).get('rules') or {}
+    except Exception as e:
+        return [('✗', 'rule_map.json 无法解析（%s）——孤儿闸反向核失效' % type(e).__name__)]
+
+    inst = os.path.join(root, 'install.sh')
+    try:
+        text = open(inst, encoding='utf-8', errors='ignore').read()
+    except OSError:
+        return [('✗', 'install.sh 不可读，无法提取注册钩子清单（孤儿闸反向核）')]
+    hooks = sorted(set(CP_HOOK.findall(text)))
+    if not hooks:
+        return [('✗', 'install.sh 提取不到 cp 注册钩子——删掉 cp 行即可绕过本闸，判据失效')]
+
+    # 归属②：rule_map 的 impl/strength 点名过的文件集合
+    named = set()
+    for r in R.values():
+        r = r or {}
+        for f in (r.get('impl') or []):
+            named.add(f.replace('\\', '/'))
+        for ref in (r.get('strength') or {}).values():
+            if ref:
+                named.add(ref.split('#')[0].strip().replace('\\', '/'))
+
+    # 归属①：全仓 # impl: 标记（复用 collect_impl，整行注释口径一致）
+    impl = collect_impl(root)
+
+    reds = []
+    for name in hooks:
+        rel = 'hooks/' + name
+        if _imported_by_other(root, name):
+            continue  # 依赖库：归属由引用方承担（guard_cmd 先例）
+        stem = name[:-3] if name.endswith('.py') else name
+        # ② rule_map 点名（整路径或文件名）
+        if rel in named or name in named or any(p.endswith('/' + name) for p in named):
+            continue
+        # ① 实物标记（脚本内有 # impl: 整行）
+        if any(any(os.path.basename(p) == name for p in paths)
+               for levels in impl.values() for paths in levels.values()):
+            continue
+        reds.append(('✗', '%s 已注册到用户机器，但无 `# impl:` 标记、rule_map 也未点名——'
+                          '孤儿闸：改坏了没有任何判据会红（S5 变更闸本应守它）' % rel))
+    if not reds:
+        return [('·', '孤儿闸反向核全对：%d 个已注册独立钩子都有规则归属'
+                 % sum(1 for n in hooks if not _imported_by_other(root, n)))]
+    return reds
+
+
 GATES = {'quotepath': gate_quotepath, 'hook-probe': gate_hook_probe,
          'hook-registered': gate_hook_registered, 'case-count': gate_case_count,
-         'impl-reconcile': gate_impl_reconcile}
+         'impl-reconcile': gate_impl_reconcile, 'orphan-guard': gate_orphan_guard}
 
 
 def main():

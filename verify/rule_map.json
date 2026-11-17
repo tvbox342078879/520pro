@@ -168,11 +168,12 @@
    "kind": "manual",
    "how": "回看长任务：是否走了后台通道并有落盘日志；取输出是否非阻塞（禁 block 等/禁轮询/禁前台 sleep，结果到了再去）；宣布其结果前是否拿到退出码+日志尾部。给不出就是「还在跑」，不是「完成」。执行层闸见 hooks/guard_cmd.py 的 G7/G8（PreToolUse·Bash）与 next_anchor.py 思考闸门（UserPromptSubmit）。",
    "strength": {"S1": "hooks/guard_cmd.py"},
-   "impl": [],
+   "impl": ["hooks/guard_cmd.py", "hooks/task_wait_guard.py",
+            "hooks/agent_turns_guard.py", "hooks/next_anchor.py"],
    "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
+    "cmd": "python3 verify/tests/test_guard_cmd.py / test_task_wait_guard.py / agent_turns_guard.py --selftest",
+    "expect": "G7/G8 + 等待闸第3次 deny + 子任务时限 deny 全绿",
+    "got": "已实测（2026-11-17，见 docs/防卡死检查单.md §五；旧记『无法判定』系账目未回写，P0-b 同步修）"
    },
    "retire_if": ""
   },

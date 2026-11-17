@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""test_terminology_mutants.py — T1-T5 口径判据的必红变异
+"""test_terminology_mutants.py — T1-T7 口径判据的必红变异
 
 【为什么需要】
-`verify/terminology_check.py` 348 行、5 类判据，在本文件之前**一条测试都没有**。
+`verify/terminology_check.py`、7 类判据（T6 账目-落点 / T7 矩阵-真源强度 v0.8.82 增量），
+在本文件之前**一条测试都没有**。
 它查的是文档：编号有没有跳号、引用有没有断链、规则说的验证入口是否真的存在。
 文档是这个仓里改得最勤的东西，所以这 5 条判据最容易在「顺手改一句」里悄悄失效——
 失效的样子是继续输出「口径机检通过」。
@@ -162,6 +163,30 @@ def mut_t5_prefix(repo):
     return (lambda: write(p, orig)), orig
 
 
+def mut_t6_stale_ledger(repo):
+    """T6：交接册新记一条「agent_turns_guard 无法判定」，但检查单已实证 → 账目冲突。
+
+    对象选 agent_turns_guard：它当前在 handoff 无未决行、在检查单有已实证行，
+    正好造出「未回写的未决 vs 已实证」冲突，且不依赖 block=true 那行的回写状态。
+    """
+    p = os.path.join(repo, 'docs', 'handoff_latest.md')
+    orig = read(p)
+    write(p, orig + '\n- agent_turns_guard 运行时触发本会话无法实证，记「无法判定」待补。\n')
+    assert 'agent_turns_guard 运行时触发本会话无法实证' in read(p), '变异未落盘'
+    return (lambda: write(p, orig)), orig
+
+
+def mut_t7_matrix_stale(repo):
+    """T7：把 B-11 矩阵当前强度改回 S6（真源 rule_map 已是 S1）→ 矩阵脱钩应红。"""
+    p = os.path.join(repo, 'docs', '软规则硬化矩阵.md')
+    orig = read(p)
+    new = re.sub(r'(\| B-11 \|[^\n]*?\| )\*\*S1（已落地[^\n]*?\*\*( \|)',
+                 r'\1S6\2', orig, count=1)
+    assert new != orig and 'S6' in new, '变异未落盘'
+    write(p, new)
+    return (lambda: write(p, orig)), orig
+
+
 CASES = [
     ('T1 B 编号与序号错位', 'T1', '错位', mut_t1_shift),
     ('T1 条款缺 B-xx 标注', 'T1', '缺 B-xx', mut_t1_notag),
@@ -170,6 +195,8 @@ CASES = [
     ('T4 映射 anchor 漂移', 'T4', '锚点', mut_t4_anchor),
     ('T4 映射缺一条', 'T4', '规则无映射', mut_t4_drop),
     ('T5 未登记前缀 C-01', 'T5', 'C-01', mut_t5_prefix),
+    ('T6 账目记未决但已实证', 'T6', '账目-落点冲突', mut_t6_stale_ledger),
+    ('T7 矩阵强度脱钩', 'T7', '脱钩', mut_t7_matrix_stale),
 ]
 
 
@@ -216,7 +243,7 @@ def main():
     if fails:
         print(f'✗ {len(fails)} 项未通过：{fails[:5]}')
         return 1
-    print(f'✓ T1-T5 判据全部可按预期变红（{len(CASES)} 条）')
+    print(f'✓ T1-T7 判据全部可按预期变红（{len(CASES)} 条）')
     return 0
 
 

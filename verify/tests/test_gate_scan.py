@@ -278,6 +278,65 @@ with tempfile.TemporaryDirectory() as td:
     check('无 rule_map 记不适用而非通过', rc == 0 and '不适用' in out, out[-200:])
 
 
+# ── ⑨ orphan-guard：反向核「装了钩子却没人认领」（有闸没登记的盲区） ──
+# 三条件：造孤儿→红 / 补 # impl: 或 rule_map 点名→绿 / 元变异判据改坏→红漏。
+with tempfile.TemporaryDirectory() as td:
+    mk = lambda rules: w(os.path.join(td, 'verify', 'rule_map.json'),
+                         json.dumps({'rules': rules}, ensure_ascii=False))
+    reg = lambda names: w(os.path.join(td, 'install.sh'), ''.join(
+        'cp "$ROOT/hooks/%s" "$HOME/.codebuddy/hooks/%s"\n' % (n, n) for n in names))
+
+    # ⑨-① 孤儿：注册了钩子，无 # impl: 标记、rule_map 也没点名 → 红
+    mk({'B-11': {'kind': 'manual', 'how': 'x'}})
+    reg(['orphan.py'])
+    w(os.path.join(td, 'hooks', 'orphan.py'), 'print(1)\n')
+    rc, out = run(['--gate', 'orphan-guard', '--root', td])
+    check('注册孤儿钩子判红', rc == 2 and '孤儿闸' in out and 'orphan.py' in out, out[-200:])
+
+    # ⑨-② 归属①：脚本补 # impl: 整行标记 → 绿
+    w(os.path.join(td, 'hooks', 'orphan.py'), '# impl: B-11 S1\nprint(1)\n')
+    rc, out = run(['--gate', 'orphan-guard', '--root', td])
+    check('补 # impl: 标记后放行', rc == 0, out[-200:])
+
+    # ⑨-②b 归属②：去掉标记，改由 rule_map 点名 → 绿
+    w(os.path.join(td, 'hooks', 'orphan.py'), 'print(1)\n')
+    mk({'B-11': {'kind': 'manual', 'how': 'x', 'impl': ['hooks/orphan.py']}})
+    rc, out = run(['--gate', 'orphan-guard', '--root', td])
+    check('rule_map 点名也算归属', rc == 0, out[-200:])
+
+    # ⑨-③ 依赖库豁免：被别的钩子 import 的脚本不单独要求归属
+    mk({'B-11': {'kind': 'manual', 'how': 'x'}})
+    reg(['main.py', 'lib.py'])
+    w(os.path.join(td, 'hooks', 'main.py'), '# impl: B-11 S1\nimport lib\n')
+    w(os.path.join(td, 'hooks', 'lib.py'), 'def check(c):\n    return None\n')
+    rc, out = run(['--gate', 'orphan-guard', '--root', td])
+    check('被 import 的依赖库豁免（对象范围精确）', rc == 0, out[-200:])
+
+    # ⑨-④ 无 rule_map → 不适用，不判通过（三态不折叠）
+    os.remove(os.path.join(td, 'verify', 'rule_map.json'))
+    rc, out = run(['--gate', 'orphan-guard', '--root', td])
+    check('无 rule_map 记不适用而非通过', rc == 0 and '不适用' in out, out[-200:])
+
+    # ⑨-⑤ 元变异：把判据的归属判定改成「恒有归属」，孤儿必须溜过（自证判据真在守）
+    with tempfile.TemporaryDirectory() as vd:
+        w(os.path.join(vd, 'verify', 'rule_map.json'),
+          json.dumps({'rules': {'B-11': {'kind': 'manual', 'how': 'x'}}}, ensure_ascii=False))
+        w(os.path.join(vd, 'install.sh'),
+          'cp "$ROOT/hooks/orphan.py" "$HOME/.codebuddy/hooks/orphan.py"\n')
+        w(os.path.join(vd, 'hooks', 'orphan.py'), 'print(1)\n')
+        src = open(SCAN, encoding='utf-8').read()
+        mutated = src.replace(
+            "        reds.append(('✗', '%s 已注册到用户机器，但无 `# impl:` 标记、rule_map 也未点名——'\n"
+            "                          '孤儿闸：改坏了没有任何判据会红（S5 变更闸本应守它）' % rel))",
+            "        pass  # MUTATED: 判据作废，孤儿恒放行")
+        check('变异真的落盘', 'MUTATED: 判据作废' in mutated)
+        mpath = os.path.join(vd, 'scan_copy.py')
+        open(mpath, 'w', encoding='utf-8').write(mutated)
+        r = subprocess.run([sys.executable, mpath, '--gate', 'orphan-guard', '--root', vd],
+                           capture_output=True, text=True, timeout=60)
+        check('判据改坏后孤儿溜过 rc=0', r.returncode == 0, (r.stdout + r.stderr)[-200:])
+
+
 def test_three_state():
     """B-02 三态诚实：一个检查项说「不适用」时，不许被折叠成「通过」。
 

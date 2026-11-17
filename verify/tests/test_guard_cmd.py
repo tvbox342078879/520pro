@@ -214,6 +214,8 @@ na_src = open(os.path.join(SCRIPTS, 'next_anchor.py'), encoding='utf-8').read()
 check('思考闸门注入：定性一问', '定性' in na_src and '零探查' in na_src)
 check('思考闸门注入：探查走子代理一问', '子代理' in na_src and '主会话不连发' in na_src)
 check('思考闸门注入：收尾非阻塞一问', '禁 block' in na_src and '禁轮询' in na_src)
+check('B-12 回合收敛软层注入：三要素每轮可见（S6 非硬闸，仅守在册）',
+      'B-12' in na_src and '做了什么' in na_src and '凭什么' in na_src and '下一步' in na_src)
 check('G8 洪水闸接进 next_anchor 执行路径', 'check_flood' in na_src)
 
 # ── 在途任务跟踪：完成通知自动销账 + 台账 CLI + 超阈值标红（真 import 测函数，非读源码）──
