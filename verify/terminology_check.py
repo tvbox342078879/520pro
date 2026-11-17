@@ -60,6 +60,10 @@ EXEMPT = {
     'monitor_targets.json': _RUNTIME_REASON,
     'monitor_domains.json': _RUNTIME_REASON,
     'monitor_pubsources.json': _RUNTIME_REASON,
+    'pan_monitor_targets.json':
+        '运行时生成（pan_monitor.py 首次 add 时创建，TARGETS 指向 scripts/ 下）；本机私产不入 git',
+    'pan_monitor_queue.json':
+        '运行时生成（pan_monitor.py 首次 check 入队时创建，QUEUE 指向 scripts/ 下）；本机私产不入 git',
     'dead_repos.json': _RUNTIME_REASON,
     'shellcrack_cands.json': _RUNTIME_REASON,
     'docs/巡检/dashboard.html':

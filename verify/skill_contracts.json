@@ -90,12 +90,13 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/learn-hub",
-      "version": "1.4.4",
+      "version": "1.4.5",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
         "scripts/learn.py",
         "scripts/pan.py",
+        "scripts/pan_monitor.py",
         "scripts/flow.json",
         "library/tree.json"
       ],

@@ -1,3 +1,10 @@
+## v1.4.5 — 2026-11-18（网盘监测：上游取料仓 · 测活+测更新）
+- 新增 `scripts/pan_monitor.py`：pan.py 的上游监测层，两功能各自显式出口——测活 `live_label(三态)`=活/失效/无法判定；测更新 `fingerprint+diff_new`（清单 fid:size 指纹比差集，只推新 fid 入队）。
+- 两层解耦：监测只出待转存清单，`pan.py save` 消费队列落料；无常驻 daemon，靠 check 手动/自动化任务触发。
+- 状态文件 pan_monitor_targets.json / pan_monitor_queue.json 字段白名单落盘，cookie 零明文（B-05）；三态 unknown/miss 不动指纹不推队列。
+- 判据 test_pan_monitor.py 30/30（含两条元变异：白名单词级匹配防 WIPED_FIELDS 假绿、拆任一功能应红）；add 幂等、二次测更新去重=0 实测。
+- 接通：SKILL.md 3.1.2 用法、MANIFEST/skill_contracts 登记、verify.sh 测试注册。
+
 ## v1.4.4 — 2026-11-18（农业领域包 · P0 纵向深入）
 - _tree_spec 增「农业技术」学域（农药→功效7类、肥料→养分7类）；_PLACE_KW 加农业归类判据（可解释、K12 不误伤），正反 7/7。
 - 新增 library/domains/agriculture.json：领域包只放权威源清单(4源)+验证规则(≥2独立源/冲突标时点/时效)+农户操作卡适配；分类树不在此（守 M1 单一真源=_tree_spec）。

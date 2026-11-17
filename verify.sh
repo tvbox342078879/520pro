@@ -197,6 +197,12 @@ if [ -f "$U/skills/learn-hub/scripts/learn.py" ]; then
   else
     no "  └ pan.py 缺失（网盘取料不可用）"
   fi
+  # v1.4.5 网盘监测上游取料仓（测活+测更新）
+  if [ -f "$U/skills/learn-hub/scripts/pan_monitor.py" ]; then
+    ok "  └ pan_monitor.py 网盘监测（测活+测更新→待转存队列）"
+  else
+    no "  └ pan_monitor.py 缺失（网盘监测不可用）"
+  fi
   # v0.8.12 学习产出出口：成品入库后自动进「📚 学习资料/成品」（主文档 + 整包）
   _ld="$U/skills/learn-hub/scripts/learn.py"
   if [ -f "$_ld" ]; then
@@ -914,7 +920,8 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
-         test_pre_push test_sync_channels test_task_wait_guard test_database_exempt; do
+         test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
+         test_pan_monitor; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

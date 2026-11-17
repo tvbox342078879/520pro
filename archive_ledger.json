@@ -2931,6 +2931,39 @@
    "result": "ok",
    "event_ref": "commit 9f59b07",
    "note": "销 learn-hub v1.4.4 交付：领域包架构（内核通用+领域可插拔）+单一真源+调节剂端到端P0；形态/修法/实例/接口缺口四段齐备"
+  },
+  {
+   "ts": "2026-11-18T00:53:36",
+   "round": "archive 交付报告_learn-hub农业领域包P0_5ed56a4.md @5ed56a4",
+   "artifact": "交付报告_learn-hub农业领域包P0_5ed56a4.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "zi2So1B1mE7Ui5cmrttfO1",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 5ed56a4",
+   "note": "销欠账 D-5ed56a4-F04：learn-hub v1.4.4 农业领域包P0 逐版交付说明——演进时间线（内核通用+领域可插拔）、验证凭据、4条接口缺口候选"
+  },
+  {
+   "ts": "2026-11-18T03:47:08",
+   "round": "archive method_网盘监测两功能解耦_测活与测更新.md @5300af7",
+   "artifact": "method_网盘监测两功能解耦_测活与测更新.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "HOhM25nrpCMokSATDbmaNh",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 5300af7",
+   "note": "F02 方法论：测活(live_label三态)+测更新(fingerprint+diff_new)两功能解耦，两层队列解耦，零明文，两条元变异防病15"
+  },
+  {
+   "ts": "2026-11-18T03:47:11",
+   "round": "archive 交付报告_learn-hub网盘监测v145.md @5300af7",
+   "artifact": "交付报告_learn-hub网盘监测v145.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "H4iXFOUboHwB6cIXAlDnlf",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 5300af7",
+   "note": "F04 逐版交付：v1.4.4→v1.4.5 网盘监测上游取料仓，测活+测更新，30/30 判据，端到端实测"
   }
  ]
 }

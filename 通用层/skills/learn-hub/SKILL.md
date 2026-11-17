@@ -1,7 +1,7 @@
 ---
 name: learn-hub
 description: "当用户说「学习资料」「整理这篇文章」「知识点切分」「资料体检」「学情诊断」时使用本技能。学习工坊·学习资料单类业务全能选手（可升级·规则54三件套）。定位与探源司同构：不是流水线工具，而是「学习资料」这个业务块从进料到出品的唯一归属地。能力：①采集（公众号文章/网盘资料/本地文档/PDF/图片/网页/音视频）；②分类整理（知识点切分·层级·去重·难度·归属判定）；③特有工具库（学情诊断/记忆曲线/检索回查/资料体检）；④质检闸（覆盖率·答案自洽·难度分布·无出处必单列）；⑤入库与复用（不重复造）；⑥监测（素材源存活/更新/失效）；⑦持续优化（每轮沉淀判据，不许只加功能不加尺子）。★边界：出卷→exam-generator；知识框架→knowledge-framework-builder；备课PPT→office-kejian；错题→exam-paper-generator；单文件格式转换→pdf-converter。本技能只做「多源整合→可用资料」和它们的编排与质检。触发词：做学习资料 / 整理学习资料 / 学习资料库 / 这套资料能用吗 / 把这些文章做成资料 / 网盘资料整理 / 网盘分享链接 / 夸克分享 / 迅雷分享 / 百度网盘分享 / UC网盘 / 网盘转存 / 网盘下载 / 分享清单 / 本地文档整理 / 公众号文章整理 / 知识点切一下 / 教材拆解 / 学情分析 / 复习资料 / 复习资料全不全 / 资料全不全 / 资料有没有出处 / 这份资料靠不靠谱 / 资料哪里来的 / 讲义 / 考点整理 / 课件材料 / 笔记整理 / 整理成笔记 / 学习材料 / 学习工坊 / 错题为什么错 / 这块为什么老错 / 孩子老错 / 记不住 / 背不下来 / 能不能直接背 / 知识框架 / 知识点 / 教材 / 考点 / 试卷材料 / 学习计划 / 什么时候复习 / 记忆曲线 / 资料体检 / 覆盖率怎么样 / 太乱了 / 乱成一团 / 乱七八糟 / 一堆没整理 / 散在各处 / 找不到哪份 / 这堆文件 / 文件夹很乱 / 资料太杂 / 理一理 / 教程 / 教程整理 / 资料包 。正门：scripts/learn.py（采集/分类/精炼/质检/入库/监测全在此；网盘取料走 scripts/pan.py）。"
-version: "1.4.4"
+version: "1.4.5"
 allowed-tools: Read,Grep,Glob,Bash,Write,Edit,Skill
 ---
 
@@ -133,6 +133,27 @@ python3 scripts/pan.py self-check                                        # 2 项
 - `info` 只走 API，机房 IPv4 环境也能成功；
 - `pull` 被 CDN 拒（412/403）是**出口 IP 段**问题，**不是文件不存在、不是 IPv6**；
 - 清单拿到了就说明东西在——别把"取不到"写成"里面没东西"。
+
+### 3.1.2 网盘监测（`scripts/pan_monitor.py`）——上游取料仓
+
+v1.4.5 新增。`pan.py` 是手动转存；本模块是它的**上游监测**，两个功能各一个出口：
+- **测活**：分享链接是否还有效 → `live_label(三态)` = 活 / 失效 / 无法判定（412/登录墙不折叠成失效）；
+- **测更新**：内容是否新增 → 对清单 `fid:size` 做指纹，与上期比差集，只把新 fid 推入待转存队列。
+
+两层解耦：监测只出「待转存清单」，转存由 `pan.py save` 消费队列完成；监测挂了不影响转存，失败可重放。
+
+```bash
+python3 scripts/pan_monitor.py add --url <分享链接> [--passcode X] [--every 每日|每周|每月]  # 登记（确认后才建）
+python3 scripts/pan_monitor.py due [--json]           # 列出到期源
+python3 scripts/pan_monitor.py check [--dry] [--all]  # 测活+测更新：到期源查清单、比指纹、新料入队
+python3 scripts/pan_monitor.py queue [--json]         # 看待转存清单
+python3 scripts/pan_monitor.py save [--yes] [--timeout 120]  # 消费队列→pan.py save（--yes 才真转）
+python3 scripts/pan_monitor.py self-check             # 判据自检（30/30）
+```
+
+状态文件：`scripts/pan_monitor_targets.json`（监测册）、`scripts/pan_monitor_queue.json`（待转存队列），字段白名单落盘，**cookie 零明文**（只读本地凭证文件）。
+触发靠 `check` 手动调用或平台自动化任务调度——**无常驻 daemon**（生态无此先例，不擅自引入）。
+三态：unknown/miss 都不动指纹、不推队列；`412/登录墙/网络` 归无法判定。`check` 输出逐源标 `测活=… ｜测更新=+N`。
 
 ### 3.2 sort 分类整理
 
