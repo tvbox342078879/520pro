@@ -2865,6 +2865,17 @@
    "result": "ok",
    "event_ref": "commit 492f478",
    "note": "交付报告：P0-a orphan-guard/P0-b T6/P1 T7/P2 软层硬化；gate_scan 44/0、terminology 9变异全红、verify 0✗；event_ref 492f478"
+  },
+  {
+   "ts": "2026-11-17T23:24:54",
+   "round": "archive 交付报告_遗留销账批1批2_20261117.md @42baff5",
+   "artifact": "交付报告_遗留销账批1批2_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "kU5fImkgTQqZ7UadykTesT",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 42baff5",
+   "note": "交付报告：批1 database 永久豁免+12判据、批2 C4补两处变异；test_database_exempt 12/0、契约变异9条全红、verify 0✗；event_ref 42baff5"
   }
  ]
 }
