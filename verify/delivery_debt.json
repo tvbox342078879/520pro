@@ -1977,6 +1977,23 @@
    "waived_ts": "2026-11-16T09:19:48"
   },
   {
+   "id": "D-2282824-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "2282824",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "fix(rules): 施工纪律 S 段接入手机硬轨对账——闭环假同步",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 复发——build_rail_check 初版正文标记检查把登记注释里的 S 编号也算入，导致\"注释对正文没落\"假绿（同通病台账病15「判据识别范围≠对象范围」",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "archive 方法论_新真源必须接对账链_20261117.md @2282824 @ 2026-11-17",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-629b3eb-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",

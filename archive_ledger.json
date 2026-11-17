@@ -2609,6 +2609,17 @@
    "result": "ok",
    "event_ref": "commit 629b3eb",
    "note": "v0.8.77 commit 629b3eb：新编号段写独立文件避 T4/T5 双红；版本 bump 漏同步 handoff 被 C4 拦（病历②型）"
+  },
+  {
+   "ts": "2026-11-17T09:58:33",
+   "round": "archive 方法论_新真源必须接对账链_20261117.md @2282824",
+   "artifact": "方法论_新真源必须接对账链_20261117.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "WgrTQO36f3FYrHNbKhUFWK",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 2282824",
+   "note": "commit 2282824：新规则真源必须接对账链才算闭环；病15 假绿实例 + 修法 + 坐标"
   }
  ]
 }
