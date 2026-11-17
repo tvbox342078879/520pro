@@ -2733,6 +2733,17 @@
    "result": "ok",
    "event_ref": "VERSION=0.8.80 · commit d4d7fdb；agent_turns_guard selftest 8/8；test_gate_scan",
    "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-17T18:30:44",
+   "round": "archive 交付报告_防卡死闭环_v0.8.79-80_20261117.md @e6f0ca1",
+   "artifact": "交付报告_防卡死闭环_v0.8.79-80_20261117.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "UkbkBSNVLGcob96gjEKAeT",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit e6f0ca1",
+   "note": "阶段完工交付报告：交付物清单+四时序实证+三态边界+落库坐标+遗留三齐"
   }
  ]
 }

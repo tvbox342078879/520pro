@@ -2096,6 +2096,25 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-e6f0ca1-F06",
+   "flow": "F06",
+   "folder": "🧬 520进化论/05-复盘与判例",
+   "commit": "e6f0ca1",
+   "commit_date": "2026-11-17",
+   "target_version": "",
+   "title": "chore(ledger): v0.8.80 台账病15 补记（第19例复发升格模式）+ 三件落库核销",
+   "expect": "判例文档（含事件指针 event_ref）",
+   "evidence": "改动文件: docs/通病台账.md",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-17",
+   "closed_by": "",
+   "waived_until": "2026-12-31",
+   "note": "豁免至 2026-12-31：记账笔（台账病15补记+三件核销回执），无新判例可交；判例主体已随 d4d7fdb 落库 judgement_等待闸运行时自证",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-17T18:32:00"
+  },
+  {
    "id": "D-e9d5022-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",
