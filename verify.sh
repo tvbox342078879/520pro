@@ -120,6 +120,7 @@ if [ "$REPO_ONLY" = 1 ]; then
 else
 echo "[通用层·用户级]"
 [ -f "$U/rules/core-8.md" ] && ok "rules/core-8.md" || no "rules/core-8.md 缺失"
+[ -f "$U/rules/施工纪律.md" ] && ok "rules/施工纪律.md" || no "rules/施工纪律.md 缺失"
 for s in machine-bootstrap artifact-store; do
   [ -d "$U/skills/$s" ] && ok "skills/$s" || no "skills/$s 缺失"
 done

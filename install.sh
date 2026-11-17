@@ -212,6 +212,7 @@ deploy_generic_user() {
   echo
   echo "【通用层 → $USER_DIR】（跨项目，平台注册可路由）"
   cp_bak "$ROOT/通用层/rules/core-8.md" "$USER_DIR/rules/core-8.md"
+  cp_bak "$ROOT/通用层/rules/施工纪律.md" "$USER_DIR/rules/施工纪律.md"
   for d in "$ROOT"/通用层/skills/*/; do
     [ -d "$d" ] || continue
     cp_bak "$d" "$USER_DIR/skills/$(basename "$d")"

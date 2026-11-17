@@ -2576,6 +2576,17 @@
    "result": "ok",
    "event_ref": "commit e9d5022",
    "note": "病15第17例判例+event_ref；commit e9d5022"
+  },
+  {
+   "ts": "2026-11-17T08:59:24",
+   "round": "archive 交付报告_施工纪律真源化_20261117.md @8b197ca",
+   "artifact": "交付报告_施工纪律真源化_20261117.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "JNhIniLgejIfuQiANyl7mx",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 8b197ca",
+   "note": "S-01…S-09 用户级真源 + 全项目生效通道 + S-06 机制闭环；verify rc=0/✗0；commit 待提交"
   }
  ]
 }

@@ -192,6 +192,11 @@ for cmd, why in g7_pass:
     h = G.check(cmd)
     check(f'G7 放行：{why}', h is None, f'误拦={h["id"] if h else ""}')
 
+# S-06（施工纪律·不扩大拦截范围）：复用上面 g7_pass 的反例断言——
+# echo/grep 文本含 sleep 串不是命令，必须放行；误拦即 S-06 违例。
+for cmd, why in g7_pass[:4]:
+    check(f'S-06 不扩大拦截：{cmd}', G.check(cmd) is None, '文本串误判为命令')
+
 # ── ⑨ B-11/G8 工具洪水：滑动窗口计数，抄真实「41 次 sleep / 工具洪水占满回合」 ──
 G.FLOOD_STATE = os.path.join(tempfile.mkdtemp(), 'flood_state.json')  # 测试隔离，不污染真 state
 json.dump({'ts': []}, open(G.FLOOD_STATE, 'w'))  # 真清空，不靠 check_flood 记一条来"清"
