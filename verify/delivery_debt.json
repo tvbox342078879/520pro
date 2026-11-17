@@ -2022,12 +2022,12 @@
    "title": "fix(guards): 修子任务时限闸误伤 TaskCreate（病15 第21例）",
    "expect": "方法论条目（形态+修法+实例坐标）",
    "evidence": "Lesson: 病15 第21例——判据用「字段特征」冒充「对象身份」必然误伤同类（记账工具带 description 被当派活），正解是对象身份用 tool_name 精确白",
-   "status": "open",
+   "status": "closed",
    "age_commits": 0,
    "first_seen": "2026-11-17",
-   "closed_by": "",
+   "closed_by": "archive method_对象身份判据_34f9309.md @34f9309 @ 2026-11-17",
    "waived_until": "",
-   "note": ""
+   "note": "机器核销：ledger 回执已现"
   },
   {
    "id": "D-34f9309-F06",
@@ -2040,12 +2040,12 @@
    "title": "fix(guards): 修子任务时限闸误伤 TaskCreate（病15 第21例）",
    "expect": "判例文档（含事件指针 event_ref）",
    "evidence": "改动文件: docs/通病台账.md",
-   "status": "open",
+   "status": "closed",
    "age_commits": 0,
    "first_seen": "2026-11-17",
-   "closed_by": "",
+   "closed_by": "archive case_派活闸误伤记账工具_34f9309.md @34f9309 @ 2026-11-17",
    "waived_until": "",
-   "note": ""
+   "note": "机器核销：ledger 回执已现"
   },
   {
    "id": "D-394b72e-F02",
