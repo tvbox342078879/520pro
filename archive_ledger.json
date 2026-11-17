@@ -2620,6 +2620,17 @@
    "result": "ok",
    "event_ref": "commit 2282824",
    "note": "commit 2282824：新规则真源必须接对账链才算闭环；病15 假绿实例 + 修法 + 坐标"
+  },
+  {
+   "ts": "2026-11-17T11:06:57",
+   "round": "archive 520pro换机SOP_v0.8.77.md @3fbbda4",
+   "artifact": "520pro换机SOP_v0.8.77.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "4y6owR1JYCG4bNJRkN69DF",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 3fbbda4",
+   "note": "四块：能力边界/流程产出/四类资产矩阵/三场景换机流程；真源逐条标文件+行号"
   }
  ]
 }
