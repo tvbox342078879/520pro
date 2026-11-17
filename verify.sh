@@ -479,6 +479,23 @@ else
   no "手机指令.md 缺失（手机通道断：手机端不读项目薄壳）"
 fi
 
+# ★ 施工纪律 S 段对账（S-02 机制解决）：B 段有 hard-rail 对账，S 段真源化后一度没有，
+#   导致"真源改了手机端/云端副本没同步"的假闭环。这里把 S 段接进同一条链：
+#   施工纪律.md 改 → 这里红 → 同步手机指令.md → pre-commit 同步云端 doc → 新鲜度绿。
+echo
+echo "[施工纪律 S 段对账]"
+if [ -f "$TARGET/verify/build_rail_check.py" ]; then
+  _br_out="$(python3 "$TARGET/verify/build_rail_check.py" --repo "$TARGET" --check 2>&1)"
+  case $? in
+    0) ok "  └ 施工纪律 S 段硬轨：${_br_out#OK }" ;;
+    1) no "  └ 施工纪律 S 段硬轨：${_br_out#FAIL }"
+       echo "     处置：把新增/变更的 S 编号同步进 手机指令.md 的 build-rail 注释与粘贴区正文" ;;
+    *) opt "  └ S 段对账无法判定：${_br_out#OPT }" ;;
+  esac
+else
+  no "verify/build_rail_check.py 缺失（S 段对账判据未装）"
+fi
+
 # ★ v0.8.26：手机指令云端副本新鲜度
 #   起因：手机打不开本地路径、GitHub raw 在手机 App 里也不稳，所以硬轨正文另存了一份
 #   云端 doc 供直接复制。但镜像靠人手动更新必然过期——过期后手机上粘的是旧规则，
@@ -817,7 +834,7 @@ echo "[扩展回归（v0.8.18 起·工程F）]"
 #   它由人手动跑（或在 CI 里作为最外层一步）。
 for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
          test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
-         test_linkage_notice test_secret_scan_size test_trigger_frontload \
+         test_build_rail test_linkage_notice test_secret_scan_size test_trigger_frontload \
          test_artifact_scan test_lib_refs_probe \
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard; do
