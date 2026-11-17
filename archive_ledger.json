@@ -2964,6 +2964,39 @@
    "result": "ok",
    "event_ref": "commit 5300af7",
    "note": "F04 逐版交付：v1.4.4→v1.4.5 网盘监测上游取料仓，测活+测更新，30/30 判据，端到端实测"
+  },
+  {
+   "ts": "2026-11-18T03:51:03",
+   "round": "archive method_网盘监测两功能解耦_d86604d.md @d86604d",
+   "artifact": "method_网盘监测两功能解耦_d86604d.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "2EU5kNBN8RaBqVFVn9YyZe",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit d86604d",
+   "note": "F02 方法论 d86604d：测活live_label+测更新fingerprint/diff_new两功能解耦，队列解耦零明文，病15第22例"
+  },
+  {
+   "ts": "2026-11-18T03:51:07",
+   "round": "archive 交付报告_learn-hub网盘监测v145_d86604d.md @d86604d",
+   "artifact": "交付报告_learn-hub网盘监测v145_d86604d.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "Q1CJVZKgT8TVQXGfGNKJlh",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit d86604d",
+   "note": "F04 逐版交付 d86604d：v1.4.4→v1.4.5 网盘监测上游取料仓，测活+测更新，30/30判据"
+  },
+  {
+   "ts": "2026-11-18T03:51:10",
+   "round": "archive 判例_病15第22例_白名单子串假绿_d86604d.md @d86604d",
+   "artifact": "判例_病15第22例_白名单子串假绿_d86604d.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "2fZ1ImYnrSHTxEI5B4EffF",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit d86604d",
+   "note": "F06 复盘判例 d86604d：病15第22例白名单子串匹配假绿，AST词级修复，四步闭环"
   }
  ]
 }
