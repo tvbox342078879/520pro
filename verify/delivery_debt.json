@@ -2791,6 +2791,26 @@
    "closed_by": "archive 判例_病15第22例_白名单子串假绿_d86604d.md @d86604d @ 2026-11-18",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-f1781e0-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "f1781e0",
+   "commit_date": "2026-11-18",
+   "parent": "3aaabe9",
+   "target_version": "",
+   "title": "feat(hook): 二进制目标自动出场软提示（熔铸司 foundry，APK/逆向意图命中）",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 软提示补的是「出场触发链」非「自动加载成功」——技能加载仍靠模型响应提示，",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "",
+   "waived_until": "2027-02-04",
+   "note": "豁免至 2027-02-04：spaceengine connector 未绑定（list_installed_plugins=not_connected，reconnect 报未绑定当前任务），真落库通道不可用；与前 54 条同期限口径，到期自动转 open 待真补，留痕非洗绿",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-18T22:21:19"
   }
  ]
 }
