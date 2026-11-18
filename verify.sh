@@ -884,6 +884,31 @@ else
   no "  └ 经验闭环 --selftest 未过：$(printf '%s%s' "$exp_v2_st" "$exp_pv_st" | grep -E '✗' | head -3 | tr '\n' ' ')"
 fi
 
+# ★ 经验闭环 v3 步骤5（2026-11-18）：闭环完成判据——同一 symptom 复发计数停增。
+#   三态不折叠：plateau/no-seal=ok；recurring=黄（复发本身提醒级，不阻断提交）；
+#   unknown/selftest 失败=红（判据自己不可信=机制缺陷）。真读用户级账本，与写侧同真源。
+echo
+echo "[经验闭环 v3 步骤5（收口判据：复发停增）]"
+_exp_closure_st=$( python3 "$TARGET/verify/exp_closure.py" --selftest 2>&1 )
+if [ $? -eq 0 ]; then
+  ok "  └ 停增判据 --selftest 正反向全过（10 例：无基线/停增/复发/手改洗绿/重复封盘）"
+else
+  no "  └ 停增判据 --selftest 未过：$(printf '%s' "$_exp_closure_st" | grep -E '✗' | head -3 | tr '\n' ' ')"
+fi
+if _exp_closure_out=$( python3 "$TARGET/verify/exp_closure.py" 2>&1 ); then
+  _ec_state=$( printf '%s' "$_exp_closure_out" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("state","unknown"))' 2>/dev/null )
+  case "$_ec_state" in
+    plateau|ready)
+      ok "闭环收口回读：$(printf '%s' "$_exp_closure_out" | python3 -c 'import json,sys; print(json.load(sys.stdin)["summary"])' 2>/dev/null)" ;;
+    recurring)
+      echo "     ⚠ 闭环收口：仍有症状在复发（提醒级，不阻断）：$(printf '%s' "$_exp_closure_out" | grep -o '"symptom": *"[^"]*"' | head -2 | tr '\n' ' ')" ;;
+    *)
+      no "  └ 闭环收口回读异常/unknown：$(printf '%s' "$_exp_closure_out" | head -2 | tr '\n' ' ')" ;;
+  esac
+else
+  no "  └ 闭环收口回读失败：$(head -2 <<<"$_exp_closure_out" | tr '\n' ' ')"
+fi
+
 # ★ v0.8.25（规则迁移批2）：台账四律——旧生态 M-R75/82/86/93 的判据化落点
 # 为什么要有：这四条原本是旧生态的"教训条目"，只在文档里躺着。docs 不加载
 # （docs/加载机制与可靠性.md 实测），所以只搬条文 = 纸面迁移。这里只挑能机检的形态，
@@ -921,7 +946,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
          test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
-         test_pan_monitor test_exp_direct test_ad_audit test_skill_entry; do
+         test_pan_monitor test_exp_direct test_exp_closure test_ad_audit test_skill_entry; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

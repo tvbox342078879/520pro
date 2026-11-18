@@ -308,12 +308,14 @@
    },
    "impl": [
     "hooks/guard_cmd.py",
-    "verify/tests/test_guard_cmd.py"
+    "verify/tests/test_guard_cmd.py",
+    "verify/exp_closure.py",
+    "verify/tests/test_exp_closure.py"
    ],
    "proven_by": {
-    "cmd": "python3 hooks/guard_cmd.py --audit-landings; python3 verify/tests/test_guard_cmd.py",
-    "expect": "真实态 bare=[] → rc=0；抹掉 G7 用例锚点 → gate_target(G7)=None 且 audit 报裸闸 rc=2",
-    "got": "2026-11-18 步骤4实测：audit bare=[]/rc=0，102 例全绿；元变异抹 G7 锚点后 gate_target 转 None、audit 报 G7 裸闸（fail-closed）"
+    "cmd": "python3 hooks/guard_cmd.py --audit-landings; python3 verify/tests/test_guard_cmd.py; python3 verify/exp_closure.py --selftest; python3 verify/tests/test_exp_closure.py",
+    "expect": "真实态 bare=[] → rc=0；抹掉 G7 用例锚点 → gate_target(G7)=None 且 audit 报裸闸 rc=2；停增判据 10 例正反全过",
+    "got": "2026-11-18 步骤4实测：audit bare=[]/rc=0，102 例全绿；元变异抹 G7 锚点后 gate_target 转 None、audit 报 G7 裸闸（fail-closed）。步骤5实测：exp_closure selftest 10✓/0✗，端到端 seal→plateau→recurring→手改倒退 unknown，真账本 0 封盘诚实报 ready/no-seal。"
    },
    "retire_if": "所有 PreToolUse 拦截规则都已退役、不再有「命中缺落点」风险时",
    "how": "判定源必须是脚本执行事实（guard_cmd.check 确定性判定 / 经验库机器记账），不采信文本自报；每条拦截规则须带出 test_guard_cmd.py#<id> 实证落点，缺则裸闸报红、fail-closed on evidence。"

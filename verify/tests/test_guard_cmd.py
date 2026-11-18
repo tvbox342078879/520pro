@@ -314,6 +314,46 @@ check('步骤4/裸闸仍 deny 且 reason 标注（不静默放行）',
       and '⚠裸闸' in _pay4['hookSpecificOutput']['permissionDecisionReason'],
       _pay4['hookSpecificOutput']['permissionDecisionReason'][:120])
 
+# ── 步骤5 复发记账真源统一（修 15/16 分叉：写侧与读侧同真源）─────────────
+# 病15 防护：判据对象是「记账真文件」，用 CODEBUDDY_EXP_HOME mock 隔离，
+# 真跑 _bump 到用户级 mock，验：①写用户级 ②仓内种子不污染 ③同分钟去重仍在。
+import shutil as _sh5
+_td5 = tempfile.mkdtemp()
+try:
+    _seed5 = os.path.join(ROOT, 'experience_recurrence.json')
+    _live5 = os.path.join(_td5, 'experience_recurrence.json')
+    _sh5.copy(_seed5, _live5)
+    _d = json.load(open(_live5, encoding='utf-8'))
+    _bid5 = '病TEST5-' + str(os.getpid())
+    _d['counters'][_bid5] = {'count': 0, 'events': [], 'last_ts': '', 'status': 'active'}
+    json.dump(_d, open(_live5, 'w', encoding='utf-8'), ensure_ascii=False)
+
+    _saved_home = os.environ.get('CODEBUDDY_EXP_HOME')
+    os.environ['CODEBUDDY_EXP_HOME'] = _td5
+    try:
+        # 真函数：_live_rec_path 用户级优先（识别范围=对象范围：账本路径本身）
+        check('步骤5/_live_rec_path 用户级优先（真函数）',
+              G._live_rec_path(ROOT) == _live5)
+        # 真跑 bump（写用户级 mock）
+        G._bump_recurrence(_bid5, coord='步骤5 判据验证')
+        _d1 = json.load(open(_live5, encoding='utf-8'))['counters'][_bid5]
+        check('步骤5/bump 记到用户级（count 0→1、events 1 条）',
+              _d1['count'] == 1 and len(_d1['events']) == 1, str(_d1)[:100])
+        # 仓内种子未被污染（分叉已消除：写侧不再碰仓内）
+        _seed_after = json.load(open(_seed5, encoding='utf-8'))['counters']
+        check('步骤5/bump 不污染仓内种子（读侧同真源）', _bid5 not in _seed_after)
+        # 同分钟去重仍在（不因换路径丢失去重语义）
+        G._bump_recurrence(_bid5, coord='步骤5 判据验证-同分钟')
+        _d2 = json.load(open(_live5, encoding='utf-8'))['counters'][_bid5]
+        check('步骤5/同分钟去重保留（不重复计数）', _d2['count'] == 1)
+    finally:
+        if _saved_home is None:
+            os.environ.pop('CODEBUDDY_EXP_HOME', None)
+        else:
+            os.environ['CODEBUDDY_EXP_HOME'] = _saved_home
+finally:
+    _sh5.rmtree(_td5)
+
 # ── ⑤ 安装副本与仓库真源一致 ──
 def sha(p):
     return hashlib.sha256(open(p, 'rb').read()).hexdigest() if os.path.exists(p) else None

@@ -295,15 +295,29 @@ def _disease_hint(rule_id):
         return ''  # 降级：映射缺失不阻断主闸功能
 
 
+def _live_rec_path(root):
+    """经验闭环 v3 步骤5：复发记账真源与读侧（exp_probe._live_path）统一——用户级优先，
+    仓内种子兜底。修步骤3搬家遗留的分叉：旧 _bump 写仓内(count=16)、probe/inject 读用户级
+    (count=15)，停增判据接任一侧都是假绿（病15：判据对象≠记账对象）。
+    CODEBUDDY_EXP_HOME 供判据隔离 mock；不依赖 cwd/git root/last_repo（换仓不静默空转）。"""
+    home = os.environ.get('CODEBUDDY_EXP_HOME') or os.path.join(
+        os.path.expanduser('~'), '.codebuddy', 'experience')
+    live = os.path.join(home, 'experience_recurrence.json')
+    return live if os.path.isfile(live) else os.path.join(root, 'experience_recurrence.json')
+
+
 def _bump_recurrence(rule_id, coord=None):
     """经验闭环闸2：拦截/Lesson 记病即复发计数+1（机器记账，失败静默，同分钟去重）。
 
-    v0.8.66：coord 可选（Lesson 复发时传「Lesson 复发 病N 第K次」，与 guard 拦截区分来源）。"""
+    v0.8.66：coord 可选（Lesson 复发时传「Lesson 复发 病N 第K次」，与 guard 拦截区分来源）。
+    v0.8.84 步骤5：记账路径改用户级优先（_live_rec_path），与读侧同真源，消除 15/16 分叉。"""
     try:
         import json as _j, datetime as _dt
         root = _repo_root()
-        fp = os.path.join(root, 'experience_recurrence.json')
+        fp = _live_rec_path(root)
         d = _j.load(open(fp, encoding='utf-8')) if os.path.exists(fp) else {'counters': {}}
+        # 步骤5：用户级账本可能先于本字段存在（步骤3搬家前旧格式），缺 counters 补空壳而非崩。
+        d.setdefault('counters', {})
         mp_path = os.path.join(root, 'verify', '病号映射表.json')
         mp = _j.load(open(mp_path, encoding='utf-8')) if os.path.exists(mp_path) else {}
         gr = mp.get('guard_rules', {})
