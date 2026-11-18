@@ -119,6 +119,34 @@
       "entry": "scripts/space_hub.py",
       "trigger_samples": "references/trigger-samples.md"
     },
+    "ad-audit": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/ad-audit",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/ad_audit.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/ad_audit.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "push-safe": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/push-safe",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/push_safe.sh",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/push_safe.sh",
+      "trigger_samples": "references/trigger-samples.md"
+    },
     "probe-hub": {
       "kind": "skill",
       "layer": "能力层",

@@ -47,7 +47,13 @@ d = json.loads(r.stdout)
 check(f'{N_SKILLS} 个技能（=契约表 kind:skill）', len(d['cards']), N_SKILLS)
 check('无坏技能', d['broken'], [])
 names = [c['name'] for c in d['cards']]
-check('按层排序（通用层在前）', names[0], 'artifact-store')
+# 病15 根修：原判据钉死 names[0]=='artifact-store'，新增同层技能（按字母序 ad-audit
+# 排在 artifact-store 前）就假红。判据对象应是「通用层整体在能力层之前」这一行为，
+# 不是某个具体技能名——绑层序，不绑首元素。
+layers = [c['layer'] for c in d['cards']]
+check('按层排序（通用层全在能力层前）',
+      layers == sorted(layers, key=lambda L: {'通用层': 0, '能力层': 1}.get(L, 9)),
+      True)
 check('每个都有 version', all(c['version'] for c in d['cards']), True)
 check('每个都有触发词', all(c['triggers'] for c in d['cards']), True)
 
