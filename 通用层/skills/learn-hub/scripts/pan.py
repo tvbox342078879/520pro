@@ -1471,9 +1471,25 @@ def cmd_pan_ad_audit(a):
     hdr = {'User-Agent': PAN_UA, 'Cookie': ck_use,
            'Referer': 'https://pan.baidu.com/s/' + surl + ('?pwd=' + pwd if pwd else '')}
     out = []
-    _e = _baidu_collect(surl, pwd, ck_use, shareid, share_uk, out)
-    if _e:
-        print('❌ 列清单失败：%s' % _e); return 2
+    if getattr(a, 'meta', ''):
+        # 复用预列元数据（昨天全量扫描正本成功路径）：实时 collect 递归到部分
+        # 子目录时 share/list 会卡死（实测 40s+ 无返回），缓存元数据跳过列目录段，
+        # 直接进 docview→dlink→PDF→OCR。三态诚实：跳过的只是列目录，不伪报扫描结果。
+        try:
+            _meta = _j.load(open(a.meta, encoding='utf-8'))
+            out = [{'isdir': False, 'name': m['name'],
+                    'fs_id': m.get('fsid') or m.get('fs_id'),
+                    'fid': m.get('fsid') or m.get('fs_id')} for m in _meta
+                   if str(m.get('name', '')).lower().endswith('.docx')]
+        except Exception as ex:
+            print('❌ 读元数据失败：%s' % ex); return 2
+        print('📂 用预列元数据 %s：%d 个 docx（跳过实时列目录）' % (a.meta, len(out)), flush=True)
+    else:
+        _e = _baidu_collect(surl, pwd, ck_use, shareid, share_uk, out)
+        if _e and not out:
+            print('❌ 列清单失败：%s' % _e); return 2
+        if _e:
+            print('⚠ 列清单部分失败（%s），用已收集 %d 条继续' % (_e, len(out)), flush=True)
     docxs = [r for r in out if not r['isdir'] and r['name'].lower().endswith('.docx')]
     if a.match:
         docxs = [r for r in docxs if a.match in r['name']]
@@ -1482,7 +1498,8 @@ def cmd_pan_ad_audit(a):
     results = []
     for i, r in enumerate(docxs):
         nm = r['name'].split('/')[-1][:40]
-        q = {'shareid': shareid, 'uk': share_uk, 'fid': r['fid'], 'sekey': pwd,
+        _fid = r.get('fs_id') or r.get('fid') or r.get('fsid')
+        q = {'shareid': shareid, 'uk': share_uk, 'fid': _fid, 'sekey': pwd,
              'origin': 'download', 'clienttype': '0', 'web': '1',
              'app_id': BAIDU_APP_ID, 'channel': 'chunlei'}
         _st, pl, _rs = http_get('https://pan.baidu.com/share/list?' + _up.urlencode(q),
@@ -1505,7 +1522,7 @@ def cmd_pan_ad_audit(a):
                 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://pan.baidu.com/'}), timeout=a.timeout).read()
             scan = ad_scan_pdf(pdf, pages_each=a.pages_each, workdir=a.workdir, _tag=str(i))
             row = {'name': nm, 'pages': scan['pages'], 'hits': scan['hits'],
-                   'flag': scan['flag'], 'fid': r['fid']}
+                   'flag': scan['flag'], 'fid': _fid}
             results.append(row)
             print('  [%d/%d] %s %s %s' % (i+1, len(docxs), scan['flag'], nm, scan['hits'] or ''), flush=True)
         except Exception as ex:
@@ -1612,6 +1629,7 @@ def build_parser():
     p5.add_argument('--url', required=True, help='百度分享链接（可含提取码）')
     p5.add_argument('--passcode', default='', help='提取码（无则从 url 解析）')
     p5.add_argument('--match', default='', help='只扫文件名含该子串的 docx')
+    p5.add_argument('--meta', default='', help='预列元数据 JSON（复用已列清单，跳过实时 collect 卡死；字段 name+fsid）')
     p5.add_argument('--pages-each', type=int, default=3, help='首尾各扫几页（默认3）')
     p5.add_argument('--timeout', type=int, default=50, help='单份 PDF 下载超时（默认50s）')
     p5.add_argument('--workdir', default='/tmp', help='OCR 临时图目录（默认/tmp，用完即删）')

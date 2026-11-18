@@ -5,6 +5,7 @@
 - 三态诚实：无预览/无 dlink/OCR 失败标 err 不折叠成"干净"；本地造 PDF 喂 `ad_scan_pdf` 离线真跑 PDF→OCR 链（广告 PDF→★AD／干净 PDF→ok），不依赖百度链接时效与网络抖动。
 - 判据 `test_ad_audit.py` 15/15（命令层/源码层 AST 锚定/纯函数/端到端离线真阳性真阴性/经验闸层），接进 verify.sh 清单；版本维持 1.4.7（不升版以免触发无落库回执的假交付闸）。
 - 端到端在线版本轮因网络抖动（info 同链接 60s 超时、share/list errno=-9）无法判定，如实标注未洗绿；离线端到端凭据已足，网络恢复可补在线版。
+- **在线端到端实证补齐（2026-11-18 下午）**：网络恢复后真跑，暴露两处纯函数判据抓不到的真 bug（病15「判据识别范围≠对象范围」实战）：① `_baidu_collect` 产 `fs_id`，handler 却硬读 `r['fid']` → 在线第一个 docx 必 KeyError；② 实时 collect 递归到某子目录 `share/list` 卡死（40s+ 无返回）。修复：fid 兼容 `fs_id/fid/fsid`，新增 `--meta` 复用预列元数据 JSON（昨天全量扫描正本的成功路径，跳过卡死的列目录段，三态诚实只跳过列目录不伪报结果），collect 部分失败用已收集条目继续而非整体 return 2。在线冒烟 2026.11.09 → `★AD {'微信':3,'二维码':2,'加我':2,'xmly':3}` 真链跑通；判据加 AST 词级锚（禁硬取 r[fid]、须兼容 fs_id、须有 --meta 属性读取），15→18 项全绿。
 
 - **决定性修复**：用户指出"以前实现过带密码转存"，查证发现 7.22修复包 `lib/pan/baidu.js::getRandsk` 有实证路线，而 pan.py 自迁入起就用错的 stoken 路线（shareid/uk/clienttype 全塞 body），在本机全 errno=-12。注释把 -12 归"机房 IP 风控"是**自述非实证**（病：拿注释当事实用），被用户一句话点破。
 - 新增 `_baidu_randsk`（POST `/share/verify?t=<ts>&surl=<short>` body 仅 pwd → randsk）+ `_baidu_authed_cookie`（拼 `BDCLND=<randsk>`）；info/save/transfer 全程带验证态 cookie。

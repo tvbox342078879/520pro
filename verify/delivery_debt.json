@@ -2309,6 +2309,26 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-1cfa501-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "1cfa501",
+   "commit_date": "2026-11-18",
+   "parent": "c03f11f",
+   "target_version": "",
+   "title": "feat(pan): ad-audit 一键命令固化——踩坑变能力，命中经验带出可执行落点",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 通用层/skills/learn-hub/CHANGELOG.md",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "",
+   "waived_until": "2027-02-04",
+   "note": "豁免至 2027-02-04：ad-audit 固化交付；spaceengine connector 未绑定无法真落库，显式豁免留痕非洗绿",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-18T14:20:30"
+  },
+  {
    "id": "D-1d9de78-F04",
    "flow": "F04",
    "folder": "🧬 520进化论/03-子项目演进",

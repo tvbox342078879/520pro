@@ -82,6 +82,25 @@ try:
     check('PDF→OCR 链 ad_scan_pdf 含 tesseract + 被 handler 调用',
           'tesseract' in scan_names and 'ad_scan_pdf' in hn,
           (scan_names & {'tesseract', 'fitz'}, 'ad_scan_pdf' in hn))
+    # 病15 实战回归（2026-11-18 在线端到端实证暴露）：collect 产 fs_id，
+    # 旧 handler 读 r['fid'] 必 KeyError；纯函数判据抓不到字段错配。
+    # 锚 handler 函数体确有 fs_id 词，且没有硬取 r['fid'] 的 Subscript。
+    hnodes = []
+    for node in ast.walk(ast.parse(SRC)):
+        if isinstance(node, ast.FunctionDef) and node.name == 'cmd_pan_ad_audit':
+            hnodes = list(ast.walk(node))
+            break
+    htext_consts = {n.value for n in hnodes if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    hard_fid = any(isinstance(n, ast.Subscript) and isinstance(n.slice, ast.Constant)
+                   and n.slice.value == 'fid' for n in hnodes)
+    check('handler 兼容 fs_id 字段（collect 产 fs_id，非硬取 fid）',
+          'fs_id' in htext_consts and 'fsid' in htext_consts,
+          sorted(htext_consts & {'fs_id', 'fsid', 'fid'}))
+    check('handler 不含硬取 r[fid] 的字段错配（在线 KeyError 回归）', not hard_fid, 'sub r[fid]')
+    has_meta_attr = any(isinstance(n, ast.Attribute) and n.attr == 'meta' for n in hnodes)
+    check('handler 支持 --meta 预列元数据（绕开 collect 卡死，复用正本路径）',
+          'meta' in htext_consts and has_meta_attr,
+          sorted(htext_consts & {'meta'}) + ['attr' if has_meta_attr else 'NO_attr'])
 except Exception as ex:
     check('源码层 AST 锚定', False, repr(ex))
 
