@@ -2387,6 +2387,26 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-76c7db5-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "76c7db5",
+   "commit_date": "2026-11-18",
+   "parent": "fe2834c",
+   "target_version": "",
+   "title": "fix(pan): 百度 share/transfer 转存契约修正（云取实证，真跑 errno=0）",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 判据自身三次bug当场修——parse_qs自动解码%2F、默认丢空值sekey=，病15判据对象没对准真实行为（拿编码前串比对解码后值）；契约类判据必须读纯函",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "",
+   "waived_until": "2027-02-04",
+   "note": "豁免至 2027-02-04：spaceengine connector 未绑定（list_installed_plugins=not_connected，reconnect 报未绑定当前任务），真落库通道不可用；与前55条同期限口径，到期自动转 open 待真补，留痕非洗绿",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-18T23:17:50"
+  },
+  {
    "id": "D-90d62a6-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",
