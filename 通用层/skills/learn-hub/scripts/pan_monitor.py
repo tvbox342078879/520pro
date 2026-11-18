@@ -119,11 +119,56 @@ def evaluate(target, fetcher):
 
 
 # ── 网络层：走 pan.py 底层请求（只读、不下载、不转存）────────────
+def norm_baidu_items(raw):
+    """百度 _baidu_collect 条目 → 统一结构 {fid,name,size}；过滤目录。
+
+    百度 fs_id（整数）→ fid（字符串），与夸克/UC/迅雷的 fid 归一，指纹/差集共用。
+    """
+    out = []
+    for r in (raw or []):
+        if r.get('isdir'):
+            continue
+        out.append({'fid': str(r.get('fs_id')), 'name': r.get('name') or '',
+                    'size': int(r.get('size') or 0)})
+    return out
+
+
+def _fetch_baidu(pwd_id, passcode, url, limit=500):
+    """百度分享列清单：复用 pan.py 百度原生链路（shareinfo→stoken→collect）。
+
+    与夸克/UC/迅雷的 /1/clouddrive API **不同构**——百度必须走网页端
+    share 接口（pan.py:227 的 info 分派同源）。errno=-12（提取码/登录态）归 unknown，
+    不动指纹、不推队列。
+    """
+    ck = _pan._load_pan_cookie('baidu')
+    if not ck:
+        return {'state': ST_UNK, 'items': [], 'platform': 'baidu',
+                'pwd_id': pwd_id, 'error': '缺百度 cookie'}
+    ok, shareid, share_uk, _bd, err = _pan._baidu_shareinfo(pwd_id, passcode, ck)
+    if not ok:
+        return {'state': classify_text(err), 'items': [], 'platform': 'baidu',
+                'pwd_id': pwd_id, 'error': err}
+    stoken, e = _pan._baidu_resolve_stoken(pwd_id, passcode, ck, shareid, share_uk)
+    if e or not stoken:
+        return {'state': ST_UNK, 'items': [], 'platform': 'baidu',
+                'pwd_id': pwd_id, 'error': e or 'stoken 为空'}
+    out = []
+    e2 = _pan._baidu_collect(pwd_id, passcode, ck, shareid, share_uk, out, stoken=stoken)
+    if e2:
+        return {'state': classify_text(e2), 'items': [], 'platform': 'baidu',
+                'pwd_id': pwd_id, 'error': e2}
+    items = norm_baidu_items(out)[:limit]
+    return {'state': ST_OK, 'items': items, 'platform': 'baidu',
+            'pwd_id': pwd_id, 'partial': False}
+
+
 def fetch_listing(url, passcode='', limit=500):
-    """复用 pan._pan_req 列清单；返回 {'state','items',...}。"""
+    """复用 pan.py 底层列清单；返回 {'state','items',...}。"""
     pwd_id, plat = _pan.pan_parse_share_ex(url)
     if not pwd_id:
         return {'state': ST_UNK, 'items': [], 'error': '认不出分享 id', 'platform': ''}
+    if plat == 'baidu':
+        return _fetch_baidu(pwd_id, passcode, url, limit=limit)
     ok, r = _pan._pan_req(
         '/1/clouddrive/share/sharepage/token?pr=ucpro&fr=pc&uc_param_str=',
         {'pwd_id': pwd_id, 'passcode': passcode or ''}, platform=plat)

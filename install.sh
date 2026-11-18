@@ -62,7 +62,7 @@ PROJ_DIR="$TARGET/.codebuddy"
 # 运行时数据：装在技能 scripts/ 下、随使用增长。有的不在 git（巡检历史/库务司状态），
 # 有的是「入库的种子 + 现场会增长」（探源司监测台 monitor_*.json、壳源候选 shellcrack_cands.json）。
 # 覆盖安装会先删目标，这几个必须先搬走再回填，否则每装一次丢一次巡检历史/监测目标/候选。
-RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json monitor_targets.json monitor_domains.json monitor_pubsources.json dead_repos.json shellcrack_cands.json activity_log.json search_results.json"
+RUNTIME_FILES="findings_history.json monitors.json space_hub_state.json monitor_targets.json monitor_domains.json monitor_pubsources.json dead_repos.json shellcrack_cands.json activity_log.json search_results.json pan_monitor_targets.json pan_monitor_queue.json"
 
 # 运行时**目录**：整目录随使用增长，同样属本机私产，不随分发包走。
 # space-hub 的 scripts/snapshots/ 是 state 写前快照（工程A 的"改坏了能回滚"保证），

@@ -51,3 +51,6 @@ credentials.yaml
 能力层/tvbox/skills/probe-hub/scripts/monitor_pubsources.json
 能力层/tvbox/skills/probe-hub/scripts/dead_repos.json
 能力层/tvbox/skills/probe-hub/scripts/shellcrack_cands.json
+# 学习工坊·网盘监测本机运行时数据（含用户登记的分享链接/提取码，属私产，不随分发携带）
+通用层/skills/learn-hub/scripts/pan_monitor_targets.json
+通用层/skills/learn-hub/scripts/pan_monitor_queue.json

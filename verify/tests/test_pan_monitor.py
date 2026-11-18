@@ -47,6 +47,27 @@ def check_no_cookie_persist(src):
     return False
 
 
+def check_baidu_dispatch(src):
+    """判据：fetch_listing 必须把 baidu 分派到百度原生链路，不许拿夸克 API path 套百度。
+
+    病15 防御：锚定 fetch_listing 函数体内的分派分支 + _fetch_baidu 定义存在，
+    不扫全文注释；且必须是 'baidu' 平台判断 + 复用 _baidu_shareinfo/_baidu_collect。
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    defs = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    if '_fetch_baidu' not in defs:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == 'fetch_listing':
+            seg = ast.get_source_segment(src, node) or ''
+            return ("'baidu'" in seg and '_fetch_baidu' in seg
+                    and '_baidu_shareinfo' in src and '_baidu_collect' in src)
+    return False
+
+
 def check_two_functions(src):
     """显式判据：监测同时具备「测活」「测更新」两个命名出口（用户 2026-11-18 要求）。
 
@@ -135,6 +156,23 @@ check('元变异：坏实现被判红', not check_no_cookie_persist(bad))
 check('两功能：测活+测更新出口都在', check_two_functions(src))
 bad2 = src.replace('def live_label', 'def live_label_X').replace('测更新', '刷新')
 check('元变异：拆掉任一功能应红', not check_two_functions(bad2))
+
+# ── B3 元变异：百度分派判据贴实现 ──
+check('百度分派：baidu 走原生链路', check_baidu_dispatch(src))
+bad3 = src.replace("if plat == 'baidu':", "if plat == 'xxxxx':")
+check('元变异：拆掉百度分派应红', not check_baidu_dispatch(bad3))
+
+# ── A8 百度清单归一化（fs_id→fid、过滤目录）──
+braw = [
+    {'fs_id': 111, 'name': 'a.pdf', 'isdir': False, 'size': 100},
+    {'fs_id': 222, 'name': 'sub/', 'isdir': True, 'size': 0},
+    {'fs_id': 333, 'name': 'sub/b.mp4', 'isdir': False, 'size': 200},
+]
+bnorm = M.norm_baidu_items(braw)
+check('百度条目 fid=fs_id', [x['fid'] for x in bnorm] == ['111', '333'], bnorm)
+check('百度条目过滤目录', len(bnorm) == 2)
+check('百度条目保留 name/size', bnorm[1]['name'] == 'sub/b.mp4' and bnorm[1]['size'] == 200)
+check('百度指纹可用于差集', M.fingerprint(bnorm) == M.fingerprint(items(('111', 'a.pdf', 100), ('333', 'sub/b.mp4', 200))))
 
 print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
 sys.exit(1 if FAIL else 0)

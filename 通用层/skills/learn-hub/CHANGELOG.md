@@ -1,3 +1,10 @@
+## v1.4.6 — 2026-11-18（网盘监测·百度分派修复）
+- 修 `fetch_listing` 平台分派缺失（病15同型·模式 bug）：原实现无脑拿夸克 `/1/clouddrive/share/sharepage/token` 套百度，百度不认该 API → 假报 HTTP 404"分享不存在"，把有效链接误判失效。
+- 百度改走网页端 share 原生链路，复用 pan.py `_baidu_shareinfo→_baidu_resolve_stoken→_baidu_collect`；新增 `norm_baidu_items` 把 `fs_id`→`fid`、过滤目录，与夸克/UC/迅雷指纹归一。
+- errno=-12（提取码错误/登录态失效/出口IP风控）归 unknown，不动指纹不推队列；BDUSS 活性探活区分"提取码问题"与"cookie 失效"。
+- 判据 test_pan_monitor.py 36/36（新增分派元变异 + 百度归一化 6 项）；实测百度源从假"失效"回到真实 errno=-12 归类。
+- 接通：SKILL.md 3.1.2 补百度说明、MANIFEST/skill_contracts 更版。
+
 ## v1.4.5 — 2026-11-18（网盘监测：上游取料仓 · 测活+测更新）
 - 新增 `scripts/pan_monitor.py`：pan.py 的上游监测层，两功能各自显式出口——测活 `live_label(三态)`=活/失效/无法判定；测更新 `fingerprint+diff_new`（清单 fid:size 指纹比差集，只推新 fid 入队）。
 - 两层解耦：监测只出待转存清单，`pan.py save` 消费队列落料；无常驻 daemon，靠 check 手动/自动化任务触发。
