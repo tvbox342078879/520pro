@@ -148,8 +148,11 @@ try:
     # D2 行为层：用库里真实存在的症状验证 gate 能带出可执行落点（不伪造经验条目）
     rec = json.load(open(os.path.join(REPO, 'experience_recurrence.json'), encoding='utf-8'))
     es = rec.get('exp_entries') or []
-    with_fp = [e for e in es if e.get('fixed_path', '').endswith(('.py', '.sh'))]
-    check('经验库存在带可执行落点的条目（踩坑已固化）', bool(with_fp), len(with_fp))
+    # 误报治理（步骤1）后 gate 只拦「已验证」经验（solidified 或 reuse_count>0），
+    # 判据须取带落点且已验证的条目，否则拿死库存测拦截=对象范围错（病15）。
+    with_fp = [e for e in es if e.get('fixed_path', '').endswith(('.py', '.sh'))
+               and (e.get('solidified') or (e.get('reuse_count') or 0) > 0) and not e.get('retired')]
+    check('经验库存在带可执行落点且已验证的条目（踩坑已固化）', bool(with_fp), len(with_fp))
     if with_fp:
         real_sym = with_fp[0].get('symptom', '')[:40]
         g = EP.gate(real_sym, rec=rec, commit=False)

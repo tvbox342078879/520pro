@@ -166,6 +166,12 @@ def derive(repo=ROOT):
             'evidence': ev,
             'reuse_count': old.get('reuse_count', 0),   # 保留实战命中，重派生不洗绿
             'last_hit': old.get('last_hit'),
+            # 误报治理态（步骤1）：退役/force 留痕同样不被重派生洗掉
+            'retired': bool(old.get('retired')),
+            'retire_reason': old.get('retire_reason'),
+            'retire_date': old.get('retire_date'),
+            'force_count': old.get('force_count', 0),
+            'force_last': old.get('force_last'),
             'solidified': bool(old.get('solidified')) or (dis in solid) if dis else bool(old.get('solidified')),
             # 直达机制：症状 + 解法落点。fixed_path 从根重派生（不保留旧兜底）：
             # 旧版拿既有值兜底会让 48/49 账本/文档脏落点永久续命，已除。
@@ -186,6 +192,44 @@ def hit(evidence):
         if e.get('evidence') == evidence:
             e['reuse_count'] = (e.get('reuse_count') or 0) + 1
             e['last_hit'] = now
+            tmp = REC + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(rec, f, ensure_ascii=False, indent=1)
+            os.replace(tmp, REC)
+            return True
+    return False
+
+
+def force_hit(evidence):
+    """④误报治理留痕：gate(force=True) 绕过白名单命中死库存/退役经验时记一笔。
+
+    显式绕行留审计（B-10）：force 不是洗绿——它承认"这条没验证过我仍用了"，
+    force_count+1 + force_last，供观察是否有人长期靠 force 绕过退役机制。"""
+    rec = _load_rec()
+    now = __import__('datetime').datetime.now().strftime('%Y-%m-%d')
+    for e in (rec.get('exp_entries') or []):
+        if e.get('evidence') == evidence:
+            e['force_count'] = (e.get('force_count') or 0) + 1
+            e['force_last'] = now
+            tmp = REC + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(rec, f, ensure_ascii=False, indent=1)
+            os.replace(tmp, REC)
+            return True
+    return False
+
+
+def retire(evidence, reason=''):
+    """④经验退役：把过期经验标 retired（不再进 gate 拦截池，但保留案底可回溯）。
+
+    过期判定的人工正门——脚本只执行标记，不自动判"哪些过期"（避免误删真经验）。
+    retired=true 的条目 match(verified_only=True) 过滤掉；force=True 仍可取（留痕）。"""
+    rec = _load_rec()
+    for e in (rec.get('exp_entries') or []):
+        if e.get('evidence') == evidence:
+            e['retired'] = True
+            e['retire_reason'] = reason or '未写明'
+            e['retire_date'] = __import__('datetime').datetime.now().strftime('%Y-%m-%d')
             tmp = REC + '.tmp'
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(rec, f, ensure_ascii=False, indent=1)
@@ -341,5 +385,14 @@ if __name__ == '__main__':
         sys.exit(1)
     elif '--status' in sys.argv:
         sys.exit(status())
+    elif '--retire' in sys.argv:
+        i = sys.argv.index('--retire')
+        if i + 1 < len(sys.argv):
+            reason = sys.argv[i + 2] if i + 2 < len(sys.argv) and not sys.argv[i + 2].startswith('--') else ''
+            ok = retire(sys.argv[i + 1], reason)
+            print('[exp-distill] 退役 %s：%s' % (sys.argv[i + 1], '已标 retired' if ok else '无此经验'))
+            sys.exit(0 if ok else 1)
+        print('[exp-distill] 用法：--retire <evidence> [理由]')
+        sys.exit(1)
     else:
         sys.exit(status())

@@ -25,6 +25,23 @@ REC = os.path.join(ROOT, 'experience_recurrence.json')
 ANCHOR = os.path.join(ROOT, 'hooks', 'next_anchor.py')
 INJECT_MARK = '💡经验'
 
+# 误报治理（经验闭环 v3 步骤1，用户五条遗漏④）：松散 match 对通用短词命中度虚高
+# （实测"推送"因子串包含直接 0.9、"钩子"0.72），动作前拦会洪水。三道闸：
+#   ① 短词（<4 字）禁用包含式 0.9，只认词块重叠且覆盖率达阈值；
+#   ② 通用词黑名单（无区分度的技术高频词）不匹配；
+#   ③ 拦截池只收「已验证」经验（solidified 或 reuse_count>0），死库存不拦人。
+GENERIC_TERMS = frozenset(('推送', '钩子', '测试', '修复', '改文件', '同步', '检查', '验证',
+                           'bump', '提交', '脚本', '文件', '方法', '字段', '版本', '代码',
+                           'crash', 'error', 'bug', 'fix', 'test', 'docs', 'commit'))
+MIN_QUERY_TOKENS = 4          # 低于此长度不接受包含式满分
+VERIFIED_ONLY_IN_GATE = True  # gate 拦截池白名单：只收已验证经验（match 仍全池供提示）
+
+
+def _is_generic(q):
+    """查询是否为无区分度的通用词（整串命中黑名单即视为通用）。"""
+    s = (q or '').strip().lower()
+    return s in GENERIC_TERMS or len(s) <= 2
+
 
 def _read_rec(path=REC):
     if not os.path.isfile(path):
@@ -63,16 +80,26 @@ def measure(rec=None, anchor_path=ANCHOR):
 
 
 def _similar(a, b):
-    """症状相似度：包含关系直接高分，否则中文子串/字符 2-gram 重叠（复用 sync_sop 思路）。"""
+    """症状相似度：包含关系高分，但短词/通用词禁用包含式（误报治理步骤1）。
+
+    原实现 `if a in b or b in a: return 0.9` 对"推送"这类单字词给满分，
+    导致 50 条经验在动作前拦洪水。改为：查询是短词/通用词时只认词块重叠。
+    """
     a, b = (a or '').lower(), (b or '').lower()
     if not a or not b:
         return 0.0
-    if a in b or b in a:
-        return 0.9
-    # 提取中文/ASCII 词块
     import re as _re
     ta = set(_re.findall(r'[\u4e00-\u9fff]{2,}|[a-z0-9_]{3,}', a))
     tb = set(_re.findall(r'[\u4e00-\u9fff]{2,}|[a-z0-9_]{3,}', b))
+    # 短词/通用词：禁用包含式，且要求词块重叠（无词块直接 0，不误报）
+    if _is_generic(a):
+        if not ta or not tb:
+            return 0.0
+        inter = ta & tb
+        return (len(inter) / len(ta)) * 0.9 if inter else 0.0
+    # 长查询：包含关系仍给高分（正常直达），但要求查询本身有区分度
+    if a in b or b in a:
+        return 0.9
     if not ta or not tb:
         return 0.0
     inter = ta & tb
@@ -84,17 +111,26 @@ def _similar(a, b):
     return max(coverage * 0.9, overlap)
 
 
-def match(symptom, rec=None, threshold=0.34):
+def match(symptom, rec=None, threshold=0.34, verified_only=False):
     """②直达查询：症状命中经验 → 返回 {id,text,fixed_path,score}，不命中返回 None。
 
     真源=experience_recurrence.json 的 exp_entries（fixed_path 由 exp_distill 派生，
     指回真实 commit 改动文件）。命中后调 exp_distill.hit(evidence) 记复用，注入层带出落点。
+
+    verified_only=True（gate 用）：拦截池只收已验证经验——solidified 或 reuse_count>0，
+    且未 retired（退役）。死库存（reuse_count=0 且未固化）不进拦截池，避免拿没实战
+    验证过的经验拦人（误报治理步骤1）。match 默认 False 供注入层全池提示。
     """
     d = rec if rec is not None else _read_rec()
     if not d or 'exp_entries' not in d:
         return None
     best = None
     for e in d.get('exp_entries') or []:
+        if verified_only:
+            if e.get('retired'):
+                continue
+            if not (e.get('solidified') or (e.get('reuse_count') or 0) > 0):
+                continue
         # 命中靠症状/text 相似度，不以 fixed_path 为门槛（病：从根修后 27 条
         # 落点故意缺省，若拿 fixed_path 当准入会把所有缺省经验误排除→命中链塌）。
         # fixed_path 只是可选附带信息：有就带出，无则空串（注入层本就不报落点）。
@@ -128,7 +164,7 @@ def landing(rule_id=None):
     return None
 
 
-def gate(symptom, rec=None, threshold=0.34, commit=True):
+def gate(symptom, rec=None, threshold=0.34, commit=True, force=False):
     """动作前显式闸口：命中已固化经验 → 返回正门三字段，未命中返回 None。
 
     与 match() 的区别（这正是"注入≠复用"的机制落点）：
@@ -136,15 +172,20 @@ def gate(symptom, rec=None, threshold=0.34, commit=True):
       · gate() 是模型/流程**真要去用**某经验时的显式闸口，命中才调 exp_distill.hit() 记真复用。
     commit=False 供判据做真阳性/真阴性验证，不污染账本。
 
+    误报治理（步骤1）：默认 verified_only=True——死库存/退役经验不进拦截池。
+    force=True 绕过白名单（全池匹配），但记 force_hit 留痕（B-10 显式绕行留审计）。
+
     返回 B-10 三字段：reason（为何命中）/ target（正门落点=fixed_path）/ method（怎么用）。
     """
-    hit = match(symptom, rec=rec, threshold=threshold)
+    hit = match(symptom, rec=rec, threshold=threshold, verified_only=not force)
     if not hit:
         return None
     if commit:
         try:
             import exp_distill
             exp_distill.hit(hit['evidence'])
+            if force:
+                exp_distill.force_hit(hit['evidence'])
         except Exception:
             pass  # 记账失败不阻断闸口本身（fail-open 但 match 已给出落点）
     fp = hit.get('fixed_path') or ''

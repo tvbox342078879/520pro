@@ -188,5 +188,68 @@ except Exception as ex:
     check('apply 含窗口外复用条目回收逻辑', False)
     print('    err=%r' % ex)
 
+# ⑩ 误报治理（步骤1）：通用短词不给包含式满分（原"推送"0.9→现不误报）
+try:
+    import exp_probe as _ep10
+    check('通用短词误报治理：_similar("推送",长文本) < 0.34',
+          _ep10._similar('推送', '推送到远端 main 的钩子脚本') < 0.34)
+    check('通用词整串命中黑名单：_is_generic("推送")=True', _ep10._is_generic('推送'))
+    check('有区分度长查询仍可包含式命中：_similar("支付回调验签","支付回调验签失败") >= 0.9',
+          _ep10._similar('支付回调验签', '支付回调验签失败') >= 0.9)
+except Exception as ex:
+    check('通用短词误报治理', False)
+    print('    err=%r' % ex)
+
+# ⑪ 白名单：gate 只拦已验证经验，死库存不进拦截池（match 仍全池提示）
+try:
+    import exp_probe as _ep11
+    _r11 = {'exp_entries': [
+        {'id': 'E-dead', 'evidence': 'aaa:lesson', 'symptom': '记忆库断链', 'text': '记忆库断链',
+         'reuse_count': 0, 'solidified': False},
+        {'id': 'E-good', 'evidence': 'bbb:lesson', 'symptom': '支付回调验签', 'text': '支付回调验签',
+         'reuse_count': 2, 'solidified': True}]}
+    check('gate 死库存不拦（verified_only）',
+          _ep11.gate('记忆库断链', rec=_r11, commit=False) is None)
+    check('gate 已验证经验命中', _ep11.gate('支付回调验签', rec=_r11, commit=False) is not None)
+    check('match 全池仍提示死库存（提示≠拦截）',
+          _ep11.match('记忆库断链', rec=_r11) is not None)
+except Exception as ex:
+    check('gate 白名单', False)
+    print('    err=%r' % ex)
+
+# ⑫ force 绕行留痕：force=True 可命中死库存/退役，但记 force_hit
+try:
+    import exp_probe as _ep12, inspect as _ins12
+    _r12 = {'exp_entries': [
+        {'id': 'E-dead', 'evidence': 'aaa:lesson', 'symptom': '记忆库断链', 'text': '记忆库断链',
+         'reuse_count': 0, 'solidified': False}]}
+    check('gate(force=True) 可命中死库存',
+          _ep12.gate('记忆库断链', rec=_r12, commit=False, force=True) is not None)
+    check('exp_distill 有 force_hit 留痕函数', hasattr(__import__('exp_distill'), 'force_hit'))
+    _fsrc = _ins12.getsource(__import__('exp_distill').force_hit)
+    check('force_hit 记 force_count + force_last（显式绕行留审计）',
+          'force_count' in _fsrc and 'force_last' in _fsrc)
+except Exception as ex:
+    check('force 绕行留痕', False)
+    print('    err=%r' % ex)
+
+# ⑬ 经验退役：retired 不进 gate，force 仍可取；重派生不洗掉退役态
+try:
+    import exp_probe as _ep13, exp_distill as _ed13, inspect as _ins13
+    _r13 = {'exp_entries': [
+        {'id': 'E-ret', 'evidence': 'ccc:lesson', 'symptom': '支付回调验签', 'text': '支付回调验签',
+         'reuse_count': 2, 'solidified': True, 'retired': True}]}
+    check('retired 经验不进 gate 拦截池',
+          _ep13.gate('支付回调验签', rec=_r13, commit=False) is None)
+    check('retired 经验 force 仍可取（留痕后可用）',
+          _ep13.gate('支付回调验签', rec=_r13, commit=False, force=True) is not None)
+    check('exp_distill 有 retire 退役正门', hasattr(_ed13, 'retire'))
+    _dsrc = _ins13.getsource(_ed13.derive)
+    check('derive 重派生保留 retired/force_count（不洗绿）',
+          'retired' in _dsrc and 'force_count' in _dsrc)
+except Exception as ex:
+    check('经验退役', False)
+    print('    err=%r' % ex)
+
 print('\n%d passed, %d failed' % (len(PASS), len(FAIL)))
 sys.exit(1 if FAIL else 0)
