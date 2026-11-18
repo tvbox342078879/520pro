@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-18",
+ "updated": "2026-11-19",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -2831,6 +2831,42 @@
    "note": "豁免至 2027-02-04：spaceengine connector 未绑定（list_installed_plugins=not_connected，reconnect 报未绑定当前任务），真落库通道不可用；与前 54 条同期限口径，到期自动转 open 待真补，留痕非洗绿",
    "waived_by": "agent",
    "waived_ts": "2026-11-18T22:21:19"
+  },
+  {
+   "id": "D-16fbb1a-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "16fbb1a",
+   "commit_date": "2026-11-19",
+   "parent": "e205b71",
+   "target_version": "",
+   "title": "feat(verify): 零期四闸——落点核验/判据自动发现/凭证名登记/契约表头纠错",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15（第31次）——判据把「文件名出现在名单文本里」当「该test真被执行」，",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 零期四闸_机制化方法论_16fbb1a.md @16fbb1a @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-16fbb1a-F06",
+   "flow": "F06",
+   "folder": "🧬 520进化论/05-复盘与判例",
+   "commit": "16fbb1a",
+   "commit_date": "2026-11-19",
+   "parent": "e205b71",
+   "target_version": "",
+   "title": "feat(verify): 零期四闸——落点核验/判据自动发现/凭证名登记/契约表头纠错",
+   "expect": "判例文档（含事件指针 event_ref）",
+   "evidence": "改动文件: docs/通病台账.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 病15第31例_判例_16fbb1a.md @16fbb1a @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
   }
  ]
 }

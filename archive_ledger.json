@@ -3107,6 +3107,28 @@
    "result": "ok",
    "event_ref": "commit 9c154e4",
    "note": "F04 逐版交付 v1.4.7：百度带密码转存真修复，randsk→BDCLND，stoken路线误用非IP风控，实测列3350文件，判据41/41；销 D-9c154e4-F04"
+  },
+  {
+   "ts": "2026-11-19T02:32:27",
+   "round": "archive 零期四闸_机制化方法论_16fbb1a.md @16fbb1a",
+   "artifact": "零期四闸_机制化方法论_16fbb1a.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "QRBopYNQJitvRvoBlZGA03",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 16fbb1a",
+   "note": "病15第31例配套方法论：四闸机制化recipe+实例坐标"
+  },
+  {
+   "ts": "2026-11-19T02:32:37",
+   "round": "archive 病15第31例_判例_16fbb1a.md @16fbb1a",
+   "artifact": "病15第31例_判例_16fbb1a.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "ZHPdiJBGIfc9zOCRhY8ix6",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 16fbb1a",
+   "note": "病15第31例判例：识别范围=名单文本≠对象范围=真执行，附event_ref"
   }
  ]
 }
