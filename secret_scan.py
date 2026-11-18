@@ -213,6 +213,30 @@ CRED_NAMES = ('.gh_token', '.git-credentials', '.netrc', 'id_rsa', 'id_ed25519',
               # 但批量 add（不带文件名）拦不住——这里靠「未忽略未追踪即红」补上这个缺口。
               '.env')
 
+# ★ 零期闸4（v0.8.83）：扩展凭证名登记真源（M1——加名字只改 JSON，不改扫描逻辑）。
+# 基础六项保留在此（与 guard_cmd.CRED_BASENAMES 逐项对账，test_guard_cmd 守着）；
+# 基础之外的自造名（如 cred_store.json）必须登记到 verify/cred_names.json 才纳入扫描，
+# 未登记的自造名脱离防线——本闸让「登记」成为唯一正门。
+CRED_REGISTRY = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'verify', 'cred_names.json')
+
+
+def load_cred_registry():
+    """读扩展凭证名登记真源。返回 (extra_names, extra_suffixes, err)。
+    err 非空=无法判定（文件缺失/损坏），由调用方记红，fail-closed。"""
+    import json
+    if not os.path.isfile(CRED_REGISTRY):
+        return (), (), f'扩展凭证名登记真源缺失：{CRED_REGISTRY}'
+    try:
+        with open(CRED_REGISTRY, encoding='utf-8') as f:
+            data = json.load(f)
+        names = tuple(x for x in data.get('extra_names', []) if isinstance(x, str) and x)
+        suffixes = tuple(x for x in data.get('extra_suffixes', []) if isinstance(x, str) and x)
+        return names, suffixes, ''
+    except Exception as e:
+        return (), (), f'扩展凭证名登记真源损坏：{type(e).__name__}'
+
+
 # ★ git-as-DB 边界（v0.8.30）：单文件上限——908 蓝图 §4.5 的落地判据
 MAX_FILE_BYTES = 10 * 1024 * 1024
 
@@ -231,11 +255,16 @@ def scan_credential_files(root, found, noted):
         tracked = {x for x in r.stdout.split('\0') if x.strip()}
     except Exception:
         return False
+    # 零期闸4：基础六项 + JSON 登记的扩展名，合并扫描；登记真源损坏即 fail-closed。
+    extra_names, _extra_sfx, reg_err = load_cred_registry()
+    if reg_err:
+        found.append((CRED_REGISTRY, reg_err + '（扩展凭证名防线失效，fail-closed）'))
+    cred_names = set(CRED_NAMES) | set(extra_names)
     hits = []
     for dp, dns, fns in os.walk(root):
         dns[:] = [d for d in dns if d not in SKIP_DIRS]
         for fn in fns:
-            if fn not in CRED_NAMES:
+            if fn not in cred_names:
                 continue
             rel = os.path.relpath(os.path.join(dp, fn), root).replace('\\', '/')
             hits.append(rel)

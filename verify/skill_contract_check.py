@@ -11,7 +11,7 @@
 本脚本把「技能该长什么样」变成机器判据。判据事实全部来自
 `verify/skill_contracts.json`（唯一真源，加技能只加一行）。
 
-【六项检查】
+【十项检查：C1–C7、C9–C11（C8 历史上空缺、编号不重排，避免判据锚点漂移）】
   C1 结构契约    required_files 逐个存在；skill 类必须有 SKILL.md + CHANGELOG.md
   C2 头部契约    front matter 有 name（== 目录名）与 version（semver）；lib 类改验 manifest.json
   C3 描述五组    must_use 触发声明 / capability 能力枚举 / entry 正门锚点 /
@@ -25,6 +25,7 @@
                  平台只把描述编成截断预览给模型；触发词写在尾巴上＝没写（v0.8.31）
   C10 样本词桥   触发样本 T 组每条须能在 description 里找到词桥（非泛用二字词 / 英文词）——
                  找不到说明"样本说会触发、描述里根本没这说法"，路由无依据（v0.8.31）
+  C11 工具白名单 allowed-tools 声明的工具须在允许集合内，防技能申请超出其职责的工具（v0.8.62）
 
 【状态五档（v0.8.36 起）】
   ✓ 通过 / ✗ 契约失败 / ⚠ 已登记的待办（如样本集待补）/ 

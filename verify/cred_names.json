@@ -1,0 +1,17 @@
+{
+  "_doc": "凭证文件名登记真源（零期闸4，2026-11-19）。新增自造凭证名必须先登记此处才算合法（B-05 例外），否则 secret_scan 按‘未登记凭据载体’扫出。基础六项在 secret_scan.CRED_NAMES / guard_cmd.CRED_BASENAMES 硬编码且逐项对账，不在此重复；本表只登记基础之外的扩展名。",
+  "extra_names": [
+    "cred_store.json",
+    "credentials.json",
+    "credentials.yml",
+    "credentials.yaml"
+  ],
+  "extra_suffixes": [
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".keystore"
+  ],
+  "_note": "extra_names 与 guard_cmd.CRED_EXTRA 语义同源；登记后 secret_scan 按文件名三态扫（已追踪/未忽略即红、未追踪已忽略=合法）。改本表无需改扫描逻辑（M1：加数据不加代码）。"
+}

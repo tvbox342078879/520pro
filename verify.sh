@@ -951,24 +951,18 @@ echo
 echo "[扩展回归（v0.8.18 起·工程F）]"
 # ★ 注意：test_verify_exit.sh **不能**挂在这里——它内部会调 verify.sh，会无限递归。
 #   它由人手动跑（或在 CI 里作为最外层一步）。
-for t in test_troubleshoot test_language test_doc_index test_reading_guide test_reject_contract \
-         test_triggers test_docsync test_skill_cards test_ledger_laws test_phone_directive_sync \
-         test_build_rail test_classify_routing test_linkage_notice test_secret_scan_size test_trigger_frontload \
-         test_artifact_scan test_lib_refs_probe \
-         test_skill_contract_mutants test_partial_level test_terminology_mutants \
-         test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
-         test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
-         test_pan_monitor test_baidu_transfer test_exp_direct test_exp_closure test_ad_audit test_skill_entry test_promote_list \
-         test_binary_hint; do
-  if [ -f "$TARGET/verify/tests/$t.py" ]; then
-    if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
-      ok "$t"
-    else
-      no "$t 失败——详情: python3 verify/tests/$t.py"
-      printf '%s\n' "$tout" | grep '  ✗ ' | head -2 | sed 's/^/     /'
-    fi
+# ★ 零期闸2（v0.8.83，2026-11-19）：自动发现——判据名单不再硬编码。
+#   旧版此处是 for t in test_a test_b ... 手抄名单，新增 test 忘了加进去就永不执行=假绿。
+#   改成 glob 自动展开 verify/tests/test_*.py：落盘即执行，无需登记。
+#   test_verify_exit.sh / test_rule_map_reverse.sh 是 .sh 不会被 test_*.py 匹配，天然排除递归。
+for tf in "$TARGET"/verify/tests/test_*.py; do
+  [ -f "$tf" ] || continue
+  t="$(basename "$tf" .py)"
+  if tout="$(python3 "$tf" 2>&1)"; then
+    ok "$t"
   else
-    no "verify/tests/$t.py 缺失"
+    no "$t 失败——详情: python3 verify/tests/$t.py"
+    printf '%s\n' "$tout" | grep '  ✗ ' | head -2 | sed 's/^/     /'
   fi
 done
 

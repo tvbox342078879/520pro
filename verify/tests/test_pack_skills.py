@@ -127,7 +127,9 @@ check('lib 类不进打包清单', all(n not in skills for n, k in kinds.items()
 
 # ── ⑩ verify.sh 必须真挂了这道闸（防「测试绿但段被删」） ──
 vsh = open(os.path.join(ROOT, 'verify.sh'), encoding='utf-8').read()
-check('verify.sh 注册 pack_skills 回归', 'test_pack_skills' in vsh)
+check('verify.sh 自动发现覆盖 pack_skills 回归',
+      'for tf in "$TARGET"/verify/tests/test_*.py; do' in vsh
+      and os.path.isfile(os.path.join(ROOT, 'verify', 'tests', 'test_pack_skills.py')))
 
 for t in (t2, t3, t4, t5, t6, td):
     shutil.rmtree(t, ignore_errors=True)

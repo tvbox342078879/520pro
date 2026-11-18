@@ -110,7 +110,9 @@ except Exception as ex:
 try:
     vsh = open(os.path.join(ROOT, 'verify.sh'), encoding='utf-8').read()
     check('入口/verify.sh 接 gate_experience --list', '--list' in vsh and 'gate_experience.py" --list' in vsh)
-    check('入口/verify.sh test 列表含 test_promote_list', 'test_promote_list' in vsh)
+    check('入口/verify.sh 自动发现覆盖 test_promote_list',
+          'for tf in "$TARGET"/verify/tests/test_*.py; do' in vsh
+          and os.path.isfile(os.path.join(ROOT, 'verify', 'tests', 'test_promote_list.py')))
 except Exception as ex:
     check('入口/防挂空接线', False, str(ex))
 

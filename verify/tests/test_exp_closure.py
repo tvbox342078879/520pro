@@ -84,7 +84,9 @@ try:
     vsh = open(os.path.join(ROOT, 'verify.sh'), encoding='utf-8').read()
     check('步骤5/verify.sh 接 exp_closure --selftest', 'exp_closure.py" --selftest' in vsh)
     check('步骤5/verify.sh 接闭环收口回读', 'exp_closure.py"' in vsh and '闭环收口回读' in vsh)
-    check('步骤5/verify.sh test 列表含 test_exp_closure', 'test_exp_closure' in vsh)
+    check('步骤5/verify.sh 自动发现覆盖 test_exp_closure',
+          'for tf in "$TARGET"/verify/tests/test_*.py; do' in vsh
+          and os.path.isfile(os.path.join(ROOT, 'verify', 'tests', 'test_exp_closure.py')))
 except Exception as ex:
     check('步骤5/防挂空接线', False, str(ex))
 
