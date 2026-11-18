@@ -958,7 +958,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
          test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
-         test_pan_monitor test_exp_direct test_exp_closure test_ad_audit test_skill_entry test_promote_list \
+         test_pan_monitor test_baidu_transfer test_exp_direct test_exp_closure test_ad_audit test_skill_entry test_promote_list \
          test_binary_hint; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then

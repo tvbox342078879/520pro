@@ -1340,20 +1340,50 @@ def _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken='', dir_fsid=''
 # disk-share 前端 JS（common-chunks-all）中亦无 RSA 公钥，故无需 RSA 加密与公钥提取。
 # 转存见 _baidu_transfer（fsidlist 方式，契约来自 BaiduPCS-Go 逆向 + 网页端佐证）。
 
-def _baidu_transfer(surl, pwd, ck, shareid, share_uk, bdstoken, items, to_path='/'):
-    """转存。items=[(fs_id, server_filename), ...]。返回 (ok, err)。
-    实测契约（BaiduPCS-Go 逆向 + 网页端 disk-share JS 佐证）：POST /share/transfer，
-    fsidlist 为明文 JSON 数组字符串，配 shareid + share_uk + bdstoken，无需 RSA 加密 filelist。"""
-    fsidlist = json.dumps([str(f) for f, _ in items], ensure_ascii=False)
-    data = {'shareid': shareid, 'uk': share_uk, 'fsidlist': fsidlist,
-            'path': to_path, 'bdstoken': bdstoken,
-            'clienttype': '0', 'channel': 'chunlei', 'web': '1', 'app_id': BAIDU_APP_ID}
+def _baidu_transfer_req(shareid, share_uk, bdstoken, randsk, fs_ids, to_path='/'):
+    """构造百度 share/transfer 请求——云取 YunGet v2.7.12 BaiduApi$transfer$2 smali 实证。
+
+    返回 (url, body_bytes, headers)。纯函数供判据验真参数（病15：判据验构造落点，非子串猜）。
+    2026-11-18 本机带登录态实测：按此契约 errno=0 真转存成功。与旧实现三处关键差异：
+      ① 分享者 uk 的参数名是 `from=`（旧写 `uk=` → 服务端 show_msg=参数错误 errno=2）
+      ② `sekey=<randsk>`（=BDCLND 值）必须进 URL query（旧实现完全没传）
+      ③ bdstoken/sekey/ondup 在 query，body 只有 fsidlist+path（旧全塞 body）
+    """
+    import urllib.parse as _up
+    url = ('https://pan.baidu.com/share/transfer?shareid=' + str(shareid)
+           + '&from=' + str(share_uk)
+           + '&channel=chunlei&sekey=' + (randsk or '')
+           + '&ondup=newcopy&web=1&app_id=' + BAIDU_APP_ID
+           + '&bdstoken=' + str(bdstoken) + '&clienttype=0')
+    body = _up.urlencode({
+        'fsidlist': json.dumps([str(x) for x in fs_ids], ensure_ascii=False),
+        'path': to_path or '/',
+    }).encode('utf-8')
+    hdr = {'User-Agent': PAN_UA, 'Referer': BAIDU_REF,
+           'Origin': 'https://pan.baidu.com',
+           'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
+    return url, body, hdr
+
+
+def _baidu_transfer(surl, pwd, ck, shareid, share_uk, bdstoken, items, to_path='/', randsk=''):
+    """转存。items=[(fs_id, server_filename), ...]。返回 (ok, err)。ck 须已带 BDCLND 验证态。"""
+    url, body, hdr = _baidu_transfer_req(
+        shareid, share_uk, bdstoken, randsk, [f for f, _ in items], to_path)
+    hdr = dict(hdr, Cookie=ck)
     try:
-        d = _baidu_req('https://pan.baidu.com/share/transfer', ck, data)
+        _st, _pl, _rs = http_get(url, timeout=25, headers=hdr, method='POST',
+                                 data=body, err_body=True)
     except Exception as ex:
         return False, 'share/transfer 失败：%s' % ex
+    if _st != 'ok':
+        return False, 'share/transfer 请求失败：%s' % (str(_pl)[:200] if not isinstance(_pl, tuple) else _rs)
+    try:
+        d = json.loads(_pl)
+    except Exception:
+        return False, 'share/transfer 响应非 JSON'
     if d.get('errno') != 0:
-        return False, 'share/transfer 错误：errno=%s %s' % (d.get('errno'), d.get('errmsg'))
+        return False, 'share/transfer 错误：errno=%s %s' % (
+            d.get('errno'), d.get('show_msg') or d.get('errmsg') or '')
     return True, ''
 
 def cmd_pan_info_baidu(a, surl):
@@ -1395,8 +1425,9 @@ def cmd_pan_save_baidu(a, surl):
     ok, shareid, share_uk, bdstoken, err = _baidu_shareinfo(surl, pwd, ck)
     if not ok:
         print('❌ 读取百度分享失败：%s' % err); sys.exit(1)
-    # 带密码分享走 randsk→BDCLND cookie 路线（TVBox 实证）；transfer 也带验证态 cookie。
+    # 带密码分享走 randsk→BDCLND cookie 路线（TVBox 实证）；transfer 也要带 sekey=randsk（云取实证）。
     ck_use = ck
+    rk = ''
     if pwd:
         rk, e = _baidu_randsk(surl, pwd, ck)
         if e:
@@ -1412,10 +1443,14 @@ def cmd_pan_save_baidu(a, surl):
     if not files:
         print('❌ 没有可转存的文件'); sys.exit(1)
     items = [(f['fs_id'], f['name']) for f in files]
-    ok2, err2 = _baidu_transfer(surl, pwd, ck_use, shareid, share_uk, bdstoken, items, to_path=(a.to or '/'))
+    # --to 默认 '0' 是夸克/UC 的目标目录 fid；百度 transfer 用的是路径，'0' 需映射为根 '/'
+    to = a.to or '0'
+    baidu_to = '/' if to == '0' else to
+    ok2, err2 = _baidu_transfer(surl, pwd, ck_use, shareid, share_uk, bdstoken, items,
+                                 to_path=baidu_to, randsk=rk)
     if not ok2:
         print(f'❌ 转存失败：{err2}'); sys.exit(1)
-    print(f'✅ 转存完成：{len(items)} 个文件 → 网盘（{a.to or "我的网盘根"}）')
+    print(f'✅ 转存完成：{len(items)} 个文件 → 网盘（{baidu_to}）')
     sys.exit(0)
 
 # ══════════════════ ad-audit：百度 docx 正文广告排查（踩坑固化为一键命令）══════════════════
