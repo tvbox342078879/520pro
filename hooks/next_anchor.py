@@ -272,6 +272,23 @@ def main():
                 for _e in _rels:
                     msg += ('｜💡经验 %s：%s（据 %s）'
                             % (_e['id'], (_e.get('text') or '')[:55], _e.get('evidence', '')[:18]))
+                # 经验闭环 v3 · 直达：命中「已固化途径」的条目，注入解法落点（第二次不用重查）
+                # fixed_path 由 exp_distill 从 commit 真实改动文件派生；命中即 hit() 记账（注入≠复用）
+                _fp_entries = [e for e in _es if e.get('fixed_path')]
+                for _fp_e in _fp_entries[:1]:  # 最多 1 条直达，防刷屏
+                    try:
+                        import sys as _sys3
+                        _vdir = _os2.path.join(root, 'verify')
+                        if _vdir not in _sys3.path:
+                            _sys3.path.insert(0, _vdir)
+                        import exp_probe as _ep, exp_distill as _ed
+                        _hit = _ep.match(nxt, rec=_rec)
+                        if _hit and _hit.get('fixed_path'):
+                            msg += '｜💡直达 %s（据 %s，命中度%s）' % (
+                                _hit['fixed_path'], str(_hit.get('evidence', ''))[:18], _hit['score'])
+                            _ed.hit(_hit['evidence'])  # 显式记账：真采用才算复用
+                    except Exception:
+                        pass
         except Exception:
             pass  # 经验注入失败不影响主提醒
         # v0.8.67 批3：落库欠账注入——「该产未产」每轮红着给模型看，销账才消红。

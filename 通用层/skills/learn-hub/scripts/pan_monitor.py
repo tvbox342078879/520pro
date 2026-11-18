@@ -148,12 +148,17 @@ def _fetch_baidu(pwd_id, passcode, url, limit=500):
     if not ok:
         return {'state': classify_text(err), 'items': [], 'platform': 'baidu',
                 'pwd_id': pwd_id, 'error': err}
-    stoken, e = _pan._baidu_resolve_stoken(pwd_id, passcode, ck, shareid, share_uk)
-    if e or not stoken:
-        return {'state': ST_UNK, 'items': [], 'platform': 'baidu',
-                'pwd_id': pwd_id, 'error': e or 'stoken 为空'}
+    # 带密码分享走 randsk→BDCLND cookie（TVBox 实证）;公开分享跳过 verify。
+    # 不再用 "stoken 为空=失败" ——公开分享 stoken 本就为空却是成功（病15 同型）。
+    ck_use = ck
+    if passcode:
+        rk, e = _pan._baidu_randsk(pwd_id, passcode, ck)
+        if e:
+            return {'state': classify_text(e), 'items': [], 'platform': 'baidu',
+                    'pwd_id': pwd_id, 'error': e}
+        ck_use = _pan._baidu_authed_cookie(ck, rk)
     out = []
-    e2 = _pan._baidu_collect(pwd_id, passcode, ck, shareid, share_uk, out, stoken=stoken)
+    e2 = _pan._baidu_collect(pwd_id, passcode, ck_use, shareid, share_uk, out)
     if e2:
         return {'state': classify_text(e2), 'items': [], 'platform': 'baidu',
                 'pwd_id': pwd_id, 'error': e2}

@@ -92,7 +92,7 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/learn-hub",
-      "version": "1.4.6",
+      "version": "1.4.7",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",

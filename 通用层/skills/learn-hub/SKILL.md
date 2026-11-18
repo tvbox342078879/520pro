@@ -1,7 +1,7 @@
 ---
 name: learn-hub
 description: "当用户说「学习资料」「整理这篇文章」「知识点切分」「资料体检」「学情诊断」时使用本技能。学习工坊·学习资料单类业务全能选手（可升级·规则54三件套）。定位与探源司同构：不是流水线工具，而是「学习资料」这个业务块从进料到出品的唯一归属地。能力：①采集（公众号文章/网盘资料/本地文档/PDF/图片/网页/音视频）；②分类整理（知识点切分·层级·去重·难度·归属判定）；③特有工具库（学情诊断/记忆曲线/检索回查/资料体检）；④质检闸（覆盖率·答案自洽·难度分布·无出处必单列）；⑤入库与复用（不重复造）；⑥监测（素材源存活/更新/失效）；⑦持续优化（每轮沉淀判据，不许只加功能不加尺子）。★边界：出卷→exam-generator；知识框架→knowledge-framework-builder；备课PPT→office-kejian；错题→exam-paper-generator；单文件格式转换→pdf-converter。本技能只做「多源整合→可用资料」和它们的编排与质检。触发词：做学习资料 / 整理学习资料 / 学习资料库 / 这套资料能用吗 / 把这些文章做成资料 / 网盘资料整理 / 网盘分享链接 / 夸克分享 / 迅雷分享 / 百度网盘分享 / UC网盘 / 网盘转存 / 网盘下载 / 分享清单 / 本地文档整理 / 公众号文章整理 / 知识点切一下 / 教材拆解 / 学情分析 / 复习资料 / 复习资料全不全 / 资料全不全 / 资料有没有出处 / 这份资料靠不靠谱 / 资料哪里来的 / 讲义 / 考点整理 / 课件材料 / 笔记整理 / 整理成笔记 / 学习材料 / 学习工坊 / 错题为什么错 / 这块为什么老错 / 孩子老错 / 记不住 / 背不下来 / 能不能直接背 / 知识框架 / 知识点 / 教材 / 考点 / 试卷材料 / 学习计划 / 什么时候复习 / 记忆曲线 / 资料体检 / 覆盖率怎么样 / 太乱了 / 乱成一团 / 乱七八糟 / 一堆没整理 / 散在各处 / 找不到哪份 / 这堆文件 / 文件夹很乱 / 资料太杂 / 理一理 / 教程 / 教程整理 / 资料包 。正门：scripts/learn.py（采集/分类/精炼/质检/入库/监测全在此；网盘取料走 scripts/pan.py）。"
-version: "1.4.6"
+version: "1.4.7"
 allowed-tools: Read,Grep,Glob,Bash,Write,Edit,Skill
 ---
 
@@ -148,10 +148,10 @@ python3 scripts/pan_monitor.py due [--json]           # 列出到期源
 python3 scripts/pan_monitor.py check [--dry] [--all]  # 测活+测更新：到期源查清单、比指纹、新料入队
 python3 scripts/pan_monitor.py queue [--json]         # 看待转存清单
 python3 scripts/pan_monitor.py save [--yes] [--timeout 120]  # 消费队列→pan.py save（--yes 才真转）
-python3 scripts/pan_monitor.py self-check             # 判据自检（36/36）
+python3 scripts/pan_monitor.py self-check             # 判据自检（41/41）
 ```
 
-v1.4.6 补：四平台（夸克/UC/迅雷/**百度**）分派正确——百度走网页端 share 原生链路（`_baidu_shareinfo→_baidu_resolve_stoken→_baidu_collect`，`fs_id→fid` 归一），不再拿夸克 `/1/clouddrive` API 套百度（会假报"分享不存在"）；百度 errno=-12（提取码/登录态/出口IP风控）归无法判定，不动指纹不推队列。
+v1.4.7 补：百度带密码分享验证改为 **randsk→BDCLND cookie** 路线（7.22修复包 baidu.js 实证）——`_baidu_randsk` POST `/share/verify?t=<ts>&surl=<short>` body 仅 pwd 拿 randsk，`_baidu_authed_cookie` 拼 `BDCLND=<randsk>` 带进 list/transfer；旧 stoken 路线（shareid/uk 塞 body）在机房 IP 全 errno=-12 是**用错接口**，非 IP 风控。`_baidu_collect` 子目录改 `is_from_web/uk/shareid/dir=<path>`、isdir 兼容字符串 '1'——实测递归列出 3350 文件。v1.4.6：四平台分派正确（`fs_id→fid` 归一），不再拿夸克 API 套百度。
 
 状态文件：`scripts/pan_monitor_targets.json`（监测册）、`scripts/pan_monitor_queue.json`（待转存队列），字段白名单落盘，**cookie 零明文**（只读本地凭证文件；百度凭证 `~/.codebuddy/.baidu_cookie` 权限 600）。
 触发靠 `check` 手动调用或平台自动化任务调度——**无常驻 daemon**（生态无此先例，不擅自引入）。

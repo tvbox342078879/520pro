@@ -174,5 +174,41 @@ check('百度条目过滤目录', len(bnorm) == 2)
 check('百度条目保留 name/size', bnorm[1]['name'] == 'sub/b.mp4' and bnorm[1]['size'] == 200)
 check('百度指纹可用于差集', M.fingerprint(bnorm) == M.fingerprint(items(('111', 'a.pdf', 100), ('333', 'sub/b.mp4', 200))))
 
+# ── B4 randsk/BDCLND 路线判据（TVBox 实证：verify query式 surl、body 仅 pwd、BDCLND cookie）──
+# 病15 防御：识别范围锚到函数体内具体表达式，不认注释里的"机房风控"自述。
+pan_src = open(os.path.join(SCRIPTS, 'pan.py'), encoding='utf-8').read()
+
+
+def _func_bodies(s):
+    try:
+        tree = ast.parse(s)
+    except SyntaxError:
+        return {}
+    return {n.name: (ast.get_source_segment(s, n) or '')
+            for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+def check_randsk_route(p):
+    fb = _func_bodies(p)
+    f = fb.get('_baidu_randsk', '')
+    ac = fb.get('_baidu_authed_cookie', '')
+    return ('/share/verify?t=' in f and 'surl=' in f and "'pwd': pwd" in f
+            and 'randsk' in f and 'BDCLND=' in ac)
+
+
+check('randsk路线：verify query式 surl + body仅pwd + BDCLND拼接', check_randsk_route(pan_src))
+bad4 = pan_src.replace('/share/verify?t=', '/share/verify?x=')
+check('元变异：拆掉t=时间戳应红', not check_randsk_route(bad4))
+
+import pan as _pan_mod  # noqa: E402
+_fn = getattr(_pan_mod, '_baidu_authed_cookie', None)
+check('BDCLND 追加到 cookie', callable(_fn) and _fn('A=1; B=2', 'RK').endswith('BDCLND=RK'))
+check('BDCLND 已存在则替换', callable(_fn)
+      and 'BDCLND=NEW' in _fn('A=1; BDCLND=OLD; B=2', 'NEW')
+      and 'OLD' not in _fn('A=1; BDCLND=OLD; B=2', 'NEW'))
+
+_fb_pm = _func_bodies(src)
+check('fetch_baidu 不再用 not stoken 误判公开分享', 'not stoken' not in _fb_pm.get('_fetch_baidu', ''))
+
 print(f'\n{len(PASS)} passed, {len(FAIL)} failed')
 sys.exit(1 if FAIL else 0)

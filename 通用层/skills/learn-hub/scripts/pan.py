@@ -1127,6 +1127,53 @@ def _baidu_verify(surl, pwd, ck, shareid, share_uk):
         return False, '', 'share/verify 错误：errno=%s %s（提取码错误，或 cookie 登录态失效需重登重发）' % (d.get('errno'), d.get('errmsg'))
     return True, (d.get('stoken') or ''), ''
 
+def _baidu_authed_cookie(ck, randsk):
+    """把 randsk 拼成 BDCLND cookie（带密码分享的验证凭据）。已存在则替换，纯函数可测。
+
+    契约来自 7.22修复包 lib/pan/baidu.js::getRandsk 实测：百度网页端对带密码分享的
+    验证态不是 stoken 参数，而是写进 Cookie 的 BDCLND=<randsk>；后续 share/list、
+    share/transfer 都带这个 cookie。2026-11-18 在本机实测：stoken 路线全 errno=-12，
+    randsk→BDCLND 路线 errno=0，能列出用户手机可见的同款目录。
+    """
+    import re as _re
+    seg = 'BDCLND=' + (randsk or '')
+    if 'BDCLND=' in ck:
+        return _re.sub(r'BDCLND=[^;]+', seg, ck)
+    return ck + ('; ' if ck else '') + seg
+
+
+def _baidu_randsk(surl, pwd, ck, timeout=20):
+    """带密码分享验证（TVBox 实证路线）：POST /share/verify?t=<ts>&surl=<short>，
+    body 仅 pwd，返回 randsk。成功 (randsk,'')，失败 ('',err)。
+
+    surl 去掉开头的 1、query 带时间戳 t、surl；body 只传 pwd——这与旧 stoken 路线
+    （shareid/uk/clienttype/web/app_id 全塞 body）不同构，后者在机房 IP 被 -12 静默拒。
+    纯密码校验 GET 语义，不改网盘状态，安全可测。
+    """
+    import time as _time
+    import urllib.parse as _up
+    short = surl.lstrip('1')
+    verurl = 'https://pan.baidu.com/share/verify?t=%d&surl=%s' % (
+        int(_time.time() * 1000), short)
+    hdr = {'User-Agent': PAN_UA, 'Cookie': ck,
+           'Referer': 'https://pan.baidu.com/s/' + surl + ('?pwd=' + pwd if pwd else ''),
+           'Content-Type': 'application/x-www-form-urlencoded'}
+    try:
+        _st, _pl, _rs = http_get(verurl, timeout=timeout, headers=hdr,
+                                 method='POST', data=_up.urlencode({'pwd': pwd or ''}).encode('utf-8'))
+    except Exception as ex:
+        return '', 'share/verify 请求异常：%s' % ex
+    if _st != 'ok':
+        return '', 'share/verify 请求失败：%s' % _rs
+    try:
+        d = json.loads(_pl)
+    except Exception:
+        return '', 'share/verify 响应非 JSON'
+    if d.get('errno') != 0 or not d.get('randsk'):
+        return '', 'share/verify 错误：errno=%s %s' % (d.get('errno'), d.get('err_msg') or d.get('errmsg') or '')
+    return d['randsk'], ''
+
+
 def _baidu_bduss_alive(ck):
     """轻量探活：BDUSS 登录态是否有效（仅依赖 BDUSS，不依赖分享专用 STOKEN）。返回 bool。"""
     try:
@@ -1190,27 +1237,36 @@ def _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk, force_verify=False):
     return '', 'share/list 错误：errno=%s %s' % (errno, d.get('errmsg'))
 
 
-def _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken='', dir_fsid='', prefix='', _depth=0):
+def _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken='', dir_fsid='', prefix='', _depth=0,
+                   dir_path=''):
     """递归列文件，写入 out（含子目录）。返回 err 或 ''。
-    实测契约（来自 disk-share 前端 JS getShareList）：GET /share/list?
-      web=5&app_id=250528&desc=1&showempty=0&page=N&num=100&order=time
-      &shorturl=<surl去开头1>&root=1&view_mode=1[&pwd=..][&stoken=..][&dir=<fs_id>]
-    shorturl 必须把 URL 里 surl 开头的 '1' 去掉（JS: _surl.split('').slice(1).join('')）。"""
+
+    契约来自 7.22修复包 lib/pan/baidu.js::getShareList/getSharepath 2026-11-18 实测：
+      根：GET /share/list? web=5&app_id=250528&shorturl=<去开头1>&root=1&view_mode=1
+          &channel=chunlei&clienttype=0&desc=1&order=time&page=1&num=100[&pwd]
+      子：GET /share/list? is_from_web=true&uk=<share_uk>&shareid=<shareid>
+          &dir=<path>&order=name&desc=0&page=1&num=100&app_id=250528
+    全程靠 Cookie 里的 BDCLND=<randsk> 携带验证态，不再依赖 stoken 参数。
+    isdir 实测是字符串 '1'，必须兼容字符串/整数两种形态（旧版 ==1 漏递归）。
+    """
     import urllib.parse as _up
     if _depth > 20:
         return ''
-    short = surl[1:] if surl.startswith('1') else surl
+    short = surl.lstrip('1')
+    root_q = {'web': '5', 'app_id': BAIDU_APP_ID, 'desc': '1', 'showempty': '0',
+              'num': '100', 'order': 'time', 'shorturl': short,
+              'root': '1', 'view_mode': '1', 'channel': 'chunlei', 'clienttype': '0'}
     page = 1
     while True:
-        q = {'web': '5', 'app_id': BAIDU_APP_ID, 'desc': '1', 'showempty': '0',
-             'page': str(page), 'num': '100', 'order': 'time',
-             'shorturl': short, 'root': '1', 'view_mode': '1'}
-        if pwd:
-            q['pwd'] = pwd
-        if stoken:
-            q['stoken'] = stoken
-        if dir_fsid:
-            q['dir'] = dir_fsid
+        if dir_path:
+            q = {'is_from_web': 'true', 'uk': str(share_uk), 'shareid': str(shareid),
+                 'order': 'name', 'desc': '0', 'showempty': '0', 'view_mode': '1',
+                 'page': str(page), 'num': '100', 'dir': dir_path,
+                 'channel': 'chunlei', 'app_id': BAIDU_APP_ID}
+        else:
+            q = dict(root_q, page=str(page))
+            if pwd:
+                q['pwd'] = pwd
         try:
             d = _baidu_req('https://pan.baidu.com/share/list?' + _up.urlencode(q), ck)
         except Exception as e:
@@ -1221,14 +1277,16 @@ def _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken='', dir_fsid=''
         if not lst:
             break
         for f in lst:
-            isdir = (f.get('isdir') == 1)
+            isdir = str(f.get('isdir')) == '1'
             name = f.get('server_filename') or f.get('filename') or ''
             full = prefix + name
             out.append({'fs_id': f.get('fs_id'), 'name': full, 'isdir': isdir,
                         'size': int(f.get('size') or 0), 'md5': f.get('md5')})
             if isdir:
+                child_path = f.get('path') or dir_path
                 e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken,
-                                    dir_fsid=str(f.get('fs_id')), prefix=full + '/', _depth=_depth + 1)
+                                    dir_fsid=str(f.get('fs_id')), prefix=full + '/',
+                                    _depth=_depth + 1, dir_path=child_path)
                 if e2:
                     return e2
         if not d.get('more') or len(lst) < 100:
@@ -1266,13 +1324,15 @@ def cmd_pan_info_baidu(a, surl):
     ok, shareid, share_uk, bdstoken, err = _baidu_shareinfo(surl, pwd, ck)
     if not ok:
         print('❌ 读取百度分享失败：%s' % err); sys.exit(1)
-    stoken, e = _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk)
-    if e:
-        if 'errno=-12' in e:
-            print(_baidu_verify_hint(ck, e)); sys.exit(1)
-        print('❌ ' + e); sys.exit(1)
+    # 带密码分享走 randsk→BDCLND cookie 路线（TVBox 实证）；公开分享跳过 verify。
+    ck_use = ck
+    if pwd:
+        rk, e = _baidu_randsk(surl, pwd, ck)
+        if e:
+            print('❌ ' + e); sys.exit(1)
+        ck_use = _baidu_authed_cookie(ck, rk)
     out = []
-    e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken=stoken)
+    e2 = _baidu_collect(surl, pwd, ck_use, shareid, share_uk, out)
     if e2:
         print('❌ 列文件失败：%s' % e2); sys.exit(1)
     files = [r for r in out if not r['isdir']]
@@ -1293,13 +1353,15 @@ def cmd_pan_save_baidu(a, surl):
     ok, shareid, share_uk, bdstoken, err = _baidu_shareinfo(surl, pwd, ck)
     if not ok:
         print('❌ 读取百度分享失败：%s' % err); sys.exit(1)
-    stoken, e = _baidu_resolve_stoken(surl, pwd, ck, shareid, share_uk, force_verify=True)
-    if e:
-        if 'errno=-12' in e:
-            print(_baidu_verify_hint(ck, e)); sys.exit(1)
-        print('❌ ' + e); sys.exit(1)
+    # 带密码分享走 randsk→BDCLND cookie 路线（TVBox 实证）；transfer 也带验证态 cookie。
+    ck_use = ck
+    if pwd:
+        rk, e = _baidu_randsk(surl, pwd, ck)
+        if e:
+            print('❌ ' + e); sys.exit(1)
+        ck_use = _baidu_authed_cookie(ck, rk)
     out = []
-    e2 = _baidu_collect(surl, pwd, ck, shareid, share_uk, out, stoken=stoken)
+    e2 = _baidu_collect(surl, pwd, ck_use, shareid, share_uk, out)
     if e2:
         print('❌ 列文件失败：%s' % e2); sys.exit(1)
     files = [r for r in out if not r['isdir']]
@@ -1308,7 +1370,7 @@ def cmd_pan_save_baidu(a, surl):
     if not files:
         print('❌ 没有可转存的文件'); sys.exit(1)
     items = [(f['fs_id'], f['name']) for f in files]
-    ok2, err2 = _baidu_transfer(surl, pwd, ck, shareid, share_uk, bdstoken, items, to_path=(a.to or '/'))
+    ok2, err2 = _baidu_transfer(surl, pwd, ck_use, shareid, share_uk, bdstoken, items, to_path=(a.to or '/'))
     if not ok2:
         print(f'❌ 转存失败：{err2}'); sys.exit(1)
     print(f'✅ 转存完成：{len(items)} 个文件 → 网盘（{a.to or "我的网盘根"}）')

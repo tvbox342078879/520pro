@@ -102,6 +102,30 @@ def _solid_diseases():
         return set()
 
 
+# ── 直达机制（踩坑→能力→直达）：给经验条目装「症状 + 解法落点」──────────────
+# 设计：symptom 从 Lesson/Reuse 文本抽关键症状词；fixed_path 从该 commit 的真实改动
+# 文件取第一处代码/文档落点（指回真源，不是编的）。两者都由 derive 自动派生，
+# 命中时 exp_probe.match(symptom) 直接带出 fixed_path —— 第二次不用重查。
+_FP_EXT = ('.py', '.md', '.sh', '.json')
+
+
+def _fixed_path(sha, text):
+    """解法落点：优先取该 commit 改动的真实文件（可核实），退化取文本里的路径。"""
+    changed = [l.strip() for l in _git('show', '--name-only', '--format=', sha).splitlines()
+               if l.strip().endswith(_FP_EXT)]
+    if changed:
+        return changed[0]
+    m = re.search(r'[\w/.\-]+\.(?:py|md|sh|json)', text)
+    return m.group() if m else ''
+
+
+def _symptom(text):
+    """症状词：去「病N（第K次）：」前缀，取前 60 字作匹配键（含坑的识别特征）。"""
+    s = re.sub(r'^病\d+（第\s*\d+\s*次）[：:]?\s*', '', text)
+    s = re.sub(r'^(新病[：:])?', '', s)
+    return s[:60]
+
+
 def derive(repo=ROOT):
     """派生经验条目列表（不写盘）。每条 evidence 唯一，幂等。
 
@@ -131,6 +155,9 @@ def derive(repo=ROOT):
             'reuse_count': old.get('reuse_count', 0),   # 保留实战命中，重派生不洗绿
             'last_hit': old.get('last_hit'),
             'solidified': bool(old.get('solidified')) or (dis in solid) if dis else bool(old.get('solidified')),
+            # 直达机制：症状 + 解法落点（命中即带出，第二次不用重查）
+            'symptom': old.get('symptom') or _symptom(it['text']),
+            'fixed_path': old.get('fixed_path') or _fixed_path(it['sha'], it['text']),
         })
     return entries
 

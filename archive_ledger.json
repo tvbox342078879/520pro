@@ -3063,6 +3063,50 @@
    "result": "ok",
    "event_ref": "commit 035d909",
    "note": "F06 核销 commit 035d909：病15第23例四平台声明但百度分派没接，event_ref commit 035d909"
+  },
+  {
+   "ts": "2026-11-18T10:20:14",
+   "round": "archive method_验证态在cookie不在参数_带密码分享路线纠偏.md @664cf18",
+   "artifact": "method_验证态在cookie不在参数_带密码分享路线纠偏.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "l0th3WdTzIO7nAECoSHIoV",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 664cf18",
+   "note": "F02 方法论 v1.4.7：百度带密码验证态在BDCLND cookie非body参数；拿注释当事实的病根；跨仓比对实现才挖出真路线"
+  },
+  {
+   "ts": "2026-11-18T10:20:17",
+   "round": "archive 交付报告_learn-hub百度带密码转存真修复_v147.md @664cf18",
+   "artifact": "交付报告_learn-hub百度带密码转存真修复_v147.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "EyWLdZ81e4KkC3NqlnDBAH",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 664cf18",
+   "note": "F04 逐版交付 v1.4.7：百度带密码转存真修复，randsk→BDCLND，实测列3350文件，判据41/41"
+  },
+  {
+   "ts": "2026-11-18T11:43:48",
+   "round": "archive method_踩坑变能力_经验直达机制v3.md @9c154e4",
+   "artifact": "method_踩坑变能力_经验直达机制v3.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "JwkHwB37dFGNbaCxIRKE46",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 9c154e4",
+   "note": "F02 方法论 v3：踩坑→能力→直达机制打通，exp_entries 加 symptom/fixed_path、match 直达查询、next_anchor 命中注入直达并记账，判据7/7"
+  },
+  {
+   "ts": "2026-11-18T11:44:53",
+   "round": "archive 演进说明_learn-hub_v147_百度带密码转存真修复.md @9c154e4",
+   "artifact": "演进说明_learn-hub_v147_百度带密码转存真修复.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "F8Jvtw6nU85v5ogftqwWfB",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 9c154e4",
+   "note": "F04 逐版交付 v1.4.7：百度带密码转存真修复，randsk→BDCLND，stoken路线误用非IP风控，实测列3350文件，判据41/41；销 D-9c154e4-F04"
   }
  ]
 }

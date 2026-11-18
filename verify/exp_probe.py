@@ -62,6 +62,50 @@ def measure(rec=None, anchor_path=ANCHOR):
             'lights': '写%s 读%s 进化%s 呈现%s' % (w, r, g, p)}
 
 
+def _similar(a, b):
+    """症状相似度：包含关系直接高分，否则中文子串/字符 2-gram 重叠（复用 sync_sop 思路）。"""
+    a, b = (a or '').lower(), (b or '').lower()
+    if not a or not b:
+        return 0.0
+    if a in b or b in a:
+        return 0.9
+    # 提取中文/ASCII 词块
+    import re as _re
+    ta = set(_re.findall(r'[\u4e00-\u9fff]{2,}|[a-z0-9_]{3,}', a))
+    tb = set(_re.findall(r'[\u4e00-\u9fff]{2,}|[a-z0-9_]{3,}', b))
+    if not ta or not tb:
+        return 0.0
+    inter = ta & tb
+    if not inter:
+        return 0.0
+    # 查询覆盖率为主信号：用户输入的症状词若都被经验覆盖，即使经验很长也该命中
+    coverage = len(inter) / len(ta)
+    overlap = len(inter) / len(tb)
+    return max(coverage * 0.9, overlap)
+
+
+def match(symptom, rec=None, threshold=0.34):
+    """②直达查询：症状命中经验 → 返回 {id,text,fixed_path,score}，不命中返回 None。
+
+    真源=experience_recurrence.json 的 exp_entries（fixed_path 由 exp_distill 派生，
+    指回真实 commit 改动文件）。命中后调 exp_distill.hit(evidence) 记复用，注入层带出落点。
+    """
+    d = rec if rec is not None else _read_rec()
+    if not d or 'exp_entries' not in d:
+        return None
+    best = None
+    for e in d.get('exp_entries') or []:
+        if not e.get('fixed_path'):
+            continue
+        score = max(_similar(symptom, e.get('symptom')),
+                    _similar(symptom, e.get('text')) * 0.8)
+        if score >= threshold and (best is None or score > best['score']):
+            best = {'id': e.get('id'), 'text': e.get('text'),
+                    'fixed_path': e['fixed_path'], 'evidence': e.get('evidence'),
+                    'score': round(score, 3)}
+    return best
+
+
 def report(m=None):
     m = m or measure()
     print('[exp-probe] 经验闭环四环：%s' % m['lights'])

@@ -1,3 +1,9 @@
+## v1.4.7 — 2026-11-18（百度带密码转存真修复 · randsk→BDCLND）
+- **决定性修复**：用户指出"以前实现过带密码转存"，查证发现 7.22修复包 `lib/pan/baidu.js::getRandsk` 有实证路线，而 pan.py 自迁入起就用错的 stoken 路线（shareid/uk/clienttype 全塞 body），在本机全 errno=-12。注释把 -12 归"机房 IP 风控"是**自述非实证**（病：拿注释当事实用），被用户一句话点破。
+- 新增 `_baidu_randsk`（POST `/share/verify?t=<ts>&surl=<short>` body 仅 pwd → randsk）+ `_baidu_authed_cookie`（拼 `BDCLND=<randsk>`）；info/save/transfer 全程带验证态 cookie。
+- `_baidu_collect` 修两处：子目录查询改 `is_from_web/uk/shareid/dir=<path>`；`isdir` 兼容字符串 '1'（旧 `==1` 漏递归）。pan_monitor `_fetch_baidu` 去掉 `not stoken` 误判（公开分享 stoken 空也是成功）。
+- **实证**：真实百度源 `?pwd=1234` 从 state=unknown 变 state=ok，递归列出 3350 文件（fs_id+size 齐全）；transfer 拦截验证带 BDCLND、参数结构正确（不写真盘）。判据 36→41（randsk 路线 + BDCLND 纯函数元变异）。
+
 ## v1.4.6 — 2026-11-18（网盘监测·百度分派修复）
 - 修 `fetch_listing` 平台分派缺失（病15同型·模式 bug）：原实现无脑拿夸克 `/1/clouddrive/share/sharepage/token` 套百度，百度不认该 API → 假报 HTTP 404"分享不存在"，把有效链接误判失效。
 - 百度改走网页端 share 原生链路，复用 pan.py `_baidu_shareinfo→_baidu_resolve_stoken→_baidu_collect`；新增 `norm_baidu_items` 把 `fs_id`→`fid`、过滤目录，与夸克/UC/迅雷指纹归一。

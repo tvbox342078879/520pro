@@ -50,11 +50,11 @@
           "entry": "scripts/learn.py",
           "contains": "SKILL.md · scripts/learn.py · scripts/pan.py · scripts/pan_monitor.py · scripts/flow.json · library/tree.json",
           "pan": "scripts/pan.py —— 网盘取料（清单/下载/转存/删除）。2026-11-12 自 probe-hub harvest pan 迁入，零外部依赖",
-          "pan_monitor": "scripts/pan_monitor.py —— 网盘监测上游取料仓：测活(三态)+测更新(指纹差集)，出待转存清单交 pan.py save。四平台分派正确（百度走 share 原生链路），v1.4.6",
-          "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2；python3 scripts/pan_monitor.py self-check → 36/36",
+          "pan_monitor": "scripts/pan_monitor.py —— 网盘监测上游取料仓：测活(三态)+测更新(指纹差集)，出待转存清单交 pan.py save。四平台分派正确（百度走 randsk→BDCLND cookie 路线，带密码源已实测列3350文件），v1.4.7",
+          "self_check": "python3 scripts/learn.py self-check → 16/16；python3 scripts/pan.py self-check → 2/2；python3 scripts/pan_monitor.py self-check → 41/41",
           "not_tvbox": "与 TVBox 无关，纯通用层",
           "domains": "library/domains/agriculture.json —— 农业领域包（权威源+验证规则+受众适配；分类树真源仍在 learn.py::_tree_spec）",
-          "version": "1.4.6"
+          "version": "1.4.7"
         },
         "skills/space-hub/SKILL.md": {
           "install_to": "~/.codebuddy/skills/space-hub/SKILL.md",
