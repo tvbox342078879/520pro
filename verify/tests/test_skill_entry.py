@@ -46,8 +46,14 @@ check('ad-audit 薄壳真转调 pan.py ad-audit（--help 出 usage 非「无法�
 
 ps = os.path.join(ROOT, '通用层/skills/push-safe/scripts/push_safe.sh')
 rc, out = run(['bash', ps, '--status'])
-check('push-safe 薄壳真转调 hooks/git_push_safe.sh（--status 出状态非「不在位」）',
-      '最近一次推送' in out and '不在位' not in out and '无法判定：' not in out,
+# 病15 防线：正门 --status 的 `tail -5` 会带出共享推送日志原文（hooks/git_push_safe.sh:38），
+# 拿日志里的具体字样（「无法判定：」等）做断言会在并发推送时自锁——
+# 推→pre-push 跑本判据→本判据读到本次推送日志→误红→推失败（2026-11-18 实测死锁）。
+# 正解：只验「薄壳转调到达正门且出三态标记之一」，日志内容可变不参与断言；
+# 薄壳路径推导错时正门不在位（含「不在位」）仍被排除，识别范围回归对象范围。
+status_markers = ('最近一次推送', '尚无推送记录', '无法判定：日志无')
+check('push-safe 薄壳真转调 hooks/git_push_safe.sh（--status 出三态之一，非「不在位」）',
+      any(m in out for m in status_markers) and '不在位' not in out,
       out[:80].replace('\n', ' '))
 
 # 3) 触发词前置（description 前 40 字含「当用户」）——复用契约机检 C9 口径
