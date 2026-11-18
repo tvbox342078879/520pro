@@ -2349,6 +2349,26 @@
    "waived_ts": "2026-11-18T11:56:23"
   },
   {
+   "id": "D-34e7ea2-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "34e7ea2",
+   "commit_date": "2026-11-18",
+   "parent": "63d9139",
+   "target_version": "",
+   "title": "fix(test): 解 test_skill_entry 推送自锁——--status 判据改三态结构断言不读共享日志内容",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15同族（判据把共享可变日志当断言对象→推送自锁）：判据须只验对象自身三态输出，不验会被并发污染的日志内容；既有台账第25例已覆盖「识别范围≠对象范围」不新增",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "",
+   "waived_until": "2027-02-04",
+   "note": "豁免至 2027-02-04：test_skill_entry 推送自锁修复交付；spaceengine connector未绑定无法真落库，显式豁免留痕非洗绿",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-18T18:00:18"
+  },
+  {
    "id": "D-5ed56a4-F04",
    "flow": "F04",
    "folder": "🧬 520进化论/03-子项目演进",
