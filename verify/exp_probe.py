@@ -95,13 +95,14 @@ def match(symptom, rec=None, threshold=0.34):
         return None
     best = None
     for e in d.get('exp_entries') or []:
-        if not e.get('fixed_path'):
-            continue
+        # 命中靠症状/text 相似度，不以 fixed_path 为门槛（病：从根修后 27 条
+        # 落点故意缺省，若拿 fixed_path 当准入会把所有缺省经验误排除→命中链塌）。
+        # fixed_path 只是可选附带信息：有就带出，无则空串（注入层本就不报落点）。
         score = max(_similar(symptom, e.get('symptom')),
                     _similar(symptom, e.get('text')) * 0.8)
         if score >= threshold and (best is None or score > best['score']):
             best = {'id': e.get('id'), 'text': e.get('text'),
-                    'fixed_path': e['fixed_path'], 'evidence': e.get('evidence'),
+                    'fixed_path': e.get('fixed_path') or '', 'evidence': e.get('evidence'),
                     'score': round(score, 3)}
     return best
 
@@ -146,13 +147,18 @@ def gate(symptom, rec=None, threshold=0.34, commit=True):
             exp_distill.hit(hit['evidence'])
         except Exception:
             pass  # 记账失败不阻断闸口本身（fail-open 但 match 已给出落点）
+    fp = hit.get('fixed_path') or ''
+    # 落点缺省时，target 降级为证据锚点（sha:kind）——它指回可核实的 commit，
+    # 不是脏"落点"，模型据此 git show 即得经验原文，比喂 MANIFEST.json 强。
+    target = fp or ('evidence:' + (hit.get('evidence') or hit['id']))
     return {
         'id': hit['id'],
         'reason': '命中已固化经验 %s（据 %s，命中度 %s）' % (
             hit['id'], hit.get('evidence', ''), hit.get('score', '')),
-        'target': hit['fixed_path'],
-        'method': '动作前先读 target 落点（%s），按既有固化做法执行，勿重试已踩过的错' % hit['fixed_path'],
-        'fixed_path': hit['fixed_path'],  # 保留原字段供判据双向核对 target 指回真落点
+        'target': target,
+        'method': ('动作前先读 target 落点（%s）' % fp + '，按既有固化做法执行，勿重试已踩过的错') if fp
+                  else '无可执行落点，按经验文本与证据（%s）自行核实后执行，勿重试已踩过的错' % target,
+        'fixed_path': fp,  # 原字段：空=刻意缺省，非空=可执行(.py/.sh)真实文件
         'evidence': hit.get('evidence'),
         'score': hit.get('score'),
     }

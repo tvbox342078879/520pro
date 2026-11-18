@@ -32,11 +32,11 @@ try:
     es = rec.get('exp_entries') or []
     with_fp = [e for e in es if e.get('fixed_path')]
     check('exp_entries 有 fixed_path 字段（命中可直达）', len(with_fp) > 0)
-    check('fixed_path 指回真实文件落点（.py/.md/.sh/.json/命令）',
-          len(with_fp) > 0 and all(
-              any(tok in str(e['fixed_path']) for tok in
-                  ('.py', '.md', '.sh', '.json', 'pan ', 'probe '))
-              for e in with_fp[:5]))
+    # 从根修后：非空 fixed_path 必须均指可执行(.py/.sh)真实文件——放行 .md/.json 是旧漏洞
+    check('非空 fixed_path 均为可信可执行(.py/.sh)真实文件',
+          all(e['fixed_path'].endswith(('.py', '.sh')) and
+              os.path.isfile(os.path.join(ROOT, e['fixed_path']))
+              for e in with_fp))
 except Exception as ex:
     check('exp_entries 有 fixed_path 字段（命中可直达）', False)
     print('    err=%r' % ex)
@@ -46,9 +46,11 @@ try:
     import exp_probe
     check('exp_probe 有 match(symptom) 直达查询接口', hasattr(exp_probe, 'match'))
     if hasattr(exp_probe, 'match'):
-        # 用词库里真实存在的症状（白名单判据子串匹配致假绿），验证命中能带出落点
+        # 从根修后落点可刻意缺省：命中必返经验，fixed_path 要么可执行(.py/.sh)要么空
         hit = exp_probe.match('白名单判据用子串匹配 FIELDS 坏实现假绿', rec=rec)
-        check('命中症状返回 fixed_path', bool(hit) and bool(hit.get('fixed_path')))
+        _fp_ok = bool(hit) and (not hit.get('fixed_path') or
+                                hit['fixed_path'].endswith(('.py', '.sh')))
+        check('命中症状返回经验（落点可执行或缺省）', bool(hit) and _fp_ok)
         miss = exp_probe.match('完全无关的量子 berry 相位', rec=rec)
         check('不相关症状不误命中（真阴性）', not miss)
 except Exception as ex:
@@ -77,8 +79,9 @@ try:
         g = _ep.gate('白名单判据用子串匹配 FIELDS 坏实现假绿', rec=rec, commit=False)
         check('gate 命中返 B-10 三字段 reason/target/method',
               bool(g) and all(k in g for k in ('reason', 'target', 'method')))
-        check('gate.target 指回 fixed_path 真落点',
-              bool(g) and g.get('target') == g.get('fixed_path'))
+        check('gate.target 指回真落点（可执行或 evidence 锚点）',
+              bool(g) and (g.get('fixed_path') or
+                           str(g.get('target', '')).startswith('evidence:')))
         # 真阴性：无关症状不误命中
         gm = _ep.gate('完全无关的量子 berry 相位', rec=rec, commit=False)
         check('gate 不相关症状不误命中（真阴性）', not gm)
@@ -129,6 +132,60 @@ try:
           'evidence' not in str(inspect.signature(_ep6.landing)))
 except Exception as ex:
     check('💡注入段不拼脏 fixed_path 落点', False)
+    print('    err=%r' % ex)
+
+# ⑦ 派生层：fixed_path 从根修——只认「commit 改动 ∩ 可执行(.py/.sh) ∩ 与症状词块重合」，无合格则不写
+try:
+    import exp_distill as _ed7
+    _src7 = inspect.getsource(_ed7)
+    check('_FP_EXT 仅含可执行(.py/.sh)，无账本/文档(.json/.md)',
+          "_FP_EXT = ('.py', '.sh')" in _src7 or
+          ("_FP_EXT" in _src7 and "'.json'" not in _src7.split('_FP_EXT')[1].split('\n')[0]))
+    check('_fixed_path 无「退化取文本路径」脏落点分支',
+          're.search' not in inspect.getsource(_ed7._fixed_path))
+    # 真阳性：d86604d 症状含 pan/parse，其 commit 改动含可执行且与症状重合的文件
+    _fp7 = _ed7._fixed_path('d86604d', 'pan.py 的 pan_parse_share_ex 白名单子串假绿')
+    check('_fixed_path 返回可执行(.py/.sh)真实文件',
+          bool(_fp7) and _fp7.endswith(('.py', '.sh')) and
+          os.path.isfile(os.path.join(ROOT, _fp7)))
+    # 真阴性：症状词块与改动文件全不重合 → 不写落点（缺省），杜绝脏落点
+    _fp7n = _ed7._fixed_path('d86604d', '量子 Berry 相位 完全无关')
+    check('_fixed_path 无重合不写落点（真阴性/缺省）', not _fp7n)
+    # derive 不再用旧的脏 fixed_path 兜底（old.get('fixed_path') or ...）
+    # 剥注释后检查（病15 防护：裸字符串会把注释字面量当代码，假红/假绿）
+    _derive_code = '\n'.join(l for l in inspect.getsource(_ed7.derive).splitlines()
+                             if not l.strip().startswith('#'))
+    check('derive 不保留旧脏 fixed_path（old 兜底已除）',
+          "old.get('fixed_path')" not in _derive_code)
+except Exception as ex:
+    check('_fixed_path 从根修（可执行+词块重合+缺省）', False)
+    print('    err=%r' % ex)
+
+# ⑧ 完成判据：真实经验库里 fixed_path 为空或均指 .py/.sh 真实文件
+try:
+    es8 = json.load(open(os.path.join(ROOT, 'experience_recurrence.json'), encoding='utf-8')).get('exp_entries') or []
+    _bad8 = [e for e in es8 if e.get('fixed_path') and
+             not (e['fixed_path'].endswith(('.py', '.sh')) and
+                  os.path.isfile(os.path.join(ROOT, e['fixed_path'])))]
+    check('exp_entries 里 fixed_path 为空或均指 .py/.sh 真实文件（无脏落点）', not _bad8)
+except Exception as ex:
+    check('exp_entries 无脏落点（完成判据）', False)
+    print('    err=%r' % ex)
+
+# ⑨ 窗口滚动保护：重派生不得丢窗口外"已真复用"的经验（否则洗掉实战命中）
+try:
+    import exp_distill as _ed9
+    _asrc = inspect.getsource(_ed9.apply)
+    check('apply 含窗口外复用条目回收逻辑',
+          'recycled' in _asrc and 'reuse_count' in _asrc and 'last_hit' in _asrc)
+    es9 = json.load(open(os.path.join(ROOT, 'experience_recurrence.json'), encoding='utf-8')).get('exp_entries') or []
+    ev9 = {e.get('evidence') for e in es9}
+    # 46fc914:lesson 是已被 git log -60 挤出、但 reuse_count=1 的真实复用条目
+    check('窗口外已复用条目未被重派生洗掉（46fc914 回收）',
+          '46fc914:lesson' in ev9 and
+          any(e.get('evidence') == '46fc914:lesson' and (e.get('reuse_count') or 0) > 0 for e in es9))
+except Exception as ex:
+    check('apply 含窗口外复用条目回收逻辑', False)
     print('    err=%r' % ex)
 
 print('\n%d passed, %d failed' % (len(PASS), len(FAIL)))

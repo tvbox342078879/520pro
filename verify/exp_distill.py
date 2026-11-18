@@ -102,21 +102,33 @@ def _solid_diseases():
         return set()
 
 
-# ── 直达机制（踩坑→能力→直达）：给经验条目装「症状 + 解法落点」──────────────
-# 设计：symptom 从 Lesson/Reuse 文本抽关键症状词；fixed_path 从该 commit 的真实改动
-# 文件取第一处代码/文档落点（指回真源，不是编的）。两者都由 derive 自动派生，
-# 命中时 exp_probe.match(symptom) 直接带出 fixed_path —— 第二次不用重查。
-_FP_EXT = ('.py', '.md', '.sh', '.json')
+# 从根修（v0.8.85）：fixed_path 只认「可执行(.py/.sh)且与症状词块重合」的落点。
+# 旧实现 _FP_EXT 含 .json/.md，盲取 commit 改动第一文件 → 48/49 落在账本/文档
+# （MANIFEST.json/archive_ledger.json/handoff_latest.md），把这类"落点"喂给模型比不报更糟。
+_FP_EXT = ('.py', '.sh')
+
+
+def _path_toks(s):
+    """词块切分（病15 防护：词级重合，非子串）。注意不把下划线纳入 token——
+    否则 pan_parse_share_ex 会成为整块，与 pan_monitor 无法词级重合（同型坑）。"""
+    return set(re.findall(r'[a-z0-9]{3,}|[\u4e00-\u9fff]{2,}', (s or '').lower()))
 
 
 def _fixed_path(sha, text):
-    """解法落点：优先取该 commit 改动的真实文件（可核实），退化取文本里的路径。"""
+    """解法落点（从根修）：只认该 commit 改动文件中「可执行(.py/.sh) 且文件名词块与
+    症状文本重合」的真实文件；无合格落点返回 ''（缺省），绝不退化取文本里的任意路径。
+
+    为什么这样：(1) 可执行——账本/文档不是修复落点；(2) 词块重合——排除 commit 里
+    顺带改的无关文件；(3) 缺省——宁可不报，不喂脏落点（详见上条注释实测数据）。
+    """
+    text_toks = _path_toks(text)
     changed = [l.strip() for l in _git('show', '--name-only', '--format=', sha).splitlines()
                if l.strip().endswith(_FP_EXT)]
-    if changed:
-        return changed[0]
-    m = re.search(r'[\w/.\-]+\.(?:py|md|sh|json)', text)
-    return m.group() if m else ''
+    for f in changed:
+        stem = re.sub(r'\.(py|sh)$', '', f.rsplit('/', 1)[-1].lower())
+        if text_toks & _path_toks(stem):
+            return f
+    return ''
 
 
 def _symptom(text):
@@ -155,9 +167,10 @@ def derive(repo=ROOT):
             'reuse_count': old.get('reuse_count', 0),   # 保留实战命中，重派生不洗绿
             'last_hit': old.get('last_hit'),
             'solidified': bool(old.get('solidified')) or (dis in solid) if dis else bool(old.get('solidified')),
-            # 直达机制：症状 + 解法落点（命中即带出，第二次不用重查）
+            # 直达机制：症状 + 解法落点。fixed_path 从根重派生（不保留旧兜底）：
+            # 旧版拿既有值兜底会让 48/49 账本/文档脏落点永久续命，已除。
             'symptom': old.get('symptom') or _symptom(it['text']),
-            'fixed_path': old.get('fixed_path') or _fixed_path(it['sha'], it['text']),
+            'fixed_path': _fixed_path(it['sha'], it['text']),
         })
     return entries
 
@@ -188,9 +201,24 @@ def _load_rec():
 
 
 def apply():
-    """派生并原子写回 exp_entries（幂等：重派生覆盖，不重复膨胀）。"""
+    """派生并原子写回 exp_entries（幂等：重派生覆盖，不重复膨胀）。
+
+    窗口滚动保护：git log -60 会把老 commit 挤出，若该经验已被真复用过
+    （reuse_count>0 / last_hit 非空），直接丢弃是"洗掉实战命中"（假账反面）。
+    回收这类条目时 fixed_path 按新规则重算（不带回旧脏落点），复用态原样保留。
+    """
     rec = _load_rec()
     entries = derive()
+    new_ev = {e.get('evidence') for e in entries}
+    for old in (rec.get('exp_entries') or []):
+        ev = old.get('evidence')
+        if ev in new_ev or not ev:
+            continue
+        if (old.get('reuse_count') or 0) > 0 or old.get('last_hit'):
+            recycled = dict(old)
+            recycled['fixed_path'] = _fixed_path(old.get('source_commit', ''), old.get('text', ''))
+            recycled['recycled'] = True  # 留痕：窗口外回收，非本轮派生
+            entries.append(recycled)
     rec['exp_entries'] = entries
     rec['exp_meta'] = {'derived_by': 'exp_distill.py', 'total': len(entries)}
     tmp = REC + '.tmp'
