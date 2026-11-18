@@ -11,6 +11,7 @@
   ④ next_anchor.py 的 PreToolUse 分支真的调了 guard_cmd
   ⑤ 安装副本与仓库真源逐 sha 一致（否则改仓不生效，是本项目反复踩过的病11）
 """
+# impl: B-19 S5   ← 步骤4 落点完备性判据（audit 裸闸 + 元变异，非自报）
 import hashlib
 import importlib.util
 import json
@@ -267,6 +268,51 @@ check('next_anchor 调用 check_write（G6 走的就是这条路）', 'guard_cmd
 check('next_anchor 命中后返回非零', re.search(r'guard_cmd\.deny_payload.*\n.*return 2', na) is not None
       or re.search(r'deny_payload\(_hit\).*?\n.*?return 2', na, re.S) is not None)
 check('守卫故障留痕（fail-open 不静默）', 'guard_err' in na)
+
+# ── ⑪ 步骤4 落点完备性闸（非自报：落点真源=用例存在性，裸闸即红）─────────
+# 判据对象=全部能拦人的规则（RULES + WRITE_RULE + G8），真函数真读判据文件，
+# 不读 guard_rules 映射（病15：识别范围≠对象范围）。
+_audit = G.audit_landings()
+check('步骤4/audit_landings 有全部规则（含 G8，不漏拦截规则）',
+      all(r in _audit['rules'] for r in ('G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8')))
+check('步骤4/真实态无裸闸（bare 为空）', _audit['bare'] == [], f"bare={_audit['bare']}")
+for _rid, _land in _audit['rules'].items():
+    _lf = os.path.join(ROOT, _land.split('#')[0]) if _land else ''
+    check(f'步骤4/{_rid} 落点文件真实存在且带专属锚点',
+          bool(_land) and ('#%s' % _rid) in _land and os.path.isfile(_lf),
+          f'landing={_land}')
+# 元变异（自证判据真在守，非假绿）：复制判据文件到临时 HOME，抹掉 G7 断言锚点，
+# 让 gate_target 的 root 指向它——G7 必须变 None、audit 必须报裸闸。
+import shutil as _shutil
+_td4 = tempfile.mkdtemp(prefix='gate_landing_')
+try:
+    _fake_root = os.path.join(_td4, 'repo')
+    os.makedirs(os.path.join(_fake_root, 'verify', 'tests'))
+    _src4 = open(os.path.join(ROOT, 'verify', 'tests', 'test_guard_cmd.py'), encoding='utf-8').read()
+    # 抹掉所有 G7 字面量（用例锚点消失）= 造裸闸
+    _mut4 = re.sub(r"['\"]G7['\"]", "'GX7MUT'", _src4)
+    open(os.path.join(_fake_root, 'verify', 'tests', 'test_guard_cmd.py'), 'w',
+         encoding='utf-8').write(_mut4)
+    _oldcwd4 = os.getcwd()
+    os.chdir(_fake_root)
+    try:
+        check('步骤4/元变异：抹掉 G7 用例锚点后 gate_target(G7) 转 None',
+              G.gate_target('G7') is None)
+        check('步骤4/元变异：裸闸被 audit_landings 报出（fail-closed）',
+              'G7' in G.audit_landings()['bare'])
+    finally:
+        os.chdir(_oldcwd4)
+finally:
+    _shutil.rmtree(_td4)
+# deny_payload 对裸闸仍 fail-closed deny（缺落点不放行），reason 标注裸闸。
+# 病15 防护：id 必须运行时动态生成——若写死字面量在判据文件里，gate_target
+# 按"源码含该字面量"判锚点会把判据自己写的 id 当真用例（假绿，本步骤实测踩过）。
+_dyn_id = 'G-NOLAND-' + str(os.getpid())
+_pay4 = G.deny_payload({'id': _dyn_id, 'why': 't', 'fix': 'f'})
+check('步骤4/裸闸仍 deny 且 reason 标注（不静默放行）',
+      _pay4['hookSpecificOutput']['permissionDecision'] == 'deny'
+      and '⚠裸闸' in _pay4['hookSpecificOutput']['permissionDecisionReason'],
+      _pay4['hookSpecificOutput']['permissionDecisionReason'][:120])
 
 # ── ⑤ 安装副本与仓库真源一致 ──
 def sha(p):

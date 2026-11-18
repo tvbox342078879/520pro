@@ -68,6 +68,7 @@ G5_PAT = (
 # 真源在这里；改规则先改这里，再跑 verify/tests/test_guard_cmd.py
 # impl: B-05 S1   ← G5（git add 凭据名）/ G6（Write 到仓内凭据路径）
 # impl: B-16 S1   ← G4（删/移双核）
+# impl: B-19 S1   ← gate_target/audit_landings（落点完备性闸：裸闸 deny + audit 报红，fail-closed）
 RULES = [
     {
         'id': 'G1',
@@ -328,49 +329,73 @@ def _bump_recurrence(rule_id, coord=None):
 def gate_target(rule_id):
     """经验闭环闸4（动作前硬闸）：规则→固化经验的**实证落点**，供拦截 reason 机器喂正门。
 
+    步骤4（落点完备性闸，v0.8.83）从根修一处病15：
+      旧实现拿 `guard_rules` 映射当前置门槛——G7/G8 无映射 → gate_target 返回 None
+      （实测裸闸），且末尾 `return land` 兜底一个不带锚点的裸文件名（脏落点）。
+      识别范围（guard_rules 映射）≠对象范围（判据用例是否真实存在）：一条规则该不该
+      带落点，取决于它的回归用例是否真实在册，而不是病号表里有没有一行映射。
+      新实现：唯一落点真源=用例存在性——test_guard_cmd.py 里有该规则的断言字面量
+      才带 `文件#规则id`；没有就 None（裸闸，交给 audit_landings 报红）。
+
     为什么不取 exp_entries 的 fixed_path（实测否决，病15 反面）：
       · 拿规则 why/命令文本去 exp_probe.gate() 做模糊匹配 → G1..G7 全不命中（文本不是症状）；
       · 走 guard_rules→病号→exp_entries.fixed_path → 命中的是 MANIFEST.json / archive_ledger.json
         这类 commit 改动文件，与"该规则的修复"无关——脏落点，喂给模型比不带更糟。
-    正确锚点：经 guard_rules 映射后，带出该规则的回归判据文件 test_guard_cmd.py，
-    并附该规则专属锚点 "#<规则id>"（如 G5→"test_guard_cmd.py#G5"）——
-      · 真实存在、与规则强相关（改坏规则对应用例翻红），可核实；
-      · 带规则 id 而非全规则共用一个裸文件名，模型被拦即知看哪一组用例。
-      · 配合 _disease_hint 的人工审核 fix，模型被拦见"病号+修法+判据落点"，不必翻台账。
-    无映射规则返回 None（真阴性，不硬塞落点）；异常降级 None（不阻断主闸）。
+    正确锚点：该规则的回归判据文件 test_guard_cmd.py + 专属锚点 "#<规则id>"（如 G5→
+    "test_guard_cmd.py#G5"）——真实存在、与规则强相关（改坏规则对应用例翻红）、可核实。
+    无用例规则返回 None（真裸闸，不硬塞落点）；异常降级 None（不阻断主闸）。
     """
     try:
-        import json as _j
         root = _repo_root()
         rid0 = str(rule_id).split(' ')[0]
-        mp = _j.load(open(os.path.join(root, 'verify', '病号映射表.json'), encoding='utf-8'))
-        gr = mp.get('guard_rules', {})
-        mapped = rid0 in gr or any(not k.startswith('_') and rid0.startswith(k) for k in gr)
-        if not mapped:
-            return None
         land = os.path.join('verify', 'tests', 'test_guard_cmd.py')
         if not os.path.isfile(os.path.join(root, land)):
             return None
-        # 病15 防护：锚点必须是本规则真实存在的用例，不能凭空造。
-        # 判据文件 cases 里 (命令, want) 的 want 就是规则 id——存在才带，不存在降级裸文件。
+        # 病15 防护：锚点必须是本规则真实存在的用例，不能凭空造，也不给裸文件名兜底。
+        # 判据文件 cases 里 (命令, want) 的 want、或 G7/G8 的 h['id']=='Gx' 断言，
+        # 都会以 'Gx' 字面量出现——存在才带落点，不存在即裸闸（None）。
         try:
             _src = open(os.path.join(root, land), encoding='utf-8').read()
             if ("'%s'" % rid0) in _src or ('"%s"' % rid0) in _src:
                 return land + '#' + rid0
         except Exception:
             pass
-        return land
+        return None
     except Exception:
         return None
 
 
+def audit_landings():
+    """步骤4落点完备性自检：遍历全部拦截规则，凡 gate_target 为 None 即裸闸。
+
+    返回 {'rules': {规则id: 落点或None}, 'bare': [裸闸规则id]}。
+    真源=RULES + WRITE_RULE（对象范围），不读 guard_rules 映射（避免病15 假绿）：
+    以后新增规则若没配套回归用例，裸闸清单立即非空 → verify 报红（非 Agent 自报）。
+    """
+    rules = [r['id'] for r in RULES] + [WRITE_RULE['id']]
+    # G8 是 check_flood 动态返回的拦截规则（不在 RULES 表里，但同样能 deny），
+    # 必须纳入自检对象范围，否则"能拦人的规则"与"被自检的规则"不一致（病15）。
+    rules.append('G8')
+    result = {rid: gate_target(rid) for rid in rules}
+    bare = [rid for rid in rules if not result[rid]]
+    return {'rules': result, 'bare': bare}
+
+
 def deny_payload(rule):
 
-    """PreToolUse 的阻断载荷（协议已实测）。"""
+    """PreToolUse 的阻断载荷（协议已实测）。
+
+    步骤4：落点是硬要求——命中规则但 gate_target 为 None（裸闸）时，仍 fail-closed
+    照常 deny（绝不因缺落点就放行），但 reason 明确标注 ⚠裸闸 + 自检命令，
+    让"缺判据落点"可见、可修；正常规则带真实判据落点（机器喂正门）。
+    """
     reason = f"⛔ [{rule['id']}] {rule['why']}｜正门：{rule['fix']}" + _disease_hint(rule['id'])
     _t = gate_target(rule['id'])
     if _t:
         reason += f"｜🔒判据落点：{_t}（改坏规则此测试翻红，先看它再动手）"
+    else:
+        reason += ("｜⚠裸闸缺判据落点：该规则无回归用例锚点，"
+                   "跑 python3 hooks/guard_cmd.py --audit-landings 查裸闸清单并补用例")
     return {
         'hookSpecificOutput': {
             'hookEventName': 'PreToolUse',
@@ -385,9 +410,16 @@ def main():
     ap.add_argument('--check', metavar='CMD', help='只判定一条命令，打印结果（调试/测试用）')
     ap.add_argument('--check-write', metavar='PATH', help='只判定一个写入路径（调试/测试用）')
     ap.add_argument('--list', action='store_true', help='列出全部规则')
+    ap.add_argument('--audit-landings', action='store_true',
+                    help='步骤4自检：全部拦截规则的判据落点完备性，有裸闸则 exit 2')
     ap.add_argument('--bump', metavar='病号ID', help='Lesson 复发记账（commit-msg 调用）：复发计数+1')
     ap.add_argument('--coord', metavar='说明', help='--bump 的事件说明（默认 guard拦截）')
     a = ap.parse_args()
+
+    if a.audit_landings:
+        _audit = audit_landings()
+        print(json.dumps(_audit, ensure_ascii=False))
+        return 2 if _audit['bare'] else 0   # 有裸闸即红，fail-closed on evidence
 
     if a.list:
         for r in RULES:
