@@ -188,8 +188,8 @@
    "source_commit": "d86604d",
    "text": "病15（第22次）：白名单判据用子串匹配 FIELDS，WIPED_FIELDS 仍含子串致坏实现假绿；改 AST 词级 Name.id 后红绿正确，已落 docs/通病台账.md 病15第22例",
    "evidence": "d86604d:lesson",
-   "reuse_count": 0,
-   "last_hit": null,
+   "reuse_count": 1,
+   "last_hit": "2026-11-18",
    "solidified": true,
    "symptom": "白名单判据用子串匹配 FIELDS，WIPED_FIELDS 仍含子串致坏实现假绿；改 AST 词级 Name.id 后",
    "fixed_path": "MANIFEST.json"

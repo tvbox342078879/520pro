@@ -273,7 +273,10 @@ def main():
                     msg += ('｜💡经验 %s：%s（据 %s）'
                             % (_e['id'], (_e.get('text') or '')[:55], _e.get('evidence', '')[:18]))
                 # 经验闭环 v3 · 直达：命中「已固化途径」的条目，注入解法落点（第二次不用重查）
-                # fixed_path 由 exp_distill 从 commit 真实改动文件派生；命中即 hit() 记账（注入≠复用）
+                # fixed_path 由 exp_distill 从 commit 真实改动文件派生。
+                # 修假账（v0.8.83）：注入=提示，只调 match 只读查询，**不在此记账**。
+                # 把"看到经验"当"用了经验"是旧 bug——reuse_count 因此虚高但模型仍靠自觉。
+                # 真复用改为显式闸：exp_probe.gate(symptom)（命中才 hit，返 reason/target/method）。
                 _fp_entries = [e for e in _es if e.get('fixed_path')]
                 for _fp_e in _fp_entries[:1]:  # 最多 1 条直达，防刷屏
                     try:
@@ -281,12 +284,11 @@ def main():
                         _vdir = _os2.path.join(root, 'verify')
                         if _vdir not in _sys3.path:
                             _sys3.path.insert(0, _vdir)
-                        import exp_probe as _ep, exp_distill as _ed
-                        _hit = _ep.match(nxt, rec=_rec)
+                        import exp_probe as _ep
+                        _hit = _ep.match(nxt, rec=_rec)  # 只读查询，不记账
                         if _hit and _hit.get('fixed_path'):
-                            msg += '｜💡直达 %s（据 %s，命中度%s）' % (
+                            msg += '｜💡直达 %s（据 %s，命中度%s）｜真用先走闸 exp_probe.gate(症状)' % (
                                 _hit['fixed_path'], str(_hit.get('evidence', ''))[:18], _hit['score'])
-                            _ed.hit(_hit['evidence'])  # 显式记账：真采用才算复用
                     except Exception:
                         pass
         except Exception:

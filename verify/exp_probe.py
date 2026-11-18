@@ -106,6 +106,37 @@ def match(symptom, rec=None, threshold=0.34):
     return best
 
 
+def gate(symptom, rec=None, threshold=0.34, commit=True):
+    """动作前显式闸口：命中已固化经验 → 返回正门三字段，未命中返回 None。
+
+    与 match() 的区别（这正是"注入≠复用"的机制落点）：
+      · match() 只读查询，供注入层"提示"用，不记账——注入瞬间记账=假账（病：看到当用了）。
+      · gate() 是模型/流程**真要去用**某经验时的显式闸口，命中才调 exp_distill.hit() 记真复用。
+    commit=False 供判据做真阳性/真阴性验证，不污染账本。
+
+    返回 B-10 三字段：reason（为何命中）/ target（正门落点=fixed_path）/ method（怎么用）。
+    """
+    hit = match(symptom, rec=rec, threshold=threshold)
+    if not hit:
+        return None
+    if commit:
+        try:
+            import exp_distill
+            exp_distill.hit(hit['evidence'])
+        except Exception:
+            pass  # 记账失败不阻断闸口本身（fail-open 但 match 已给出落点）
+    return {
+        'id': hit['id'],
+        'reason': '命中已固化经验 %s（据 %s，命中度 %s）' % (
+            hit['id'], hit.get('evidence', ''), hit.get('score', '')),
+        'target': hit['fixed_path'],
+        'method': '动作前先读 target 落点（%s），按既有固化做法执行，勿重试已踩过的错' % hit['fixed_path'],
+        'fixed_path': hit['fixed_path'],  # 保留原字段供判据双向核对 target 指回真落点
+        'evidence': hit.get('evidence'),
+        'score': hit.get('score'),
+    }
+
+
 def report(m=None):
     m = m or measure()
     print('[exp-probe] 经验闭环四环：%s' % m['lights'])
