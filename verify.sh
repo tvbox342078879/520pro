@@ -921,7 +921,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
          test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
-         test_pan_monitor; do
+         test_pan_monitor test_exp_direct; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

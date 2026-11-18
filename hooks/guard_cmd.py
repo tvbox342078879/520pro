@@ -325,14 +325,45 @@ def _bump_recurrence(rule_id, coord=None):
         pass  # 记账失败不阻断主闸
 
 
+def gate_target(rule_id):
+    """经验闭环闸4（动作前硬闸）：规则→固化经验的**实证落点**，供拦截 reason 机器喂正门。
+
+    为什么不取 exp_entries 的 fixed_path（实测否决，病15 反面）：
+      · 拿规则 why/命令文本去 exp_probe.gate() 做模糊匹配 → G1..G7 全不命中（文本不是症状）；
+      · 走 guard_rules→病号→exp_entries.fixed_path → 命中的是 MANIFEST.json / archive_ledger.json
+        这类 commit 改动文件，与"该规则的修复"无关——脏落点，喂给模型比不带更糟。
+    正确锚点：经 guard_rules 映射后，带出该规则的回归判据文件 test_guard_cmd.py——
+      · 真实存在、与规则强相关（改坏规则该测试翻红），可核实；
+      · 配合 _disease_hint 的人工审核 fix，模型被拦即见"病号+修法+判据落点"，不必翻台账。
+    无映射规则返回 None（真阴性，不硬塞落点）；异常降级 None（不阻断主闸）。
+    """
+    try:
+        import json as _j
+        root = _repo_root()
+        rid0 = str(rule_id).split(' ')[0]
+        mp = _j.load(open(os.path.join(root, 'verify', '病号映射表.json'), encoding='utf-8'))
+        gr = mp.get('guard_rules', {})
+        mapped = rid0 in gr or any(not k.startswith('_') and rid0.startswith(k) for k in gr)
+        if not mapped:
+            return None
+        land = os.path.join('verify', 'tests', 'test_guard_cmd.py')
+        return land if os.path.isfile(os.path.join(root, land)) else None
+    except Exception:
+        return None
+
+
 def deny_payload(rule):
 
     """PreToolUse 的阻断载荷（协议已实测）。"""
+    reason = f"⛔ [{rule['id']}] {rule['why']}｜正门：{rule['fix']}" + _disease_hint(rule['id'])
+    _t = gate_target(rule['id'])
+    if _t:
+        reason += f"｜🔒判据落点：{_t}（改坏规则此测试翻红，先看它再动手）"
     return {
         'hookSpecificOutput': {
             'hookEventName': 'PreToolUse',
             'permissionDecision': 'deny',
-            'permissionDecisionReason': f"⛔ [{rule['id']}] {rule['why']}｜正门：{rule['fix']}" + _disease_hint(rule['id']),
+            'permissionDecisionReason': reason,
         }
     }
 

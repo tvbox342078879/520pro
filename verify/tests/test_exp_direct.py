@@ -89,5 +89,27 @@ except Exception as ex:
     check('exp_probe 有 gate() 显式闸口接口', False)
     print('    err=%r' % ex)
 
+# ⑤ 硬闸层：PreToolUse 拦截 reason 自动带出固化经验的 target 落点（机器喂正门，不靠翻台账）
+try:
+    sys.path.insert(0, os.path.join(ROOT, 'hooks'))
+    import guard_cmd as _gc
+    check('guard_cmd 有 gate_target() 落点解析接口', hasattr(_gc, 'gate_target'))
+    if hasattr(_gc, 'gate_target'):
+        # 真阳性：G5（有 guard_rules 映射→病15→固化经验）应带出 target
+        _t = _gc.gate_target('G5')
+        check('gate_target(G5) 带出真实存在的文件落点',
+              bool(_t) and os.path.isfile(os.path.join(ROOT, _t)))
+        # 拦截 reason 里确实含这个落点（不是只在独立函数里算出来却没接进 reason）
+        _payload = _gc.deny_payload({'id': 'G5', 'why': 'test', 'fix': 'testfix'})
+        _reason = _payload['hookSpecificOutput']['permissionDecisionReason']
+        check('deny_payload.reason 自动含 target 落点（机器喂正门）',
+              bool(_t) and _t in _reason)
+        # 真阴性：无 guard_rules 映射的规则不硬塞落点（避免病15 式误带）
+        _tn = _gc.gate_target('G-NOMAP-TEST')
+        check('无映射规则不误带落点（真阴性）', not _tn)
+except Exception as ex:
+    check('guard_cmd 有 gate_target() 落点解析接口', False)
+    print('    err=%r' % ex)
+
 print('\n%d passed, %d failed' % (len(PASS), len(FAIL)))
 sys.exit(1 if FAIL else 0)
