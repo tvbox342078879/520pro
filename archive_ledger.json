@@ -3041,6 +3041,28 @@
    "result": "ok",
    "event_ref": "commit ce2631f",
    "note": "F06 复盘判例 ce2631f：病15第23例四平台声明但百度分派没接，回真源加分派+元变异，event_ref commit ce2631f"
+  },
+  {
+   "ts": "2026-11-18T09:38:24",
+   "round": "archive close_f04.md @035d909",
+   "artifact": "close_f04.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "BybOMSpZMnf0E7ANIPyxa7",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 035d909",
+   "note": "F04 核销 commit 035d909：v1.4.6 百度分派修复逐版交付，event_ref commit 035d909"
+  },
+  {
+   "ts": "2026-11-18T09:38:27",
+   "round": "archive close_f06.md @035d909",
+   "artifact": "close_f06.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "t4fUQ6cHwE33T8MaUTEuZG",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 035d909",
+   "note": "F06 核销 commit 035d909：病15第23例四平台声明但百度分派没接，event_ref commit 035d909"
   }
  ]
 }
