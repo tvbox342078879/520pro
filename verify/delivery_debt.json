@@ -2309,6 +2309,26 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-1d9de78-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "1d9de78",
+   "commit_date": "2026-11-18",
+   "parent": "664cf18",
+   "target_version": "",
+   "title": "feat(exp): 经验闭环 v3——踩坑→能力→直达机制打通",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 通用层/skills/learn-hub/CHANGELOG.md",
+   "status": "waived",
+   "age_commits": 0,
+   "first_seen": "2026-11-18",
+   "closed_by": "",
+   "waived_until": "2027-02-04",
+   "note": "豁免至 2027-02-04：本轮为经验闭环v3机制轮，F04逐版演进说明未单独落库（复用上一轮v1.4.7演进说明，其回执锚点@9c154e4指不回本提交）；spaceengine资料库connector本会话reconnect与request均被拒，无法经space-hub archive正门真补；按不洗绿原则显式豁免留痕，到期转open待资料库可用时真补，不假称已还、不改成closed洗绿",
+   "waived_by": "agent",
+   "waived_ts": "2026-11-18T11:56:23"
+  },
+  {
    "id": "D-5ed56a4-F04",
    "flow": "F04",
    "folder": "🧬 520进化论/03-子项目演进",
