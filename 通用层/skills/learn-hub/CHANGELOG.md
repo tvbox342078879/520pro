@@ -1,4 +1,11 @@
 ## v1.4.7 — 2026-11-18（百度带密码转存真修复 · randsk→BDCLND）
+### ad-audit 命令补丁（v1.4.7 内 · 未升版）
+- 新增 `pan.py ad-audit` 子命令：百度分享 docx 正文广告全量排查，走 docview→picdocpreview→dlink→PDF→OCR→`ad_hits` 关键词判定。实证来历：47 份 docx 首尾各 3 页 OCR 扫出 25 期正文嵌微信/二维码广告，手工踩坑路线固化为一键命令，第二次不用重查。
+- **踩坑变能力闭环**：命令动手前先走 `exp_probe.gate(症状)` 经验闸，命中已固化经验带出可执行落点（verify.sh/pan.py），判据实证 gate 命中真实症状→带出 `.py/.sh` 落点。这是 fixed_path 从根修后"命中带出可执行落点"的首次回灌验证。
+- 三态诚实：无预览/无 dlink/OCR 失败标 err 不折叠成"干净"；本地造 PDF 喂 `ad_scan_pdf` 离线真跑 PDF→OCR 链（广告 PDF→★AD／干净 PDF→ok），不依赖百度链接时效与网络抖动。
+- 判据 `test_ad_audit.py` 15/15（命令层/源码层 AST 锚定/纯函数/端到端离线真阳性真阴性/经验闸层），接进 verify.sh 清单；版本维持 1.4.7（不升版以免触发无落库回执的假交付闸）。
+- 端到端在线版本轮因网络抖动（info 同链接 60s 超时、share/list errno=-9）无法判定，如实标注未洗绿；离线端到端凭据已足，网络恢复可补在线版。
+
 - **决定性修复**：用户指出"以前实现过带密码转存"，查证发现 7.22修复包 `lib/pan/baidu.js::getRandsk` 有实证路线，而 pan.py 自迁入起就用错的 stoken 路线（shareid/uk/clienttype 全塞 body），在本机全 errno=-12。注释把 -12 归"机房 IP 风控"是**自述非实证**（病：拿注释当事实用），被用户一句话点破。
 - 新增 `_baidu_randsk`（POST `/share/verify?t=<ts>&surl=<short>` body 仅 pwd → randsk）+ `_baidu_authed_cookie`（拼 `BDCLND=<randsk>`）；info/save/transfer 全程带验证态 cookie。
 - `_baidu_collect` 修两处：子目录查询改 `is_from_web/uk/shareid/dir=<path>`；`isdir` 兼容字符串 '1'（旧 `==1` 漏递归）。pan_monitor `_fetch_baidu` 去掉 `not stoken` 误判（公开分享 stoken 空也是成功）。

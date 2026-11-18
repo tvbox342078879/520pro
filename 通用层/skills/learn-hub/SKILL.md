@@ -123,6 +123,7 @@ python3 scripts/pan.py info --url <分享链接> [--passcode X] [--json]   # 列
 python3 scripts/pan.py pull --url <同上> --outdir <目录> [--match 子串]  # 下载
 python3 scripts/pan.py save --url <同上> [--to 0]                        # 转存到自己的网盘
 python3 scripts/pan.py rm   --match <子串> [--yes]                       # 删除（缺省仅预演）
+python3 scripts/pan.py ad-audit --url <百度分享> [--passcode X] [--match 子串]  # docx 正文广告排查（docview→PDF→OCR）
 python3 scripts/pan.py self-check                                        # 2 项判据自检
 ```
 

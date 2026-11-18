@@ -41,6 +41,48 @@ from urllib.parse import quote, unquote, urlparse, urlsplit
 import urllib.error
 import urllib.request
 
+# ── ad-audit：百度 docx 正文广告排查（踩坑固化，判据与命令共用单一真源）────
+# 2026-11-18 全量扫描实证：47 个 docx 里 25 期正文嵌微信/二维码广告，18 期干净。
+# 关键词来自实测样本（xmly22333 / zcxmh666 / 扫码添加），ad_hits 离线可测。
+AD_KEYWORDS = ('微信', '扫码', '二维码', '公众号', '加群', 'vx', 'VX', '薇',
+               '威信', '加V', '加我', 'xmly', 'zcxmh', '关注我', '领取', '订阅')
+
+
+def ad_hits(text):
+    """正文广告关键词判定（纯函数）：返回 {关键词: 次数}，干净文本返回 {}。
+
+    零依赖、离线可测——判据喂样本验真阴性，命令拿它判 docx OCR 结果。
+    """
+    return {k: text.count(k) for k in AD_KEYWORDS if k and k in text}
+
+
+def ad_scan_pdf(pdf_bytes, pages_each=3, workdir='/tmp', _tag='x'):
+    """PDF→首尾页渲染→tesseract OCR→ad_hits（纯函数，离线可测，不碰网络）。
+
+    把端到端里唯一不依赖网络的段抽出来：判据喂本地造的含广告 PDF 即可真验证
+    "PDF→OCR→广告命中"链，不受百度分享链接时效性/网络抖动影响（三态诚实）。
+    返回 {'pages': 总页数, 'hits': {...}, 'flag': '★AD'/'  ok'}；异常向上抛。
+    """
+    import fitz  # 延迟
+    doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+    n = len(doc)
+    pages = sorted(set(list(range(min(pages_each, n))) + list(range(max(0, n-pages_each), n))))
+    txt = []
+    for pi in pages:
+        pix = doc[pi].get_pixmap(matrix=fitz.Matrix(1.4, 1.4))
+        ip = os.path.join(workdir, '_adscan_%s_%d.png' % (_tag, pi))
+        pix.save(ip)
+        try:
+            rr = subprocess.run(['tesseract', ip, 'stdout', '-l', 'chi_sim+eng'],
+                                capture_output=True, text=True, timeout=35)
+            txt.append(rr.stdout)
+        finally:
+            try: os.remove(ip)
+            except OSError: pass
+    hits = ad_hits('\n'.join(txt))
+    return {'pages': n, 'hits': hits, 'flag': '★AD' if hits else '  ok'}
+
+
 # ══════════════════ http_get（内联自 core.py::http_get，M-R213 单一事实源）══════════════════
 def http_get(url, timeout=15, ua=None, max_bytes=None, as_text=True,
              headers=None, method='GET', data=None, ssl_verify=True,
@@ -1376,6 +1418,113 @@ def cmd_pan_save_baidu(a, surl):
     print(f'✅ 转存完成：{len(items)} 个文件 → 网盘（{a.to or "我的网盘根"}）')
     sys.exit(0)
 
+# ══════════════════ ad-audit：百度 docx 正文广告排查（踩坑固化为一键命令）══════════════════
+def cmd_pan_ad_audit(a):
+    """百度分享里的 docx 正文广告全量排查：docview→dlink→PDF→OCR→ad_hits。
+
+    实证来历：2026-11-18 对「给孩子的新闻周刊」47 个 docx 首尾各 3 页 OCR，
+    25 期正文嵌微信/二维码广告。手工踩坑路线固化为本命令，第二次不用重查。
+    三态诚实：无预览/无 dlink/OCR 失败如实标 err，不折叠成"干净"。
+    fitz/cv2 延迟 import——本命令之外的 pan.py 用户不该被重依赖拖累。
+    踩坑变能力闭环：动手前先走经验闸 exp_probe.gate(症状)，命中已固化经验则
+    带出可执行落点（verify.sh/pan.py 等），第二次不用重查——这正是本命令存在的意义。
+    """
+    import json as _j
+    import urllib.parse as _up
+    import urllib.request as _ur
+    # 经验闸：动手前先查已固化的百度排查经验，命中带出可执行落点（不阻断，只提示）
+    try:
+        # pan.py 在 <root>/通用层/skills/learn-hub/scripts/ → 上溯 4 层到 root
+        _here = os.path.dirname(os.path.abspath(__file__))
+        _vdir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(_here)))), 'verify')
+        if _vdir not in sys.path:
+            sys.path.insert(0, _vdir)
+        import exp_probe as _ep
+        _g = _ep.gate('百度 docx 正文广告排查 pan.py docview PDF OCR 二维码', commit=False)
+        if _g:
+            print('💡 经验直达 %s（据 %s）：%s' % (
+                _g.get('target'), _g.get('evidence'), _g.get('reason')), flush=True)
+    except Exception:
+        pass
+    try:
+        import fitz  # 延迟：仅 ad-audit 需要
+    except ImportError:
+        print('❌ 缺少 PyMuPDF（pip install pymupdf）；OCR 还需 tesseract + chi_sim 语言包')
+        return 2
+
+    ck = _load_pan_cookie('baidu')
+    if not ck:
+        print('❌ 缺少百度登录态 ~/.codebuddy/.baidu_cookie（F12 复制 Cookie，权限600）')
+        return 2
+    surl, pwd = _baidu_parse_surl(a.url)
+    _ok, shareid, share_uk, _bt, err = _baidu_shareinfo(surl, pwd, ck)
+    if not _ok:
+        print('❌ 读分享失败：%s' % err); return 2
+    # 带密码分享走 randsk→BDCLND cookie 验证态（TVBox 实证，旧 stoken 全 -12）
+    ck_use = ck
+    if pwd:
+        rk, e = _baidu_randsk(surl, pwd, ck)
+        if e:
+            print('❌ ' + e); return 2
+        ck_use = _baidu_authed_cookie(ck, rk)
+
+    hdr = {'User-Agent': PAN_UA, 'Cookie': ck_use,
+           'Referer': 'https://pan.baidu.com/s/' + surl + ('?pwd=' + pwd if pwd else '')}
+    out = []
+    _e = _baidu_collect(surl, pwd, ck_use, shareid, share_uk, out)
+    if _e:
+        print('❌ 列清单失败：%s' % _e); return 2
+    docxs = [r for r in out if not r['isdir'] and r['name'].lower().endswith('.docx')]
+    if a.match:
+        docxs = [r for r in docxs if a.match in r['name']]
+    print('🔍 ad-audit：%d 个 docx（每份首尾各 %d 页 OCR）' % (len(docxs), a.pages_each), flush=True)
+
+    results = []
+    for i, r in enumerate(docxs):
+        nm = r['name'].split('/')[-1][:40]
+        q = {'shareid': shareid, 'uk': share_uk, 'fid': r['fid'], 'sekey': pwd,
+             'origin': 'download', 'clienttype': '0', 'web': '1',
+             'app_id': BAIDU_APP_ID, 'channel': 'chunlei'}
+        _st, pl, _rs = http_get('https://pan.baidu.com/share/list?' + _up.urlencode(q),
+                                timeout=25, headers=hdr)
+        try:
+            lst = _j.loads(pl).get('list') or []
+        except Exception:
+            lst = []
+        if not lst or not lst[0].get('picdocpreview'):
+            results.append({'name': nm, 'err': '无预览'}); print('  [%d/%d] ERR %s 无预览' % (i+1, len(docxs), nm), flush=True); continue
+        try:
+            _st2, info2, _rs2 = http_get(lst[0]['picdocpreview'], timeout=25, headers=hdr)
+            dlink = _j.loads(info2).get('dlink')
+        except Exception:
+            dlink = None
+        if not dlink:
+            results.append({'name': nm, 'err': '无dlink'}); print('  [%d/%d] ERR %s 无dlink' % (i+1, len(docxs), nm), flush=True); continue
+        try:
+            pdf = _ur.urlopen(_ur.Request(dlink, headers={
+                'User-Agent': 'Mozilla/5.0', 'Referer': 'https://pan.baidu.com/'}), timeout=a.timeout).read()
+            scan = ad_scan_pdf(pdf, pages_each=a.pages_each, workdir=a.workdir, _tag=str(i))
+            row = {'name': nm, 'pages': scan['pages'], 'hits': scan['hits'],
+                   'flag': scan['flag'], 'fid': r['fid']}
+            results.append(row)
+            print('  [%d/%d] %s %s %s' % (i+1, len(docxs), scan['flag'], nm, scan['hits'] or ''), flush=True)
+        except Exception as ex:
+            results.append({'name': nm, 'err': repr(ex)[:60]})
+            print('  [%d/%d] ERR %s %s' % (i+1, len(docxs), nm, repr(ex)[:40]), flush=True)
+
+    ads = [r for r in results if r.get('hits')]
+    clean = [r for r in results if r.get('flag') == '  ok']
+    errs = [r for r in results if r.get('err')]
+    print('\n=== ad-audit 汇总 ===')
+    print('正文带广告 %d / 干净 %d / 无法判定 %d / 共 %d' % (len(ads), len(clean), len(errs), len(results)))
+    for r in ads:
+        print('  ★ %s %s' % (r['name'], r['hits']))
+    if a.json_out:
+        _j.dump(results, open(a.json_out, 'w'), ensure_ascii=False, indent=1)
+        print('结果已写 → %s' % a.json_out)
+    return 0
+
+
 # ══════════════════ 自检（原探源司 self-check ㉓/㉓b，迁移时判据未改）══════════════════
 def cmd_self_check(_a=None):
     """网盘模块自检。两项判据来自探源司，迁移时一字未改。
@@ -1459,6 +1608,15 @@ def build_parser():
     p4.add_argument('--since', default='', help='只删创建时间晚于该点（N分钟/毫秒戳/日期）')
     p4.add_argument('--undo', default='', help='按转存快照精确撤销：last 或快照 id')
 
+    p5 = sp.add_parser('ad-audit', help='百度分享 docx 正文广告排查（docview→PDF→OCR，踩坑固化）')
+    p5.add_argument('--url', required=True, help='百度分享链接（可含提取码）')
+    p5.add_argument('--passcode', default='', help='提取码（无则从 url 解析）')
+    p5.add_argument('--match', default='', help='只扫文件名含该子串的 docx')
+    p5.add_argument('--pages-each', type=int, default=3, help='首尾各扫几页（默认3）')
+    p5.add_argument('--timeout', type=int, default=50, help='单份 PDF 下载超时（默认50s）')
+    p5.add_argument('--workdir', default='/tmp', help='OCR 临时图目录（默认/tmp，用完即删）')
+    p5.add_argument('--json-out', default='', help='结果 JSON 落盘路径（可选）')
+
     sp.add_parser('self-check', help='网盘模块自检（识别 id / 412 归因）')
     return ap
 
@@ -1466,7 +1624,8 @@ def build_parser():
 def main(argv=None):
     a = build_parser().parse_args(argv)
     return {'info': cmd_pan_info, 'pull': cmd_pan_pull, 'save': cmd_pan_save,
-            'rm': cmd_pan_rm, 'self-check': cmd_self_check}[a.cmd](a)
+            'rm': cmd_pan_rm, 'ad-audit': cmd_pan_ad_audit,
+            'self-check': cmd_self_check}[a.cmd](a)
 
 
 if __name__ == '__main__':
