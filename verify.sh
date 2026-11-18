@@ -862,6 +862,18 @@ if exp_st_out=$( python3 "$TARGET/verify/gate_experience.py" --selftest 2>&1 ); 
 else
   no "  └ M12 闸化登记 --selftest 未过：$(printf '%s' "$exp_st_out" | grep -E '✗|FAIL' | head -3 | tr '\n' ' ')"
 fi
+# 新需求（2026-11-18）：--list 达标可晋升入口接电（判据不在执行路径=挂空）。
+#   三态不折叠：ready 显示达标数(ok) / empty 诚实报无(ok) / unknown 账本损坏(红)。
+if exp_list_out=$( python3 "$TARGET/verify/gate_experience.py" --list 2>&1 ); then
+  _list_state=$(printf '%s' "$exp_list_out" | grep -o '"state": "[a-z]*"' | head -1 | grep -o '[a-z]*"$' | tr -d '"')
+  if [ "$_list_state" = "unknown" ]; then
+    no "  └ --list 达标入口无法判定（账本损坏，不折叠成无）"
+  else
+    ok "  └ --list 达标可晋升入口可用（state=$_list_state；有达标即出可复制粘贴区）"
+  fi
+else
+  no "  └ --list 达标入口命令失败（rc≠0）"
+fi
 # ★ 经验闭环 v2（2026-11-15）：①淬炼器 + ②③观测④呈现探针接电（判据不在执行路径=挂空）。
 #   淬炼器只读回读派生态 + selftest；探针回读四环状态，死库存/假经验如实报，不折叠成通过。
 echo
@@ -946,7 +958,7 @@ for t in test_troubleshoot test_language test_doc_index test_reading_guide test_
          test_skill_contract_mutants test_partial_level test_terminology_mutants \
          test_commit_fields test_gate_scan test_pack_skills test_guard_cmd test_stop_guard \
          test_pre_push test_sync_channels test_task_wait_guard test_database_exempt \
-         test_pan_monitor test_exp_direct test_exp_closure test_ad_audit test_skill_entry; do
+         test_pan_monitor test_exp_direct test_exp_closure test_ad_audit test_skill_entry test_promote_list; do
   if [ -f "$TARGET/verify/tests/$t.py" ]; then
     if tout="$(python3 "$TARGET/verify/tests/$t.py" 2>&1)"; then
       ok "$t"

@@ -185,6 +185,21 @@ PROMOTE_ANCHOR = 'S-PROMOTE①'
 # 门槛取 3：规则48「复发≥3次立项」+ chk_landing.py:383 hot 判定（count>=3）同源，不另立标准。
 PROMOTE_MIN = 3
 
+# 运行时真源：与 exp_probe.py:29-42 同口径（用户级优先、仓内种子兜底、支持隔离）。
+# 经验闭环步骤3/5 已把账本真源搬到用户级；promote/list 若只读仓内种子（count=16）
+# 会与真账本（count=17）分叉——判据对象≠记账真源（病15）。故统一走 _live_rec。
+_EXP_HOME = os.environ.get('CODEBUDDY_EXP_HOME') or os.path.join(
+    os.path.expanduser('~'), '.codebuddy', 'experience')
+
+
+def _live_rec(seed=None):
+    """账本路径：用户级存在则用用户级，否则回退仓内种子（与 exp_probe._live_path 同款）。"""
+    seed = seed or os.path.join(REPO, 'experience_recurrence.json')
+    live = os.path.join(_EXP_HOME, os.path.basename(seed))
+    if os.path.isfile(live):
+        return live
+    return seed
+
 
 def _slug(exp_id):
     """病号/经验 id → 合法 ASCII 目录名（中文 id 用短 hash 保唯一，来源写进正文）。"""
@@ -244,7 +259,9 @@ def promote(exp_id, out_root, rec_data=None, repo=None):
     repo = repo or REPO
     if rec_data is None:
         import json as _json
-        rec_data = _json.load(open(os.path.join(repo, 'experience_recurrence.json'), encoding='utf-8'))
+        # 用户级优先（真源），仓内种子兜底；selftest 显式传 rec_data 绕开此路径。
+        rec_data = _json.load(open(_live_rec(os.path.join(repo, 'experience_recurrence.json')),
+                                   encoding='utf-8'))
     counters = (rec_data or {}).get('counters', {})
     ent = counters.get(exp_id)
     if ent is None:
@@ -347,6 +364,64 @@ if __name__ == '__main__':
                        'events': len(events), 'evidence': len(evid)}}
 
 
+def list_promotable(rec_data=None, repo=None):
+    """达标可晋升病号清单 + 可复制粘贴区（仿 手机指令.md:9/63 形态）。
+
+    三态（不折叠）：
+      ready   —— 有达标病号，block 含粘贴区与逐条晋升命令（粘到会话即可触发 --promote）
+      empty   —— 账本可读但无达标（诚实报无，不伪造候选）
+      unknown —— 账本损坏/不可读（无法判定，不折叠成 empty）
+    读用户级真源（_live_rec），门槛复用 PROMOTE_MIN，不另立阈值/不读仓内种子假装真账。
+    """
+    import json as _json
+    if rec_data is None:
+        try:
+            rec_data = _json.load(open(_live_rec(os.path.join(repo or REPO,
+                                                              'experience_recurrence.json')),
+                                       encoding='utf-8'))
+        except Exception as e:
+            return {'state': 'unknown', 'items': [], 'block': '',
+                    'reason': f'账本不可读（无法判定）：{e}'}
+    try:
+        counters = (rec_data or {}).get('counters', {})
+        if not isinstance(counters, dict):
+            return {'state': 'unknown', 'items': [], 'block': '',
+                    'reason': 'counters 非 dict（账本损坏，无法判定）'}
+        items = []
+        for k, v in counters.items():
+            if not isinstance(v, dict):
+                return {'state': 'unknown', 'items': [], 'block': '',
+                        'reason': f'counters.{k} 非 dict（账本损坏，无法判定）'}
+            cnt = v.get('count', 0)
+            st = v.get('status', 'active')
+            try:
+                cnt = int(cnt)
+            except (TypeError, ValueError):
+                return {'state': 'unknown', 'items': [], 'block': '',
+                        'reason': f'counters.{k}.count={cnt!r} 非整数（无法判定）'}
+            if cnt >= PROMOTE_MIN and st != 'retired':
+                items.append({'id': k, 'count': cnt, 'status': st,
+                              'note': v.get('note', '') or ''})
+    except Exception as e:
+        return {'state': 'unknown', 'items': [], 'block': '',
+                'reason': f'账本结构异常（无法判定）：{e}'}
+    items.sort(key=lambda x: (-x['count'], str(x['id'])))
+    if not items:
+        return {'state': 'empty', 'items': [], 'block': '',
+                'reason': f'当前无达标病号（门槛 count>={PROMOTE_MIN} 且未退役）'}
+    lines = ['## 【粘贴区 · 从下一行开始复制】', '',
+             f'当前有 {len(items)} 个病号达标（复发≥{PROMOTE_MIN}次且未退役），'
+             '可晋升为技能。复制本块粘贴到会话，逐条执行里面的晋升命令：', '']
+    for x in items:
+        lines.append(f'- **{x["id"]}** · 复发 {x["count"]} 次 · {x["status"]}')
+        lines.append(f'  - 晋升：`python3 verify/gate_experience.py --promote "{x["id"]}" '
+                     f'--out "产物/晋升候选"`')
+    lines += ['', '生成的是「晋升候选」（不自动进仓/不登记/不装机），是否纳入由我拍板。', '',
+              '**【粘贴区 结束】**']
+    return {'state': 'ready', 'items': items, 'block': '\n'.join(lines),
+            'reason': f'{len(items)} 个病号达标'}
+
+
 def _promote_selftest():
     """正反向验证：达标真生成可过检技能 / 未达标·退役·不存在·已存在全 no-op / 篡改生成物自检必红。"""
     import shutil
@@ -410,6 +485,61 @@ def _promote_selftest():
     return fails
 
 
+def _list_selftest():
+    """--list 三态 + 用户级优先。CODEBUDDY_EXP_HOME mock 隔离，临时 monkeypatch
+    模块级 _EXP_HOME（步骤5坑：不 monkeypatch 会让真函数读到默认用户级账本→假绿）。"""
+    import json as _j
+    import tempfile
+    import shutil
+    fails = []
+    tmp = tempfile.mkdtemp(prefix='listp_')
+    old_home = _EXP_HOME
+    fixture = {'counters': {
+        '病甲': {'count': 17, 'status': 'active', 'note': '判据对象分叉'},
+        '病乙': {'count': 3, 'status': 'active'},
+        '病丙': {'count': 9, 'status': 'retired'},
+        '病丁': {'count': 1, 'status': 'active'},
+    }}
+    try:
+        # ① ready：达标病号=病甲+病乙（病丙退役/病丁未达排除）
+        r = list_promotable(rec_data=fixture)
+        ids = [x['id'] for x in r['items']]
+        if r['state'] != 'ready' or set(ids) != {'病甲', '病乙'}:
+            fails.append(f'① ready 应含甲/乙排除丙/丁：{r["state"]}/{ids}')
+        # ② 粘贴区形态：标题+结束标记+逐条晋升命令（真可复制块，非空话）
+        if ('## 【粘贴区 · 从下一行开始复制】' not in r['block']
+                or '**【粘贴区 结束】**' not in r['block']
+                or '--promote "病甲"' not in r['block']
+                or '--promote "病乙"' not in r['block']):
+            fails.append('② 粘贴块缺标记或晋升命令')
+        # ③ 排序：count 高的在前（病甲 17 > 病乙 3）
+        if ids and ids[0] != '病甲':
+            fails.append(f'③ 应按 count 降序：{ids}')
+        # ④ empty：全不达标 → 诚实报无，不伪造
+        r2 = list_promotable(rec_data={'counters': {'病丁': {'count': 1, 'status': 'active'}}})
+        if r2['state'] != 'empty' or r2['items'] or r2['block']:
+            fails.append(f'④ 无达标应 empty：{r2["state"]}/{r2["items"]}')
+        # ⑤ unknown：账本损坏（counters 非 dict）→ 无法判定，不折叠 empty
+        r3 = list_promotable(rec_data={'counters': []})
+        if r3['state'] != 'unknown':
+            fails.append(f'⑤ 损坏应 unknown：{r3["state"]}')
+        # ⑥ 用户级优先（真函数读文件）：模块级 _EXP_HOME 指向 tmp，用户级写 count=17，
+        #    仓内种子写 count=1 → 必须读用户级（病15 对象范围=真账本而非种子）
+        globals()['_EXP_HOME'] = tmp
+        _j.dump({'counters': {'病真实': {'count': 17, 'status': 'active'}}},
+                open(os.path.join(tmp, 'experience_recurrence.json'), 'w', encoding='utf-8'),
+                ensure_ascii=False)
+        r4 = list_promotable(repo=tmp)  # seed=tmp/experience_recurrence.json 与 live 同名→live 优先
+        if r4['state'] != 'ready' or [x['id'] for x in r4['items']] != ['病真实']:
+            fails.append(f'⑥ 应读用户级真账本：{r4["state"]}/{r4["items"]}')
+        print(f'  selftest[list]: 三态={r["state"]}/{r2["state"]}/{r3["state"]} '
+              f'达标={ids} 粘贴块=✓ 用户级优先=✓')
+    finally:
+        globals()['_EXP_HOME'] = old_home
+        shutil.rmtree(tmp, ignore_errors=True)
+    return fails
+
+
 def selftest():
     """正反向：红/黄/绿三态在真数据上现形；反向靠临时构造缺 ref 回执。
     v0.8.73 追加闸化登记分支（_gate_selftest）：五种形态/反例/端到端 green-yellow。
@@ -426,6 +556,8 @@ def selftest():
         fails += _gate_selftest()
         # W8-B2 晋升环正反验证（独立临时目录，不碰真账本）
         fails += _promote_selftest()
+        # 新需求：--list 达标清单三态 + 用户级优先（独立临时目录）
+        fails += _list_selftest()
         # 正向：真数据跑一遍，应可判定（green/yellow 都算通过，red 算违例——当前真数据应无 red）
         st = check()
         if st in ('red',):
@@ -454,6 +586,17 @@ def selftest():
 if __name__ == '__main__':
     if '--selftest' in sys.argv:
         sys.exit(selftest())
+    if '--list' in sys.argv:
+        # 达标清单：python3 gate_experience.py --list
+        # 输出可复制粘贴区（仿手机指令.md），粘到会话即可逐条触发 --promote。
+        import json as _json
+        res = list_promotable()
+        print(_json.dumps({'state': res['state'], 'items': res['items'],
+                           'reason': res['reason']}, ensure_ascii=False, indent=1))
+        if res['block']:
+            print()
+            print(res['block'])
+        sys.exit(1 if res['state'] == 'unknown' else 0)
     if '--promote' in sys.argv:
         # 晋升候选：python3 gate_experience.py --promote <病号id> --out <目录>
         import json as _json
