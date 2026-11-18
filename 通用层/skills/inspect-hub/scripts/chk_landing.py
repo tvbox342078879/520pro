@@ -190,9 +190,16 @@ def chk_projects(target, cfg, ctx):
         except Exception:
             pass
         try:
-            m = re.search(r'^## (v[\d.]+) — (\d{4}-\d{2}-\d{2})', open(cl, encoding='utf-8').read(4000), re.M)
-            if m:
-                last, last_day = m.group(1), datetime.date.fromisoformat(m.group(2))
+            # 病15 第29例：旧正则只认 `## vX — YYYY-MM-DD`（日期紧跟破折号），探源司写
+            # `## v1.28.9 — 描述（2026-11-15）`（日期在尾括号）→ 首4000字无合规行、更旧的
+            # 合规行被 read(4000) 截断 → 误报「无法判定」。放宽为：取首条 `## vX` 行，
+            # 日期在行内任意位置（紧跟破折号或尾括号均可），读 8000 字；只取首条=最新。
+            head = open(cl, encoding='utf-8').read(8000)
+            hm = re.search(r'^## (v[\d.]+)[^\n]*', head, re.M)
+            if hm:
+                dm = re.search(r'(\d{4}-\d{2}-\d{2})', hm.group(0))
+                if dm:
+                    last, last_day = hm.group(1), datetime.date.fromisoformat(dm.group(1))
         except Exception:
             pass
         if not last_day:

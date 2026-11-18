@@ -32,8 +32,21 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REG_PATH = os.path.join(SCRIPT_DIR, 'inspect_registry.json')
 HIST_PATH = os.path.join(SCRIPT_DIR, 'findings_history.json')
 MON_PATH = os.path.join(SCRIPT_DIR, 'monitors.json')
-RUNTIME_FILES = {'findings_history.json', 'monitors.json'}   # 运行时数据，不参与副本对账
-# 另：*_state.json（各技能运行态登记，如 space_hub_state.json）同样排除——机制级规则，防新技能重复踩   # 运行时监测登记（与正本登记册分离：登记是运行态，不是正本知识，避免生门误报副本漂移）
+# 运行时豁免清单真源 = verify/skill_contracts.json 的 runtime_files（与 install.sh 三处同源，verify.sh 核）。
+# 病15 第28例：此处曾手写 {'findings_history.json','monitors.json'} 两件副本，漏 contracts 真源 15 件中的
+# monitor_targets/activity_log/pan_monitor_targets 等 → 生门把用户级运行时数据误报「副本漂移」。
+# 正解：chk_skills 内 runtime_exempt(target) 直读真源，不在此留第二份手写清单。
+# 另：*_state.json 通用模式仍排除（机制级，防新技能重复踩）。
+def runtime_exempt(target, ctx=None):
+    """运行时豁免集：直读真源 contracts.runtime_files（病15 同源防护，禁手写副本）。
+    读不到真源 → 返回 {'__unknown__'} 让调用方降级（不静默放行、不假绿），由 verify 对账闸兜底。"""
+    try:
+        p = os.path.join(target, 'verify', 'skill_contracts.json')
+        d = json.load(open(p, encoding='utf-8'))
+        return set(d['runtime_files'])
+    except Exception:
+        return {'__contracts_unreadable__'}
+
 
 ST_ORDER = {'red': 0, 'yellow': 1, 'unknown': 2, 'green': 3, 'pending': 4}
 ST_LABEL = {'red': '🔴 有事', 'yellow': '🟡 观察', 'green': '🟢 正常',
@@ -111,6 +124,10 @@ def chk_skills(target, cfg, ctx):
     repo = repo_skills(target)
     if not repo:
         return {'status': 'unknown', 'items': [{'t': '【白】仓库内未发现任何技能', 'e': target, 'c': '核对 --target 是否指向 520pro 根目录'}]}
+    exempt = runtime_exempt(target)
+    if '__contracts_unreadable__' in exempt:
+        return {'status': 'unknown', 'items': [{'t': '【白】运行时豁免真源不可读（skill_contracts.json）',
+                'e': os.path.join(target, 'verify', 'skill_contracts.json'), 'c': '核对真源在位；不用手写清单假绿'}]}
     ok_n = 0
     for name, sk in repo:
         inst = os.path.join(root, name, 'SKILL.md')
@@ -134,7 +151,7 @@ def chk_skills(target, cfg, ctx):
                     continue
                 # 运行时数据不入对账（每台机器各自演化，与正本必然不同）：
                 # 否则生门永久误报「副本漂移」，真漂移被假黄淹没
-                if f in RUNTIME_FILES or f.endswith('_state.json'):
+                if f in exempt or f.endswith('_state.json'):
                     continue
                 a, b = os.path.join(sdir, f), os.path.join(idir, f)
                 if not os.path.isfile(b) or md5f(a) != md5f(b):
@@ -753,10 +770,16 @@ ADVERSARIAL_CASES = [
 
 
 def _patch_space_hub(d):
-    p = os.path.join(d, '通用层/skills/space-hub/scripts/space_hub.py')
+    # 病15 第30例：旧用例往**代码**加 zz-adv-fake（代码有文档无），chk_docsync 的正确判定是
+    # 「代码有文档无=黄（漏写）」→ 期望 red 永远落空、对抗闸恒 rc=2（门禁"失灵"是假象，
+    # 实为用例期望错）。景门真正要拦的致命场景是**文档吹牛**：文档有、代码无，用户照抄报错。
+    # 正解：往 SKILL.md 的 ```bash 块注入假命令 → doc_set-code_set 命中 ghost → red。
+    p = os.path.join(d, '通用层/skills/space-hub/SKILL.md')
     txt = open(p, encoding='utf-8').read()
-    txt = txt.replace("    rs = sub.add_parser('restore')",
-                      "    rs = sub.add_parser('restore')\n    zz = sub.add_parser('zz-adv-fake')", 1)
+    anchor = 'python3 space_hub.py inbox'
+    if anchor not in txt:
+        raise RuntimeError('对抗注入锚点不在 space-hub SKILL.md，无法构造文档吹牛场景')
+    txt = txt.replace(anchor, 'python3 space_hub.py zz-adv-fake\n' + anchor, 1)
     open(p, 'w', encoding='utf-8').write(txt)
 
 
