@@ -188,6 +188,25 @@ def _resolve_root(d, cwd, command, probe):
     return ''
 
 
+def _exp_paths(repo_root):
+    """经验闭环 v3 步骤3：经验数据/脚本路径不依赖 git root / last_repo。
+    用户级 ~/.codebuddy/experience/ 优先（跨项目/跨会话共享），仓内 repo_root 作种子兜底。
+    返回 (experience_recurrence.json 路径, 病号映射表.json 路径, exp_probe 所在目录, 来源标记)。
+    """
+    home_dir = os.path.join(os.path.expanduser('~'), '.codebuddy', 'experience')
+    env_dir = os.environ.get('CODEBUDDY_EXP_HOME')
+    candidates = ([env_dir] if env_dir else []) + [home_dir]
+    for d in candidates:
+        rec = os.path.join(d, 'experience_recurrence.json')
+        if os.path.isfile(rec):
+            mp = os.path.join(d, '病号映射表.json')
+            return rec, (mp if os.path.isfile(mp) else os.path.join(repo_root, 'verify', '病号映射表.json')), d, 'user'
+    # 用户级无副本 → 仓内种子（换仓/新沙箱首次，尚未 install 时）
+    return (os.path.join(repo_root, 'experience_recurrence.json'),
+            os.path.join(repo_root, 'verify', '病号映射表.json'),
+            os.path.join(repo_root, 'verify'), 'repo-seed')
+
+
 def main():
     if '--probe' in sys.argv[1:]:
         p = _read_state().get('probe') or {}
@@ -243,8 +262,11 @@ def main():
         # 经验闭环闸3：按 Next 任务类型注入同型病号（读映射表+复发计数，降级静默）
         try:
             import json as _jj, re as _re, os as _os2
-            _mp = _jj.load(open(_os2.path.join(root, 'verify', '病号映射表.json'), encoding='utf-8'))
-            _rec_path = _os2.path.join(root, 'experience_recurrence.json')
+            _rec_path, _mp_path, _vdir, _src = _exp_paths(root)
+            if not _os2.path.isfile(_rec_path) or not _os2.path.isfile(_mp_path):
+                print('  ⚠ 经验数据未就绪（rec=%s, map=%s，来源=%s）——先跑 install.sh 装用户级副本'
+                      % (_rec_path, _mp_path, _src), file=sys.stderr)
+            _mp = _jj.load(open(_mp_path, encoding='utf-8')) if _os2.path.isfile(_mp_path) else {}
             _rec = _jj.load(open(_rec_path, encoding='utf-8')) if _os2.path.isfile(_rec_path) else {}
             _cnt = _rec.get('counters', {})
             _hits = []
@@ -281,7 +303,6 @@ def main():
                 for _fp_e in _fp_entries[:1]:  # 最多 1 条直达，防刷屏
                     try:
                         import sys as _sys3
-                        _vdir = _os2.path.join(root, 'verify')
                         if _vdir not in _sys3.path:
                             _sys3.path.insert(0, _vdir)
                         import exp_probe as _ep

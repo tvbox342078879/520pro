@@ -217,6 +217,22 @@ deploy_generic_user() {
     [ -d "$d" ] || continue
     cp_bak "$d" "$USER_DIR/skills/$(basename "$d")"
   done
+  # 经验闭环 v3 步骤3：经验数据真源装到用户级，跨项目/跨会话共享。
+  # 首次复制种子（仓内 git 版本化，随 push/pull 跨设备）；已存在则跳过——
+  # 用户级是运行时真源（reuse_count/retired 会累积写回），覆盖=洗掉实战命中（假账）。
+  # 路径解析已去 root/last_repo 依赖，换仓不静默空转。
+  local expdir="$HOME/.codebuddy/experience"
+  if [ "$DRY" = 0 ]; then mkdir -p "$expdir"; fi
+  for f in experience_recurrence.json 病号映射表.json; do
+    local src
+    if [ "$f" = "experience_recurrence.json" ]; then src="$ROOT/$f"; else src="$ROOT/verify/$f"; fi
+    if [ -f "$src" ] && [ ! -f "$expdir/$f" ]; then
+      cp_bak "$src" "$expdir/$f"
+      echo "  · 经验数据种子已装：$f（用户级副本，已存在则不覆盖）"
+    elif [ -f "$expdir/$f" ]; then
+      echo "  · 经验数据已存在，跳过（保护运行时数据）：$f"
+    fi
+  done
 }
 
 adapt_paths() {  # 把技能里硬编码的 /root/.codebuddy 改成当前 HOME 可解析

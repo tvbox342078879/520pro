@@ -26,9 +26,35 @@ import subprocess
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REC = os.path.join(ROOT, 'experience_recurrence.json')
+# 经验闭环 v3 步骤3：运行时经验数据读写统一落用户级 ~/.codebuddy/experience/，
+# 仓内文件退为版本化种子（git 跨设备分发），写回时 mirror 回仓内保持可版本化。
+# 路径不依赖 cwd/git root/last_repo；CODEBUDDY_EXP_HOME 供判据隔离 mock。
+EXP_HOME = os.environ.get('CODEBUDDY_EXP_HOME') or os.path.join(
+    os.path.expanduser('~'), '.codebuddy', 'experience')
+SEED_REC = os.path.join(ROOT, 'experience_recurrence.json')
+SEED_MAP = os.path.join(ROOT, 'verify', '病号映射表.json')
+
+
+def _live_path(seed):
+    name = os.path.basename(seed)
+    live = os.path.join(EXP_HOME, name)
+    return live if os.path.isfile(live) else seed
+
+
+REC = _live_path(SEED_REC)
+MAP = _live_path(SEED_MAP)
 LEDGER = os.path.join(ROOT, 'docs', '通病台账.md')
-MAP = os.path.join(ROOT, 'verify', '病号映射表.json')
+
+
+def _save_rec(rec):
+    """写回运行时真源（用户级优先，仓内种子兜底）。
+    不 mirror 回仓内：经验条目由 commit 派生（git 已同步），reuse/retire 等运行时
+    状态属本机累积，回写仓内会每次会话都脏工作区（假账式污染）。
+    用户级不存在时（未 install）回退写仓内种子，保证开发态可用。"""
+    tmp = REC + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(rec, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, REC)
 SHA_RE = re.compile(r'\b[0-9a-f]{7,40}\b')
 DIS_RE = re.compile(r'病(\d+)（第\s*\d+\s*次）|新病：')
 
@@ -192,10 +218,7 @@ def hit(evidence):
         if e.get('evidence') == evidence:
             e['reuse_count'] = (e.get('reuse_count') or 0) + 1
             e['last_hit'] = now
-            tmp = REC + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(rec, f, ensure_ascii=False, indent=1)
-            os.replace(tmp, REC)
+            _save_rec(rec)
             return True
     return False
 
@@ -211,10 +234,7 @@ def force_hit(evidence):
         if e.get('evidence') == evidence:
             e['force_count'] = (e.get('force_count') or 0) + 1
             e['force_last'] = now
-            tmp = REC + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(rec, f, ensure_ascii=False, indent=1)
-            os.replace(tmp, REC)
+            _save_rec(rec)
             return True
     return False
 
@@ -230,10 +250,7 @@ def retire(evidence, reason=''):
             e['retired'] = True
             e['retire_reason'] = reason or '未写明'
             e['retire_date'] = __import__('datetime').datetime.now().strftime('%Y-%m-%d')
-            tmp = REC + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(rec, f, ensure_ascii=False, indent=1)
-            os.replace(tmp, REC)
+            _save_rec(rec)
             return True
     return False
 
@@ -265,10 +282,7 @@ def apply():
             entries.append(recycled)
     rec['exp_entries'] = entries
     rec['exp_meta'] = {'derived_by': 'exp_distill.py', 'total': len(entries)}
-    tmp = REC + '.tmp'
-    with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(rec, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, REC)
+    _save_rec(rec)
     return len(entries)
 
 

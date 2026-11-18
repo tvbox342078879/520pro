@@ -21,7 +21,28 @@ import json
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REC = os.path.join(ROOT, 'experience_recurrence.json')
+# 经验闭环 v3 步骤3（真源搬家）：运行时经验数据读写统一落用户级，跨项目/跨会话共享。
+# 仓内 experience_recurrence.json 退为「版本化种子真源」（随 git 跨设备分发），
+# install.sh 首次复制到用户级、已存在跳过（保护运行时累积的 reuse/retire 数据）。
+# 用户级路径固定，不依赖 cwd / git root / last_repo——换仓不静默空转。
+# CODEBUDDY_EXP_HOME 供判据隔离 mock（病15：判据识别范围须=对象范围）。
+EXP_HOME = os.environ.get('CODEBUDDY_EXP_HOME') or os.path.join(
+    os.path.expanduser('~'), '.codebuddy', 'experience')
+SEED_REC = os.path.join(ROOT, 'experience_recurrence.json')  # 仓内种子（安装源/镜像）
+SEED_MAP = os.path.join(ROOT, 'verify', '病号映射表.json')
+
+
+def _live_path(seed):
+    """用户级优先解析数据路径：用户级有该文件则用之，否则回退仓内种子。
+    纯路径决策，不读文件内容；判据可 monkeypatch EXP_HOME + reload 做正反验证。"""
+    name = os.path.basename(seed)
+    live = os.path.join(EXP_HOME, name)
+    if os.path.isfile(live):
+        return live
+    return seed
+
+
+REC = _live_path(SEED_REC)   # 运行时真源（用户级优先）
 ANCHOR = os.path.join(ROOT, 'hooks', 'next_anchor.py')
 INJECT_MARK = '💡经验'
 
@@ -43,7 +64,8 @@ def _is_generic(q):
     return s in GENERIC_TERMS or len(s) <= 2
 
 
-def _read_rec(path=REC):
+def _read_rec(path=None):
+    path = path or REC
     if not os.path.isfile(path):
         return None
     try:

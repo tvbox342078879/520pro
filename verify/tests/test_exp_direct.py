@@ -62,8 +62,14 @@ try:
     anchor = open(os.path.join(ROOT, 'hooks', 'next_anchor.py'), encoding='utf-8').read()
     check('next_anchor 注入段含「💡经验命中」', '💡经验命中' in anchor)
     # 假账判据：注入段不得在注入瞬间调 hit()（把"看到"当"用了"）
-    # 病15 防护：切片必须用注释锚点的完整区段，不能用变量名 split（会切到定义与循环之间，假绿）
-    _seg = anchor.split('经验闭环 v3')[1].split('经验注入失败')[0] if '经验闭环 v3' in anchor else ''
+    # 病15 防护：切片锚点须唯一。步骤3在新函数注释也用了「经验闭环 v3」，
+    # 故取**最后一次**出现（注入段）到「经验注入失败」；不用「💡经验命中」（它在 msg 串内，
+    # 切到它之后会漏掉 _ep.match 调用）。
+    def _inject_seg(text):
+        i = text.rfind('经验闭环 v3')
+        j = text.find('经验注入失败', i) if i >= 0 else -1
+        return text[i:j] if i >= 0 and j >= 0 else ''
+    _seg = _inject_seg(anchor)
     check('注入瞬间不记账（假账已除，注入≠复用）',
           '_ep.match' in _seg and 'hit(' not in _seg)
 except Exception as ex:
@@ -123,7 +129,7 @@ except Exception as ex:
 try:
     import exp_probe as _ep6
     anchor = open(os.path.join(ROOT, 'hooks', 'next_anchor.py'), encoding='utf-8').read()
-    _seg = anchor.split('经验闭环 v3')[1].split('经验注入失败')[0] if '经验闭环 v3' in anchor else ''
+    _seg = _inject_seg(anchor)
     # 注入段不得把 match 的 fixed_path 当落点拼进消息（实测 48/49 是账本/文档脏落点）
     check('💡注入段不拼脏 fixed_path 落点',
           "_hit['fixed_path']" not in _seg and '证据' in _seg)
@@ -250,6 +256,81 @@ try:
 except Exception as ex:
     check('经验退役', False)
     print('    err=%r' % ex)
+
+# ── ⑬ 步骤3：真源搬家（用户级优先 / 去 last_repo / 换仓不静默）────────────
+try:
+    import importlib, tempfile, shutil as _sh
+    # 真函数验证 _live_path：用户级文件存在→切用户级，不存在→回退种子
+    _td = tempfile.mkdtemp(prefix='exp_home_')
+    _old_exp_home = _ep.EXP_HOME
+    try:
+        _fake_user = os.path.join(_td, 'experience_recurrence.json')
+        json.dump({'exp_entries': [{'id': 'X'}]}, open(_fake_user, 'w'))
+        _seed = os.path.join(ROOT, 'experience_recurrence.json')
+        _ep.EXP_HOME = _td
+        check('用户级数据存在时 _live_path 切用户级（真函数）',
+              _ep._live_path(_seed) == _fake_user)
+        os.remove(_fake_user)
+        check('用户级无数据时 _live_path 回退仓内种子（真函数）',
+              _ep._live_path(_seed) == _seed)
+    finally:
+        _ep.EXP_HOME = _old_exp_home
+        _sh.rmtree(_td)
+
+    # monkeypatch EXP_HOME + reload：验证模块级 REC 解析随用户级切换
+    _td = tempfile.mkdtemp(prefix='exp_home_')
+    _old_home = os.environ.get('CODEBUDDY_EXP_HOME')
+    try:
+        json.dump({'exp_entries': [{'id': 'MOCK-USER'}]},
+                  open(os.path.join(_td, 'experience_recurrence.json'), 'w'))
+        os.environ['CODEBUDDY_EXP_HOME'] = _td
+        importlib.reload(_ep)
+        _d = _ep._read_rec()
+        check('模块 REC 随 CODEBUDDY_EXP_HOME 切换且真读到用户级数据',
+              bool(_d) and (_d.get('exp_entries') or [{}])[0].get('id') == 'MOCK-USER')
+    finally:
+        if _old_home is None:
+            os.environ.pop('CODEBUDDY_EXP_HOME', None)
+        else:
+            os.environ['CODEBUDDY_EXP_HOME'] = _old_home
+        importlib.reload(_ep)
+        _sh.rmtree(_td)
+
+    # next_anchor._exp_paths：用户级优先 + 不依赖 root/last_repo（传任意 root 都解析到用户级）
+    import types
+    _na_src = open(os.path.join(ROOT, 'hooks', 'next_anchor.py'), encoding='utf-8').read()
+    _mod = types.ModuleType('na_probe')
+    exec(compile(_na_src, 'next_anchor.py', 'exec'), _mod.__dict__)
+    _td = tempfile.mkdtemp(prefix='exp_na_')
+    _old_home = os.environ.get('CODEBUDDY_EXP_HOME')
+    try:
+        open(os.path.join(_td, 'experience_recurrence.json'), 'w').write('{}')
+        os.environ['CODEBUDDY_EXP_HOME'] = _td
+        _r, _m, _v, _src = _mod._exp_paths('/nonexistent/repo')
+        check('next_anchor 经验路径用户级优先（root 不存在仍解析到用户级）',
+              _src == 'user' and _r.startswith(_td))
+        # exec 动态模块无源文件，用源码文本切 _exp_paths 函数体做断言。
+        # 只查代码行（去掉 docstring/注释）不读 last_repo 字典键，不查说明文字。
+        _fn = _na_src.split('def _exp_paths')[1].split('\ndef ')[0]
+        _code = '\n'.join(ln for ln in _fn.splitlines()
+                          if not ln.strip().startswith('#') and '"""' not in ln
+                          and '经验数据/脚本路径不依赖' not in ln)
+        check('next_anchor 经验路径不依赖 last_repo（不读 git 仓变量）',
+              "['last_repo']" not in _code and "get('last_repo'" not in _code)
+    finally:
+        if _old_home is None:
+            os.environ.pop('CODEBUDDY_EXP_HOME', None)
+        else:
+            os.environ['CODEBUDDY_EXP_HOME'] = _old_home
+        _sh.rmtree(_td)
+
+    # install.sh 有经验数据安装段且「已存在跳过」（保护运行时数据）
+    _inst = open(os.path.join(ROOT, 'install.sh'), encoding='utf-8').read()
+    check('install.sh 装经验数据种子到用户级且已存在跳过',
+          'experience' in _inst and '! -f "$expdir/$f"' in _inst and '跳过' in _inst)
+except Exception as ex:
+    check('步骤3真源搬家', False)
+    import traceback; traceback.print_exc()
 
 print('\n%d passed, %d failed' % (len(PASS), len(FAIL)))
 sys.exit(1 if FAIL else 0)
