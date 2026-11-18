@@ -55,6 +55,30 @@ _TASK_ID_RE = re.compile(r'<task-id>\s*([^<\s]+)\s*</task-id>')
 _TASK_TERM_RE = re.compile(r'<status>\s*(completed|failed|canceled|rejected)\s*</status>', re.I)
 
 
+# 二进制自动出场（2026-11-18）：用户说「看某个 APK / 扒这个 so」而不报技能名时，
+# 熔铸司（foundry）该出场却没出场——根因是技能被动触发、hooks/rules 零登记。
+# 这里在 UserPromptSubmit 必经点加软提示（不拦截），双通道：扩展名 + 逆向动词/名词。
+# 病15：识别范围=对象范围——中文目标名（如「云取」）无扩展名，故必须靠动词同伴命中，
+# 不能只匹配扩展名；反过来普通文字里的 .so 片段不得误伤。纯函数供判据直喂样本。
+_BINARY_EXT_RE = re.compile(r'\.(apk|dex|so|jar|bin|img|ipa|elf|aab)(?:\b|[.\s"\'，。、）])', re.I)
+_BINARY_VERB_RE = re.compile(r'(逆向|脱壳|反编译|解包|扒.{0,6}(包|apk|so|dex)|类源码|jadx|smali|熔铸|出场|加载)')
+_BINARY_NOUN_RE = re.compile(r'(apk|dex|so文件|\.so\b|二进制|jadx|class文件|字节码|外壳|壳|应用|安装包|程序|aab)', re.I)
+
+
+def binary_hint(prompt):
+    """软提示：prompt 命中二进制目标 → 返回一句话建议加载熔铸司；否则空串。纯函数。"""
+    if not prompt:
+        return ''
+    p = str(prompt)
+    hit_ext = bool(_BINARY_EXT_RE.search(p))
+    hit_verb = bool(_BINARY_VERB_RE.search(p))
+    hit_noun = bool(_BINARY_NOUN_RE.search(p))
+    if not (hit_ext or (hit_verb and hit_noun)):
+        return ''
+    return ('｜🔨 检测到二进制/逆向目标——建议加载熔铸司 foundry（jadx 26 工具：'
+            '类源码/xref/资源解码），正门 SKILL.md 先读判据再动手')
+
+
 def autoclose_inflight(prompt, inflight):
     """返回 (剩余台账, 本次自动销掉的 id 列表)。纯函数，供 selftest 直喂样本。"""
     if not prompt or not inflight:
@@ -352,6 +376,14 @@ def main():
         # 三要素每轮可见——S6 自觉提升到必经点，仍不算硬闸（不冒充已装）。
         msg += ('｜🔒 B-12：每轮回复末尾收敛三件——做了什么 / 凭什么（文件·行号·rc） / 下一步；'
                 '一阶段完工即落回报，不把多个半成品堆一轮')
+        # 二进制自动出场软提示（2026-11-18）：命中 prompt 里的 APK/dex/so 或逆向意图即提示
+        # 加载熔铸司——只注入不拦截，卦在 UserPromptSubmit 必经点（永不拦截铁律不变）。
+        try:
+            _bh = binary_hint(data.get('prompt') or data.get('message') or '')
+            if _bh:
+                msg += _bh
+        except Exception:
+            pass  # 出场提示失败不影响主提醒（永不拦截）
         # 在途任务跟踪（2026-11-15）：后台任务发时 --task-add 登记，完成通知到了自动
         # 销账（扫本轮 prompt 的 <task-notification>），每轮显示剩余清单——超 STALE_SEC
         # 标红提醒主动查。不再靠记忆/用户追问跟踪"完成了没"（用户实证痛点）。
