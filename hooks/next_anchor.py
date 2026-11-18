@@ -286,9 +286,12 @@ def main():
                             _sys3.path.insert(0, _vdir)
                         import exp_probe as _ep
                         _hit = _ep.match(nxt, rec=_rec)  # 只读查询，不记账
-                        if _hit and _hit.get('fixed_path'):
-                            msg += '｜💡直达 %s（据 %s，命中度%s）｜真用先走闸 exp_probe.gate(症状)' % (
-                                _hit['fixed_path'], str(_hit.get('evidence', ''))[:18], _hit['score'])
+                        if _hit:
+                            # 注入层不报落点（实测 fixed_path 49 条里 48 条是 .json/.md 脏落点，
+                            # 无一条可执行代码）——只报命中+证据，真用走闸 exp_probe.gate()
+                            # 取可信落点；唯一落点真源是拦截时 guard_cmd.gate_target(规则id)。
+                            msg += '｜💡经验命中 %s（据 %s，命中度%s）｜真用先走闸 exp_probe.gate(症状)' % (
+                                _hit['id'], str(_hit.get('evidence', ''))[:18], _hit['score'])
                     except Exception:
                         pass
         except Exception:

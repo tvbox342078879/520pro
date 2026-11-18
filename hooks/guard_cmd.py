@@ -332,9 +332,11 @@ def gate_target(rule_id):
       · 拿规则 why/命令文本去 exp_probe.gate() 做模糊匹配 → G1..G7 全不命中（文本不是症状）；
       · 走 guard_rules→病号→exp_entries.fixed_path → 命中的是 MANIFEST.json / archive_ledger.json
         这类 commit 改动文件，与"该规则的修复"无关——脏落点，喂给模型比不带更糟。
-    正确锚点：经 guard_rules 映射后，带出该规则的回归判据文件 test_guard_cmd.py——
-      · 真实存在、与规则强相关（改坏规则该测试翻红），可核实；
-      · 配合 _disease_hint 的人工审核 fix，模型被拦即见"病号+修法+判据落点"，不必翻台账。
+    正确锚点：经 guard_rules 映射后，带出该规则的回归判据文件 test_guard_cmd.py，
+    并附该规则专属锚点 "#<规则id>"（如 G5→"test_guard_cmd.py#G5"）——
+      · 真实存在、与规则强相关（改坏规则对应用例翻红），可核实；
+      · 带规则 id 而非全规则共用一个裸文件名，模型被拦即知看哪一组用例。
+      · 配合 _disease_hint 的人工审核 fix，模型被拦见"病号+修法+判据落点"，不必翻台账。
     无映射规则返回 None（真阴性，不硬塞落点）；异常降级 None（不阻断主闸）。
     """
     try:
@@ -347,7 +349,17 @@ def gate_target(rule_id):
         if not mapped:
             return None
         land = os.path.join('verify', 'tests', 'test_guard_cmd.py')
-        return land if os.path.isfile(os.path.join(root, land)) else None
+        if not os.path.isfile(os.path.join(root, land)):
+            return None
+        # 病15 防护：锚点必须是本规则真实存在的用例，不能凭空造。
+        # 判据文件 cases 里 (命令, want) 的 want 就是规则 id——存在才带，不存在降级裸文件。
+        try:
+            _src = open(os.path.join(root, land), encoding='utf-8').read()
+            if ("'%s'" % rid0) in _src or ('"%s"' % rid0) in _src:
+                return land + '#' + rid0
+        except Exception:
+            pass
+        return land
     except Exception:
         return None
 

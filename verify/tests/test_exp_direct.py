@@ -4,7 +4,7 @@
 验证三件事（真阳性/真阴性/无法判定，B-02）：
   ① 数据：exp_entries 带 fixed_path + symptom 字段（命中才有解法可直达）
   ② 查询：exp_probe.match(symptom) 命中返回 fixed_path，不命中返回 None
-  ③ 呈现：注入含「💡直达」但注入≠复用（假账已除：直达段不 hit）
+  ③ 呈现：注入含「💡经验命中」但不报脏落点、注入≠复用（假账已除）
   ④ 闸口：exp_probe.gate() 真调用才记账，命中返 B-10 三字段（reason/target/method）
 
 先红后绿：改动前本文件应 FAIL。
@@ -55,17 +55,17 @@ except Exception as ex:
     check('exp_probe 有 match(symptom) 直达查询接口', False)
     print('    err=%r' % ex)
 
-# ③ 呈现层：注入段含「💡直达」，但注入≠复用——注入瞬间不得记账（修假账）
+# ③ 呈现层：注入段含「💡经验命中」（不再报脏落点），且注入≠复用——注入瞬间不得记账
 try:
     anchor = open(os.path.join(ROOT, 'hooks', 'next_anchor.py'), encoding='utf-8').read()
-    check('next_anchor 注入段含「💡直达」', '💡直达' in anchor)
+    check('next_anchor 注入段含「💡经验命中」', '💡经验命中' in anchor)
     # 假账判据：注入段不得在注入瞬间调 hit()（把"看到"当"用了"）
     # 病15 防护：切片必须用注释锚点的完整区段，不能用变量名 split（会切到定义与循环之间，假绿）
     _seg = anchor.split('经验闭环 v3')[1].split('经验注入失败')[0] if '经验闭环 v3' in anchor else ''
     check('注入瞬间不记账（假账已除，注入≠复用）',
           '_ep.match' in _seg and 'hit(' not in _seg)
 except Exception as ex:
-    check('next_anchor 注入段含「💡直达」', False)
+    check('next_anchor 注入段含「💡经验命中」', False)
     print('    err=%r' % ex)
 
 # ④ 闸口层：exp_probe.gate() 显式硬闸接口——真调用才记账 + B-10 三字段
@@ -95,20 +95,40 @@ try:
     import guard_cmd as _gc
     check('guard_cmd 有 gate_target() 落点解析接口', hasattr(_gc, 'gate_target'))
     if hasattr(_gc, 'gate_target'):
-        # 真阳性：G5（有 guard_rules 映射→病15→固化经验）应带出 target
+        # 真阳性：G5（有 guard_rules 映射→病15→固化经验）应带出判据文件落点
+        # 落点格式 "文件#规则id"，取 # 前的文件部分做存在性校验
         _t = _gc.gate_target('G5')
-        check('gate_target(G5) 带出真实存在的文件落点',
-              bool(_t) and os.path.isfile(os.path.join(ROOT, _t)))
+        check('gate_target(G5) 带出真实存在的判据文件',
+              bool(_t) and os.path.isfile(os.path.join(ROOT, _t.split('#')[0])))
+        # 精确性（本阶段升级）：落点须带该规则专属锚点，不是所有规则同一个裸文件名
+        _t2 = _gc.gate_target('G1')
+        check('gate_target 按规则带出专属锚点（非全规则同一裸名）',
+              bool(_t2) and _t2 != _t and 'G1' in _t2)
         # 拦截 reason 里确实含这个落点（不是只在独立函数里算出来却没接进 reason）
         _payload = _gc.deny_payload({'id': 'G5', 'why': 'test', 'fix': 'testfix'})
         _reason = _payload['hookSpecificOutput']['permissionDecisionReason']
         check('deny_payload.reason 自动含 target 落点（机器喂正门）',
-              bool(_t) and _t in _reason)
+              bool(_t) and os.path.isfile(os.path.join(ROOT, _t.split('#')[0])) and _t in _reason)
         # 真阴性：无 guard_rules 映射的规则不硬塞落点（避免病15 式误带）
         _tn = _gc.gate_target('G-NOMAP-TEST')
         check('无映射规则不误带落点（真阴性）', not _tn)
 except Exception as ex:
     check('guard_cmd 有 gate_target() 落点解析接口', False)
+    print('    err=%r' % ex)
+
+# ⑥ 落点源统一：注入层不报脏 fixed_path，唯一落点真源是 gate_target(规则id)
+try:
+    import exp_probe as _ep6
+    anchor = open(os.path.join(ROOT, 'hooks', 'next_anchor.py'), encoding='utf-8').read()
+    _seg = anchor.split('经验闭环 v3')[1].split('经验注入失败')[0] if '经验闭环 v3' in anchor else ''
+    # 注入段不得把 match 的 fixed_path 当落点拼进消息（实测 48/49 是账本/文档脏落点）
+    check('💡注入段不拼脏 fixed_path 落点',
+          "_hit['fixed_path']" not in _seg and '证据' in _seg)
+    # landing() 只接 rule_id，不接 evidence（证据路已实证不可信，废除）
+    check('landing 落点真源只接 rule_id（evidence 路已废）',
+          'evidence' not in str(inspect.signature(_ep6.landing)))
+except Exception as ex:
+    check('💡注入段不拼脏 fixed_path 落点', False)
     print('    err=%r' % ex)
 
 print('\n%d passed, %d failed' % (len(PASS), len(FAIL)))

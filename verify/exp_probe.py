@@ -106,6 +106,27 @@ def match(symptom, rec=None, threshold=0.34):
     return best
 
 
+def landing(rule_id=None):
+    """落点真源（唯一）：PreToolUse 拦截时按规则给出可执行判据落点。
+
+    为什么只接 rule_id、不接 evidence（实测取证，病15 反面）：
+      · exp_entries.fixed_path 由 exp_distill 从 commit 改动文件盲目派生，
+        实测 49 条里 48 条是 .json/.md（账本/清单/文档），0 条可执行代码——
+        喂给模型当"修复落点"全是脏的，比不报更糟。
+      · 因此注入层（💡直达）**不报落点**，只报"经验命中+证据+走闸提示"；
+        唯一可信落点是拦截时按规则走 guard_cmd.gate_target 的判据文件锚点。
+    无 rule_id 或异常 → None（不误报）。
+    """
+    if rule_id:
+        try:
+            sys.path.insert(0, os.path.join(ROOT, 'hooks'))
+            import guard_cmd
+            return guard_cmd.gate_target(rule_id)
+        except Exception:
+            return None
+    return None
+
+
 def gate(symptom, rec=None, threshold=0.34, commit=True):
     """动作前显式闸口：命中已固化经验 → 返回正门三字段，未命中返回 None。
 
