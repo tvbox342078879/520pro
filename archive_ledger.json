@@ -3272,6 +3272,28 @@
    "result": "ok",
    "event_ref": "commit 79bfd3f",
    "note": "v0.8.86 L6 元层口径真源硬闸T8：统计分组行与strength对账，B-11双列矛盾修复，T1-T8变异10/10；六条人工判据经实测无一该硬化"
+  },
+  {
+   "ts": "2026-11-19T21:13:13",
+   "round": "archive 方法论_文档真源双列盲区_c73fae5.md @c73fae5",
+   "artifact": "方法论_文档真源双列盲区_c73fae5.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "UdG8KHUOTdo7CWwr7OWhpv",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit c73fae5",
+   "note": "c73fae5 形态+修法+实例坐标：文档真源双列盲区（T7核规则行漏统计分组行），T8机制级修复"
+  },
+  {
+   "ts": "2026-11-19T21:13:17",
+   "round": "archive 版本台账_v0.8.86_c73fae5.md @c73fae5",
+   "artifact": "版本台账_v0.8.86_c73fae5.md",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "VOl8WBCVz2bHAj2HmxxioK",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit c73fae5",
+   "note": "v0.8.86 版本/日期/类型/摘要/证据，commit c73fae5"
   }
  ]
 }
