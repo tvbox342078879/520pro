@@ -3294,6 +3294,17 @@
    "result": "ok",
    "event_ref": "commit c73fae5",
    "note": "v0.8.86 版本/日期/类型/摘要/证据，commit c73fae5"
+  },
+  {
+   "ts": "2026-11-19T21:22:12",
+   "round": "archive 交付报告_L7收尾盘点_v0.8.87.md @d169e23",
+   "artifact": "交付报告_L7收尾盘点_v0.8.87.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "xSM8bovyTY500xdFS78TjU",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit d169e23",
+   "note": "v0.8.87 L7收尾盘点：可硬化判据已穷尽实证清单落docs/，19条分类12+5+2，全量verify 0✗"
   }
  ]
 }
