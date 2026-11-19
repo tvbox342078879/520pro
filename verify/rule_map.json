@@ -54,19 +54,24 @@
    },
    "retire_if": ""
   },
-  "B-04": {
-   "verify_id": "V-MANUAL-04",
-   "kind": "manual",
-   "how": "同一消息里独立动作是否并行发出；同一 state/云端库/受管文件的并发写是否串行（有锁或排队）。",
-   "strength": {},
-   "impl": [],
-   "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
-   },
-   "retire_if": ""
-  },
+    "B-04": {
+      "verify_id": "V-MANUAL-04",
+      "kind": "manual",
+      "how": "同一消息里独立动作是否并行发出；同一 state/云端库/受管文件的并发写是否串行（有锁或排队）。执行层信号见 hooks/parallel_guard.py（PreToolUse·读 transcript messageId 实数判单发、blocks 阶梯收紧、会话隔离、依赖豁免）。",
+      "strength": {
+        "S5": "verify/tests/test_parallel_guard.py"
+      },
+      "impl": [
+        "hooks/parallel_guard.py",
+        "verify/tests/test_parallel_guard.py"
+      ],
+      "proven_by": {
+        "cmd": "python3 verify/tests/test_parallel_guard.py",
+        "expect": "A 能拦/B 不误伤/B2 打断惯性/C 缺失放行/D 白名单外不拦 + 会话隔离 + 依赖豁免 + 元变异，全绿",
+        "got": "2026-11-20 A 步实测 10/10✓（rc=0）：连续单发第5批 exit 2、blocks 累加、两会话 state 隔离互不串账；诊断曾踩坑5（一次性写全 transcript 被去重吞掉），按真实节奏重构测试后转绿。"
+      },
+      "retire_if": "所有 PreToolUse 钩子不再需要并行判据、或平台原生保证并行时"
+    },
   "B-05": {
    "verify_id": "V-SECRET",
    "kind": "machine",

@@ -3327,6 +3327,17 @@
    "result": "ok",
    "event_ref": "commit c987b98",
    "note": "d79ff1c 形态+修法+实例坐标：病15三形态（编号正则假绿/触发词误伤/grep位置序够不到真出处），B-15四步闭环既有纪律复用"
+  },
+  {
+   "ts": "2026-11-20T01:37:51",
+   "round": "archive 交付报告_B04并行A步_v0.8.88.md @e99d803",
+   "artifact": "交付报告_B04并行A步_v0.8.88.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "yDgQ8T8bpQmMndPkUmv5ON",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit e99d803",
+   "note": "v0.8.88 B-04并行判据A步：移植parallel_guard.py+state会话隔离+单测10/10，未挂钩S5，全量verify 0✗"
   }
  ]
 }

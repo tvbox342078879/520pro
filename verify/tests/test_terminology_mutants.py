@@ -188,12 +188,28 @@ def mut_t7_matrix_stale(repo):
 
 
 def mut_t8_group_dual(repo):
-    """T8：把 B-11 塞回纯人工 S6 组（真源 strength=S1）→ 分组行双列应红。"""
+    """T8：把一条已硬化规则（真源 strength 非空）塞回纯人工 S6 组 → 双列应红。
+
+    动态实现：从 rule_map 取一条 strength 非空的规则（不用硬编码编号/条数），
+    再把它插入矩阵 S6 分组行的清单、条数 +1。这样分组行文本怎么改都不会让变异失效
+    （S-02：机制解决，不打补丁改死数字）。
+    """
     p = os.path.join(repo, 'docs', '软规则硬化矩阵.md')
     orig = read(p)
-    new = re.sub(r'\| 纯人工 S6 \| 5 \| B-01 / 04 / 08 / 12 / 17 \|',
-                 '| 纯人工 S6 | 6 | B-01 / 04 / 08 / 11 / 12 / 17 |', orig, count=1)
-    assert new != orig, '变异未落盘'
+    rmp = os.path.join(repo, 'verify', 'rule_map.json')
+    rules = json.load(open(rmp, encoding='utf-8')).get('rules') or {}
+    hard = next((b for b, r in rules.items() if (r or {}).get('strength')), None)
+    assert hard, 'rule_map 无已硬化规则可造双列'
+    # 匹配 S6 分组行：`| 纯人工 S6 | N | <清单> |`，动态取 N 与清单
+    pat = re.compile(r'(\|\s*纯人工 S6\s*\|\s*)(\d+)(\s*\|\s*)([^\n|]+?)(\s*\|)')
+
+    def repl(m):
+        n = int(m.group(2)) + 1
+        cell = m.group(4).rstrip()
+        return f'{m.group(1)}{n}{m.group(3)}{cell} / {hard[2:]}{m.group(5)}'
+
+    new, cnt = pat.subn(repl, orig, count=1)
+    assert cnt == 1 and new != orig, '变异未落盘（S6 分组行未匹配）'
     write(p, new)
     return (lambda: write(p, orig)), orig
 
