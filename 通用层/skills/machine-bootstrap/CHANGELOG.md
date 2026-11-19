@@ -1,5 +1,13 @@
 # machine-bootstrap · CHANGELOG
 
+## v1.1.0 — 弱网 raw 单文件补包 fallback（2026-11-19）
+- **新增 `scripts/raw_sync.py`**：弱网 git clone 被掐断（GnuTLS -110 / promisor blob 超时）时的独立补包正门——按逐文件清单用 curl 逐个下小文件，中文路径 UTF-8 编码、断点续补（跳过已存在非空）、关键件优先、退出码=失败数。全仓文本真源 1.2M，排除 capability_63/runtime_assets 的 8 个逆向运行时大文件（约 200M，换机断言不查）。`--selftest` 10/0。
+- **新增 `references/sync_filelist.txt`**：742 个 git 真源文件清单（`git -c core.quotepath=false ls-files` 生成，中文原文；改真源须同步清单，判据守护）。
+- **bootstrap.sh 失败分支加指引**：clone 三次全败后打印 raw 补包命令 + "补包后勿跑 apply_sparse/verify（无完整 .git 会假失败）"；不内联改 git 主流程，保持 sparse/migrate/verify 干净。
+- **手机指令.md 说明段加弱网补救 curl**（不入粘贴区、不触发云端副本同步，同 preflight 第-1步先例）。
+- **新增 `docs/多场景部署.md`**：五场景（普通网络换机/弱网补包/只验证不换机/两账号多会话/别人匿名部署）命令原文 + 边界。
+- **登记**：`verify/skill_contracts.json` required_files 加 raw_sync.py + sync_filelist.txt；四处版本 1.0.4→1.1.0。
+
 ## 换机司冷启动缺陷修复（2026-11-16；未 bump：脚本判据修复 + 设计参考，无版本交付承诺）
 - **check-env.sh 修 rc 假绿**：旧版空仓报 A3/B2 仍 rc=0（体检失败被当通过）；现 A/B/C 命中累计并 `exit 2`，真仓全绿才 rc=0。`--selftest` 7→8 例（新增「空仓 rc≠0」回归反例）。
 - **镜像对账 2→5 文件**：补 `scripts/check-env.sh`/`docs/TROUBLESHOOTING.md`/`references/trigger-samples.md`，篡改任一用户级副本必报 B；仍避开 runtime_assets 226MB 大文件。

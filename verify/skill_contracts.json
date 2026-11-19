@@ -44,12 +44,14 @@
       "kind": "skill",
       "layer": "通用层",
       "path": "通用层/skills/machine-bootstrap",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
         "scripts/check-env.sh",
-        "scripts/preflight.sh"
+        "scripts/preflight.sh",
+        "scripts/raw_sync.py",
+        "references/sync_filelist.txt"
       ],
       "entry": "scripts/check-env.sh",
       "trigger_samples": "references/trigger-samples.md"

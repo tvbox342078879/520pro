@@ -1,6 +1,6 @@
 ---
 name: machine-bootstrap
-version: "1.0.4"
+version: "1.1.0"
 description: "当用户说「换机」「新设备」「重装」「迁移到新机器」「token 不用每次输」时使用本技能。在新设备、重装或迁移时，用一条幂等命令从 git 真源重建有界工作副本并校验三通道，全程零明文凭证。适用于换机与环境初始化。 触发词：换机 / 换新手机 / 换电脑 / 系统重装 / 重装环境 / 环境初始化 / 新设备 / 迁移到新机器 / 一条命令重建 / bootstrap。 能力：①幂等克隆（从 git 真源重建有界工作副本，sparse 只取必需目录）；②三通道校验（薄壳 / 规则目录 / 手机指令，按三态报告）；③零明文凭证（凭据只走环境变量或参数，脚本自检 ghp_ 命中即中止）；④换机后首次对账（版本号 + 演化台账）；⑤环境体检正门 `scripts/check-env.sh`（三态链路审计 + 技能安装边界，可执行自证）。不要用于：整库全拉（产物/资料库不进工作副本）；不要用于重搭规则与记忆（那属规则真源与记忆治理）；不要用于删除远端任何内容。"
 allowed-tools: Read, Grep, Glob, Bash
 ---
@@ -49,6 +49,24 @@ bash bootstrap.sh "<本生态 git 地址>" full ~/520pro --install
 | 凭据只走运行时 | **不给 URL 内嵌 token**（那会明文持久化进 clone 的 `.git/config`，B-05 红线）；走环境变量或凭证管理器 |
 | 平台钩子不作为依据 | 换机校验以三通道**文件在位**为准——钩子环境随宿主配置漂移，不可依赖（旧结论「手机不跑钩子」已作废，手机端实测能跑，见 520pro `docs/钩子来源判定.md`） |
 | 手机端用法 | 手机无指令入口（2.8.0/2.9.1 实测）：新会话从云端 doc「手机指令粘贴区」复制首条粘贴，与本技能无冲突 |
+
+## 弱网 fallback（v1.1.0 起：git clone 失败改走 raw 单文件）
+> 触发条件：换机时 `git clone` 三次报 `GnuTLS recv error (-110)` / `promisor remote` 超时，但
+> `curl` 单文件可达（preflight 网络 OK）。根因是 git smart protocol 通道被掐断，普通 HTTPS 仍通。
+
+正门：`scripts/raw_sync.py`（逐文件清单 + curl 下载 + 中文路径编码 + 断点续补 + 退出码=失败数）。
+清单 `references/sync_filelist.txt` 是 git 真源（`git -c core.quotepath=false ls-files`，排除
+`capability_63/runtime_assets` 大文件），改真源须同步清单（判据守护）。用法：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tvbox342078879/520pro/main/通用层/skills/machine-bootstrap/scripts/raw_sync.py -o /tmp/raw_sync.py
+curl -fsSL https://raw.githubusercontent.com/tvbox342078879/520pro/main/通用层/skills/machine-bootstrap/references/sync_filelist.txt -o /tmp/sync_filelist.txt
+python3 /tmp/raw_sync.py --repo tvbox342078879/520pro --list /tmp/sync_filelist.txt --dest ~/520pro --retries 5
+```
+
+**边界**：补出的是纯文件集（无完整 `.git`），能用规则/技能/命令，但**勿再跑** `apply_sparse`
+或依赖 `git ls-files` 的 verify（假失败）；有网后重跑 bootstrap 换完整仓库。多场景命令见
+`docs/多场景部署.md`，手机端补救指引见 `手机指令.md` 说明段（均不入粘贴区）。
 
 ## SOP 对齐
 - 第 16 章：git 永久历史的拉取端。第 19 章：换机后校验三通道。第 16 章安全红线：零明文 token。

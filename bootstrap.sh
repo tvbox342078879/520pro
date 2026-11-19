@@ -307,6 +307,15 @@ else
     if [ "$ok_clone" -ne 1 ]; then
       echo "错误: git clone 失败（网络/凭证/仓库地址，已重试 3 次）。原始报错（已脱敏）:" >&2
       redact < "$ERRF" | sed -n '1,6p' | sed 's/^/  /' >&2
+      # 弱网 fallback：git smart protocol 被掐断（GnuTLS -110 / promisor blob 超时）时，
+      # curl 对 raw 单文件仍可达。改用 raw_sync.py 按清单逐文件补包（纯文件集，非完整 git 仓库）。
+      # 不在此内联以牵动 sparse/migrate/verify 主流程——补包是独立正门，见下方指引。
+      echo "" >&2
+      echo "  ↳ 弱网补救（raw 单文件，已实测可达）：" >&2
+      echo "      python3 通用层/skills/machine-bootstrap/scripts/raw_sync.py \\" >&2
+      echo "        --repo <owner/repo> --list 通用层/skills/machine-bootstrap/references/sync_filelist.txt \\" >&2
+      echo "        --dest \"$TARGET\" --retries 5" >&2
+      echo "     补包后是纯文件集（无完整 .git），勿再跑 apply_sparse/verify（会假失败）。" >&2
       rm -f "$ERRF"; rm -rf "$TARGET"; exit 1
     fi
   fi
