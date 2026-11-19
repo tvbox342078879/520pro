@@ -3162,6 +3162,17 @@
    "result": "ok",
    "event_ref": "commit 8d393c6",
    "note": "F04演进说明：弱网raw补包在换机时间线的位置+逐项交付数据"
+  },
+  {
+   "ts": "2026-11-19T18:48:04",
+   "round": "archive 方法论_环境身份锚_fe2e037.md @fe2e037",
+   "artifact": "方法论_环境身份锚_fe2e037.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "MjsgxzxUbLvpdbK751QFGu",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit fe2e037",
+   "note": "环境身份锚方法论：自报家门+回退打标止跨仓串扰，形态/修法/实例坐标三段"
   }
  ]
 }

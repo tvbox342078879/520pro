@@ -2921,6 +2921,24 @@
    "closed_by": "archive 演进_换机司v1.1.0_8d393c6.md @8d393c6 @ 2026-11-19",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-fe2e037-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "fe2e037",
+   "commit_date": "2026-11-19",
+   "parent": "caa9608",
+   "target_version": "",
+   "title": "feat(env-anchor): L1 环境身份锚——三仓自报家门 + last_repo 回退显式打标",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15 复现——SessionStart 注入此前零测试覆盖（子代理实查 tests 目录 SessionStart 命中 0），本次用真跑 hook 子进程补",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 方法论_环境身份锚_fe2e037.md @fe2e037 @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
   }
  ]
 }
