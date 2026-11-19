@@ -3305,6 +3305,17 @@
    "result": "ok",
    "event_ref": "commit d169e23",
    "note": "v0.8.87 L7收尾盘点：可硬化判据已穷尽实证清单落docs/，19条分类12+5+2，全量verify 0✗"
+  },
+  {
+   "ts": "2026-11-19T21:24:25",
+   "round": "archive 版本台账_v0.8.87_314e6be.md @314e6be",
+   "artifact": "版本台账_v0.8.87_314e6be.md",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "MTF5YvzHlv3VZqsIs9vLp4",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 314e6be",
+   "note": "v0.8.87 版本/日期/类型/摘要/证据，commit 314e6be"
   }
  ]
 }

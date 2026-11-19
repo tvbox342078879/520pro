@@ -2905,6 +2905,24 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-314e6be-F09",
+   "flow": "F09",
+   "folder": "🧬 520进化论/版本演化台账",
+   "commit": "314e6be",
+   "commit_date": "2026-11-19",
+   "parent": "d169e23",
+   "target_version": "0.8.87",
+   "title": "docs(rule-closure): L7 规则闭环收尾盘点——可硬化判据已穷尽实证清单落地",
+   "expect": "版本台账记录一条（版本/日期/类型/摘要/证据）",
+   "evidence": "VERSION 0.8.86 → 0.8.87",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 版本台账_v0.8.87_314e6be.md @314e6be @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-8d393c6-F04",
    "flow": "F04",
    "folder": "🧬 520进化论/03-子项目演进",
