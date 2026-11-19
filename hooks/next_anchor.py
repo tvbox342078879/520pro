@@ -48,6 +48,49 @@ STALE_SEC = 30 * 60          # 在途超 30 分钟标红提醒主动查（不等
 
 EMPTY = {'repos': {}, 'last_repo': '', 'probe': {}, 'inflight': {}}
 
+# ── 环境身份锚（2026-11-19 用户实证「串仓库/多版本生态分不清」）─────────────
+# 根因：规则/锚点/会话都不绑身份，同一会话跨 tvbox-eco→520pro→新生态，
+# 靠 last_repo 回退静默猜仓。修法：每仓根放 ENV_ID.json，SessionStart 自报
+# 家门；last_repo 回退（非 payload 明确指向）打「未对齐」标记，不再静默。
+# 只读 + 缺失/损坏一律降级为 None（铁律①永不拦截），不伪造身份。
+ENV_ID_FILE = 'ENV_ID.json'
+
+
+def env_anchor(root):
+    """读仓库根 ENV_ID.json，返回身份自报字段 dict；缺失/损坏/字段不全返回 None。
+    判据对象=真函数读真文件；不查源码字符串存在（病15 识别范围=对象范围）。
+    """
+    if not root or not os.path.isdir(root):
+        return None
+    fp = os.path.join(root, ENV_ID_FILE)
+    if not os.path.isfile(fp):
+        return None
+    try:
+        d = json.load(open(fp, encoding='utf-8'))
+    except Exception:
+        return None
+    if not isinstance(d, dict):
+        return None
+    required = ('env_id', 'role', 'version')
+    if not all(str(d.get(k, '')).strip() for k in required):
+        return None
+    return {'env_id': str(d['env_id']).strip(),
+            'role': str(d['role']).strip(),
+            'version': str(d['version']).strip(),
+            'repo': str(d.get('repo', '')).strip(),
+            'note': str(d.get('note', '')).strip()}
+
+
+def env_anchor_line(a):
+    """把身份字段拼成注入短句；a=None 返回空串（调用方据此降级）。"""
+    if not a:
+        return ''
+    s = '🪪 环境身份：%s（角色 %s，版本 %s）' % (a['env_id'], a['role'], a['version'])
+    if a.get('note'):
+        s += ' · ' + a['note']
+    return s
+
+
 # 完成通知自动销账：UserPromptSubmit 的 prompt 里带 <task-notification> 块，
 # 命中终态即把该 task_id 从在途台账移除——完成即销，不靠记忆/追问。
 _TASK_NOTIF_RE = re.compile(r'<task-notification>(.*?)</task-notification>', re.S)
@@ -206,7 +249,10 @@ def _resolve_root(d, cwd, command, probe):
     if last and os.path.isdir(last):
         r = _repo_root(last)
         if r:
+            # 环境身份锚：last_repo 回退是「静默猜仓」的根源，打显式标记，
+            # 让下游注入能提示「本轮未从 payload 定位到本仓，身份可能错位」。
             probe['via'] = 'last_repo'
+            probe['unaligned'] = True
             return r
     probe['via'] = 'none'
     return ''
@@ -283,6 +329,12 @@ def main():
         d['last_repo'] = root
         _save(d, probe, hit=True)
         msg = '⏭ 上一轮定的下一步（%s）：%s' % (os.path.basename(root), nxt[:400])
+        # 环境身份锚：报家门 + last_repo 回退显式标未对齐（不再静默串仓）。
+        _ea = env_anchor(root)
+        if _ea:
+            msg += '\n' + env_anchor_line(_ea)
+        if probe.get('unaligned'):
+            msg += '\n⚠ 身份未对齐：本轮未从 payload 定位到本仓（回退 last_repo），动手前先核对 env_id 是否匹配当前任务。'
         # 经验闭环闸3：按 Next 任务类型注入同型病号（读映射表+复发计数，降级静默）
         try:
             import json as _jj, re as _re, os as _os2
@@ -456,6 +508,12 @@ def main():
         _save(d, probe, hit=True)
         msg = '🤝 B-07 交接对齐（%s）——当前主线：%s' % (os.path.basename(root), seg[:400])
         msg += '｜（全文：docs/handoff_latest.md，先读三项再动手）'
+        # 环境身份锚：开机即自报家门，跨会话/跨仓第一眼分清是哪个生态。
+        _ea = env_anchor(root)
+        if _ea:
+            msg += '\n' + env_anchor_line(_ea)
+        else:
+            msg += '\n⚠ 本仓无 ENV_ID.json：身份未登记，跨仓任务请先核对 env_id。'
         print(json.dumps({'continue': True,
                           'hookSpecificOutput': {'hookEventName': 'SessionStart',
                                                  'additionalContext': msg}},
