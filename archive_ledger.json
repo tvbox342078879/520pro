@@ -3250,6 +3250,17 @@
    "result": "ok",
    "event_ref": "commit a0a648e",
    "note": "v0.8.85 L5 B-06事实源拽回：状态断言无文件行号引证→Stop block，51/51，全量verify 0✗；合并B13+B18经探查否决"
+  },
+  {
+   "ts": "2026-11-19T20:53:17",
+   "round": "archive 版本台账_v0.8.85_daaa0d8.md @daaa0d8",
+   "artifact": "版本台账_v0.8.85_daaa0d8.md",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "Oe4wbdQm3ENxmhJ0xvzwDx",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit daaa0d8",
+   "note": "v0.8.85 版本/日期/类型/摘要/证据，commit daaa0d8"
   }
  ]
 }
