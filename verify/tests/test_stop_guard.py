@@ -205,5 +205,61 @@ except Exception:
 check('L3 端到端：留痕缺失触发 decision:block', blk, f'rc={r.returncode}, out={r.stdout.strip()[:80]}')
 check('L3 端到端：拽回文案指名规则', 'B-03' in reason and 'confirm' in reason, f'reason={reason[:80]}')
 
+# ── ⑧ L4 B-18 溯源拽回（交付段缺计数对）──
+DT = load(os.path.join(ROOT, 'verify', 'delivery_trace.py'), 'dt_l4')
+
+DELIV_NO_COUNT = '交付物：报告一份。\n事实均指回文件与行号，已核实。'
+DELIV_WITH_COUNT = '交付物：报告一份。\n事实 5 条有出处 / 1 条无出处（单列 ⚠️）。'
+PROCESS_ONLY = '已完成，提交 sha 6ed5df1，rc=0。'
+META_TALK = 'B-18 规则要求交付时报 N 条有出处 / M 条无出处两个数（这里讨论规则模板）。'
+
+# 真阴性：交付段缺计数对 → judge_delivery 拽回
+d18, _ = S.judge_delivery(DELIV_NO_COUNT)
+check('L4 B-18 交付缺计数→拽回', d18 is True)
+
+# 真阳性：计数对齐全 → 放行
+d18ok, _ = S.judge_delivery(DELIV_WITH_COUNT)
+check('L4 B-18 计数齐→放行', d18ok is False)
+
+# 病15 反向：过程描述 / 元话语讨论模板 → 不误伤
+check('L4 B-18 过程描述无交付段→放行', S.judge_delivery(PROCESS_ONLY)[0] is False)
+check('L4 B-18 元话语讨论模板→放行（识别范围≠对象范围）',
+      S.judge_delivery(META_TALK)[0] is False)
+
+# 纯函数三态直测
+check('L4 B-18 verify 真阴性', DT.verify(DELIV_NO_COUNT) == 'false')
+check('L4 B-18 verify 真阳性', DT.verify(DELIV_WITH_COUNT) == 'true')
+check('L4 B-18 verify unknown', DT.verify(PROCESS_ONLY) == 'unknown' and DT.verify('') == 'unknown')
+
+# 元变异：把 unresolved 恒放行 → 真阴性溜过（自证判据在守）
+dt_src = open(os.path.join(ROOT, 'verify', 'delivery_trace.py'), encoding='utf-8').read()
+dtd = tempfile.mkdtemp()
+dt_mut = dt_src.replace("    return verify(text) == 'false'", "    return False  # MUT: 拿掉计数判据")
+dtp = os.path.join(dtd, 'delivery_trace_mut.py')
+open(dtp, 'w', encoding='utf-8').write(dt_mut)
+# judge_delivery 动态加载的是固定路径，这里直接测纯函数变异体验证判据非恒真
+DTm = load(dtp, 'dt_mut')
+check('L4 B-18 元变异：拿掉判据后真阴性溜过', DTm.unresolved(DELIV_NO_COUNT) is False)
+
+# 端到端：交付缺计数 + 隔离 state（B-03/B-07 均不拦）→ 只有 B-18 命中 → JSON decision:block
+# 清 sid 防累积（沿 L3 教训）；并注入真阳 state，避免真实 state 的 B-03 回退先抢走 reason
+_sid_l4 = 't-l4-delivery'
+_stg = S._read_state()
+_stg.pop(_sid_l4, None)
+S._write_state(_stg)
+fp_l4_anchor = mk_state('cwd', 'session-start+handoff')  # B-03/B-07 真阳 → judge_trace 放行
+r = subprocess.run(['python3', GUARD], input=json.dumps(
+    {'session_id': _sid_l4, 'stop_hook_active': False,
+     'last_assistant_message': DELIV_NO_COUNT}),
+    capture_output=True, text=True, env=dict(os.environ, NEXT_ANCHOR_STATE=fp_l4_anchor))
+try:
+    j = json.loads(r.stdout.strip() or '{}')
+    blk, reason = j.get('decision') == 'block', j.get('reason', '')
+except Exception:
+    blk, reason = False, ''
+check('L4 端到端：交付缺计数触发 decision:block', blk, f'rc={r.returncode}, out={r.stdout.strip()[:80]}')
+check('L4 端到端：拽回文案指名 B-18 与计数模板',
+      'B-18' in reason and '有出处' in reason and '无出处' in reason, f'reason={reason[:80]}')
+
 print('test_stop_guard：%d 例，失败 %d' % (N[0], len(fails)))
 sys.exit(1 if fails else 0)

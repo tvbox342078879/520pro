@@ -131,6 +131,24 @@ def load_rule_trace():
         return None                      # fail-open：判据坏了不卡死会话
 
 
+# impl: B-18 S2   ← 交付正文缺「N 条有出处 / M 条无出处」计数对 → Stop 拽回
+def judge_delivery(text):
+    """L4 溯源拽回：交付段缺计数对 → (True, 'B-18')；真阳/unknown 放行。
+
+    判据坏（delivery_trace 加载失败）fail-open。
+    """
+    import importlib.util
+    vp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      'verify', 'delivery_trace.py')
+    try:
+        spec = importlib.util.spec_from_file_location('_delivery_trace', vp)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return (True, 'B-18') if m.unresolved(text) else (False, '')
+    except Exception:
+        return False, ''                     # fail-open
+
+
 def judge_trace(state_path=None):
     """L3 留痕拽回：B-03/B-07 真阴性且未消解 → (True, 规则列表)。
 
@@ -157,6 +175,13 @@ MSG_TRACE = ('⛔ 行为留痕缺失：本轮 B-03（动手前核环境）/ B-07
              '请二选一：①真补做后运行 python3 verify/rule_trace.py confirm <规则> --proof "证据" 消解，'
              '再重发；②若本轮确实无法判定，把结论改写成「本会话未对齐 / 无法判定」。'
              '这条拦的是「规则写了但没发生」——软约束必须有牙。')
+
+# L4 溯源拽回文案（单行）
+MSG_DELIVERY = ('⛔ B-18 产出可溯源：上一条有交付段（交付物/交付报告/交付：），'
+                '但没给出「N 条有出处 / M 条无出处」两个计数。'
+                '请补上这两个数（无出处项单列「⚠️ 无出处」，不要删掉或混进正文）后重发；'
+                '若本条并非交付正文，把交付段标记去掉或改写成过程描述。'
+                '这条拦的是「交付了却不报溯源账」——计数模板是确定性形态，机器可判。')
 
 
 def main():
@@ -227,12 +252,19 @@ def main():
     text = str(data.get('last_assistant_message') or '')
     deny, why = judge(text)
     deny_t, bad_rules = judge_trace() if not deny else (False, [])
-    if not deny and not deny_t:
+    deny_d, _ = judge_delivery(text) if (not deny and not deny_t) else (False, '')
+    if not deny and not deny_t and not deny_d:
         return 0
 
-    reason = MSG if deny else MSG_TRACE + '（规则：%s）' % ','.join(bad_rules)
+    if deny:
+        reason, why_log = MSG, why
+    elif deny_t:
+        reason, why_log = MSG_TRACE + '（规则：%s）' % ','.join(bad_rules), \
+                         '留痕缺失:' + ','.join(bad_rules)
+    else:
+        reason, why_log = MSG_DELIVERY, '交付缺溯源计数:B-18'
     st.setdefault(sid, {})['n'] = n + 1
-    st[sid]['last_why'] = why if deny else '留痕缺失:' + ','.join(bad_rules)
+    st[sid]['last_why'] = why_log
     _write_state(st)
     # JSON decision:block（实测能拽回；exit 2 + stderr 不能，见文件头「协议」）
     print(json.dumps({'decision': 'block', 'reason': reason}, ensure_ascii=False))

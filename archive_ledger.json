@@ -3217,6 +3217,17 @@
    "result": "ok",
    "event_ref": "commit ddce00d",
    "note": "v0.8.83 版本/日期/类型/摘要/证据，commit ddce00d"
+  },
+  {
+   "ts": "2026-11-19T20:31:56",
+   "round": "archive 交付报告_L4交付溯源拽回_v0.8.84.md @3f34ebd",
+   "artifact": "交付报告_L4交付溯源拽回_v0.8.84.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "GfRGUqKbZx8xjZYEURePxA",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 3f34ebd",
+   "note": "v0.8.84 L4 B-18产出可溯源升级拽回：交付段缺N/M计数→Stop block，39/39，全量verify 0✗"
   }
  ]
 }

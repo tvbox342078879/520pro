@@ -290,15 +290,17 @@
   },
   "B-18": {
    "verify_id": "V-MANUAL-18",
-   "kind": "manual",
-   "strength": {},
-   "impl": [],
+   "kind": "machine",
+   "check": "verify/delivery_trace.py",
+   "anchor": "def verify(text):",
+   "strength": {"S2": "hooks/stop_guard.py#judge_delivery"},
+   "impl": ["verify/delivery_trace.py", "hooks/stop_guard.py#judge_delivery"],
    "retire_if": "（不适用：可溯源是产出的固有要求，不随工具链变化）",
-   "how": "抽查交付正文：每处事实能否指到文件+行号（或文段/页/时间戳）；交付里是否给了「N 条有出处 / M 条无出处」两个数；无出处项是否单列「⚠️ 无出处」而不是删掉或混进正文。",
+   "how": "判据对象=交付正文的固定计数模板（非语义溯源）：交付段（交付物/交付报告/交付：）出现但缺「N 条有出处 / M 条无出处」两数 → delivery_trace.verify=false → stop_guard#judge_delivery 走 Stop decision:block 拽回补数；计数齐=true、非交付正文/元话语讨论模板=unknown 放行（病15 识别范围=对象范围）。「事实是否真能溯源」机器判不了，仍是人工项。",
    "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
+    "cmd": "python3 verify/tests/test_stop_guard.py",
+    "expect": "B-18 交付缺计数→拽回、计数齐/过程描述/元话语模板→放行、三态纯函数、元变异溜过、端到端 decision:block 全绿",
+    "got": "2026-11-19 L4 实测 39/39：含病15 反向（元话语讨论模板不误拦）、元变异拿掉判据溜过、端到端 B-18 文案命中；见 test_stop_guard.py"
    }
   },
   "B-19": {
