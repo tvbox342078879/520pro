@@ -41,14 +41,16 @@
   },
   "B-03": {
    "verify_id": "V-MANUAL-03",
-   "kind": "manual",
-   "how": "开工前是否出现 pwd -P + git log --oneline -1（+ VERSION）三条实证；没有就先补再动手。",
-   "strength": {},
-   "impl": [],
+   "kind": "machine",
+   "check": "verify/rule_trace.py",
+   "anchor": "def b03_trace(probe):",
+   "strength": {"S5": "verify/rule_trace.py#b03_trace"},
+   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#_resolve_root"],
+   "how": "机器判据对象=真 probe 留痕：UserPromptSubmit 是否从 payload 明确定位到 git 仓（via=cwd/command=真验，via=last_repo*=回退猜仓=真阴性）。留痕在=机制触发过；「模型是否真理解环境」机器判不了，为人工项不算机检通过。",
    "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
+    "cmd": "python3 verify/tests/test_rule_trace.py",
+    "expect": "B-03 三态 6 例全绿（cwd/command→true，last_repo/none→false，cwd无root/错事件→unknown）",
+    "got": "2026-11-19 L2 实测 6/6：真函数喂真 probe 样本，真阴性覆盖回退猜仓；见 test_rule_trace.py"
    },
    "retire_if": ""
   },
@@ -101,15 +103,17 @@
   },
   "B-07": {
    "verify_id": "V-MANUAL-07",
-   "kind": "manual",
-   "strength": {},
-   "impl": [],
+   "kind": "machine",
+   "check": "verify/rule_trace.py",
+   "anchor": "def b07_trace(probe):",
+   "strength": {"S5": "verify/rule_trace.py#b07_trace"},
+   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#SessionStart"],
    "retire_if": "会话开始时模型已默认携带交接摘要（平台内建该能力）时，本条的注入机制可退役",
-   "how": "新会话/新模型接手后，交接摘要是否含当前主线、版本、术语；过期任务是否已清除。",
+   "how": "机器判据对象=真 probe 留痕：SessionStart 是否真读到 handoff（via 含 +handoff=真阳，+no-handoff=真阴，无对应事件=无法判定）。留痕在=机制触发过；「模型是否真理解交接摘要」机器判不了，为人工项不算机检通过。",
    "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
+    "cmd": "python3 verify/tests/test_rule_trace.py",
+    "expect": "B-07 三态 5 例全绿（session-start+handoff→true，+no-handoff→false，直空/错事件→unknown）",
+    "got": "2026-11-19 L2 实测 5/5：真函数喂真 probe 样本；见 test_rule_trace.py"
    }
   },
   "B-08": {

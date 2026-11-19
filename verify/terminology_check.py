@@ -295,6 +295,11 @@ def check_rule_map(repo):
                 problems.append(f'{bid} 指向的验证文件不存在：{cp or "(空)"}')
             elif not anchor or anchor not in read(fp):
                 problems.append(f'{bid} 锚点「{anchor}」在 {cp} 里找不到（实现已漂移，映射过期）')
+            # L2 防假绿：人工号升级 machine 必须给实测落点，禁止 proven_by 三项全空
+            # （否则只是把 kind 从 manual 改成 machine 骗过 T4，行为判据根本没跑——病15）
+            pb = r.get('proven_by') or {}
+            if not all(str(pb.get(k, '')).strip() for k in ('cmd', 'expect', 'got')):
+                problems.append(f'{bid} 标 machine 但 proven_by.cmd/expect/got 有空项（升级无实测=假绿）')
         elif kind == 'manual':
             manual += 1
             if not (r.get('how') or '').strip():
