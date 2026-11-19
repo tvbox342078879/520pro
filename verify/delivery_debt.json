@@ -2903,6 +2903,24 @@
    "closed_by": "archive 病15第31例_判例_16fbb1a.md @16fbb1a @ 2026-11-19",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-8d393c6-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "8d393c6",
+   "commit_date": "2026-11-19",
+   "parent": "92065fb",
+   "target_version": "",
+   "title": "feat(machine-bootstrap): v1.1.0 弱网 raw 单文件补包 fallback + 多场景部署指南",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 通用层/skills/machine-bootstrap/CHANGELOG.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 演进_换机司v1.1.0_8d393c6.md @8d393c6 @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
   }
  ]
 }
