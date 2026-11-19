@@ -445,6 +445,89 @@ def check_matrix_strength(repo):
         rec('T7', '✓', f'矩阵强度与真源对齐：{checked} 条有强度登记的规则当前强度均有体现')
 
 
+def check_matrix_groups(repo):
+    """T8：矩阵「统计分组行」与 rule_map.strength 真源一致性对账（M2 真源唯一）。
+
+    T7 核的是规则行的「当前强度列」；T8 核的是表底「| S1 硬阻断 | N | 规则 |」这类
+    **统计分组行**——那里是历史手填，最容易同一规则列进两个档（如 B-11 既在 S1 又在
+    纯人工 S6），T7 看不见。两条硬矛盾（确定性形态，可纯函数判真阴性）：
+      a) 同一规则 ID 出现在 ≥2 个不同档位的分组行（双列，必有一处错）；
+      b) S6（纯人工）组里的规则在 rule_map 有非空 strength（说纯人工但真源已硬化）；
+      c) 非 S6 组里的规则在 rule_map strength 为空（说硬化了但真源无强度）。
+    对象范围（病15 识别范围=对象范围）：只认行首 `| S\\d` 或 `| 纯人工 S\\d`、
+    且第 2 列是纯数字条数的分组行；不扫正文里的 S 字样，不扫规则行 `| B-xx |`（那是 T7）。
+    规则清单兼容两种写法：`B-05、B-11`（每个带 B-）与 `B-01 / 04 / 08`（后续裸两位）。
+    """
+    mp = os.path.join(repo, 'docs', '软规则硬化矩阵.md')
+    rmp = os.path.join(repo, 'verify', 'rule_map.json')
+    if not (os.path.isfile(mp) and os.path.isfile(rmp)):
+        rec('T8', '·', '矩阵或 rule_map 不在——分组行对账不适用')
+        return
+    try:
+        R = json.load(open(rmp, encoding='utf-8')).get('rules') or {}
+    except Exception:
+        rec('T8', '·', 'rule_map 无法解析——分组行对账不适用')
+        return
+
+    def parse_ids(cell):
+        ids = set()
+        for seg in re.split(r'[、,，/]', cell):
+            m = re.search(r'B-(\d{2})', seg)
+            if m:
+                ids.add('B-' + m.group(1))
+                continue
+            m2 = re.match(r'[\s*]*(\d{2})(?!\d)', seg)
+            if m2:
+                ids.add('B-' + m2.group(1))
+        return ids
+
+    groups = {}                      # B-id -> set(档位号)
+    group_lines = []
+    for ln, line in enumerate(read(mp).splitlines(), 1):
+        if not re.match(r'^\|\s*(?:纯人工\s*)?S\d', line):
+            continue
+        cells = [c.strip() for c in line.split('|')]
+        if len(cells) < 4 or not re.fullmatch(r'\d+', cells[2] if len(cells) > 2 else ''):
+            continue
+        gm = re.search(r'S(\d)', cells[1])
+        if not gm:
+            continue
+        g = int(gm.group(1))
+        ids = parse_ids(cells[3] if len(cells) > 3 else '')
+        group_lines.append((g, ln, len(ids), int(cells[2])))
+        for bid in ids:
+            groups.setdefault(bid, set()).add(g)
+
+    if not groups:
+        rec('T8', '·', '矩阵里没有统计分组行——分组行对账不适用')
+        return
+    bad = []
+    # a) 双列：同一规则出现在 ≥2 个档位
+    for bid, gs in sorted(groups.items()):
+        if len(gs) > 1:
+            bad.append(f'{bid} 同时列在 S{"/S".join(str(x) for x in sorted(gs))} 组'
+                       f'（矩阵分组行，必有一处过期）')
+    # b/c) 与真源 strength 交叉
+    for bid, gs in sorted(groups.items()):
+        truth = set((R.get(bid, {}).get('strength') or {}).keys())
+        truth_n = {int(s.lstrip('S')) for s in truth if s.startswith('S')}
+        if 6 in gs and truth_n:
+            bad.append(f'{bid} 列在纯人工 S6 组，但 rule_map 已登记 '
+                       f'{"/".join(sorted(truth))}——分组行过期')
+        elif 6 not in gs and not truth_n:
+            bad.append(f'{bid} 列在 S{"/S".join(str(x) for x in sorted(gs))} 组，'
+                       f'但 rule_map 无强度登记——分组行写错')
+    # 条数列核对（同一规则只列一次时，声明条数应等于去重规则数）
+    for g, ln, n_ids, n_decl in group_lines:
+        if n_ids != n_decl:
+            bad.append(f'分组行 :{ln} S{g} 声明 {n_decl} 条，实际列出 {n_ids} 条')
+    if bad:
+        rec('T8', '✗', '分组行-真源脱钩：' + '；'.join(bad[:6])
+            + (f'（共 {len(bad)} 处）' if len(bad) > 6 else ''))
+    else:
+        rec('T8', '✓', f'统计分组行与真源对齐：{len(groups)} 条规则无双列、档位与 strength 一致')
+
+
 def main(argv):
     repo = DEFAULT_REPO
     as_json = False
@@ -465,6 +548,7 @@ def main(argv):
     check_reserved_prefix(repo)
     check_ledger_evidence(repo)
     check_matrix_strength(repo)
+    check_matrix_groups(repo)
     if as_json:
         print(json.dumps([{'id': c, 'level': l, 'msg': m} for c, l, m in results],
                          ensure_ascii=False, indent=2))

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""test_terminology_mutants.py — T1-T7 口径判据的必红变异
+"""test_terminology_mutants.py — T1-T8 口径判据的必红变异
 
 【为什么需要】
-`verify/terminology_check.py`、7 类判据（T6 账目-落点 / T7 矩阵-真源强度 v0.8.82 增量），
-在本文件之前**一条测试都没有**。
+`verify/terminology_check.py`、8 类判据（T6 账目-落点 / T7 矩阵-真源强度 v0.8.82 增量 /
+T8 统计分组行与真源一致 v0.8.86 增量），在本文件之前**一条测试都没有**。
 它查的是文档：编号有没有跳号、引用有没有断链、规则说的验证入口是否真的存在。
 文档是这个仓里改得最勤的东西，所以这 5 条判据最容易在「顺手改一句」里悄悄失效——
 失效的样子是继续输出「口径机检通过」。
@@ -187,6 +187,17 @@ def mut_t7_matrix_stale(repo):
     return (lambda: write(p, orig)), orig
 
 
+def mut_t8_group_dual(repo):
+    """T8：把 B-11 塞回纯人工 S6 组（真源 strength=S1）→ 分组行双列应红。"""
+    p = os.path.join(repo, 'docs', '软规则硬化矩阵.md')
+    orig = read(p)
+    new = re.sub(r'\| 纯人工 S6 \| 5 \| B-01 / 04 / 08 / 12 / 17 \|',
+                 '| 纯人工 S6 | 6 | B-01 / 04 / 08 / 11 / 12 / 17 |', orig, count=1)
+    assert new != orig, '变异未落盘'
+    write(p, new)
+    return (lambda: write(p, orig)), orig
+
+
 CASES = [
     ('T1 B 编号与序号错位', 'T1', '错位', mut_t1_shift),
     ('T1 条款缺 B-xx 标注', 'T1', '缺 B-xx', mut_t1_notag),
@@ -197,6 +208,7 @@ CASES = [
     ('T5 未登记前缀 C-01', 'T5', 'C-01', mut_t5_prefix),
     ('T6 账目记未决但已实证', 'T6', '账目-落点冲突', mut_t6_stale_ledger),
     ('T7 矩阵强度脱钩', 'T7', '脱钩', mut_t7_matrix_stale),
+    ('T8 统计分组行双列', 'T8', '同时列在', mut_t8_group_dual),
 ]
 
 
@@ -243,7 +255,7 @@ def main():
     if fails:
         print(f'✗ {len(fails)} 项未通过：{fails[:5]}')
         return 1
-    print(f'✓ T1-T7 判据全部可按预期变红（{len(CASES)} 条）')
+    print(f'✓ T1-T8 判据全部可按预期变红（{len(CASES)} 条）')
     return 0
 
 

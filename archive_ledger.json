@@ -3261,6 +3261,17 @@
    "result": "ok",
    "event_ref": "commit daaa0d8",
    "note": "v0.8.85 版本/日期/类型/摘要/证据，commit daaa0d8"
+  },
+  {
+   "ts": "2026-11-19T21:10:45",
+   "round": "archive 交付报告_L6口径真源硬闸_v0.8.86.md @79bfd3f",
+   "artifact": "交付报告_L6口径真源硬闸_v0.8.86.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "vrnBCNU14x1z44Nk9thMUQ",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 79bfd3f",
+   "note": "v0.8.86 L6 元层口径真源硬闸T8：统计分组行与strength对账，B-11双列矛盾修复，T1-T8变异10/10；六条人工判据经实测无一该硬化"
   }
  ]
 }
