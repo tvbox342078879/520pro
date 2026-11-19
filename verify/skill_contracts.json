@@ -133,6 +133,20 @@
       "entry": "scripts/ad_audit.py",
       "trigger_samples": "references/trigger-samples.md"
     },
+    "cred-vault": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/cred-vault",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/cred_vault.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/cred_vault.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
     "push-safe": {
       "kind": "skill",
       "layer": "通用层",

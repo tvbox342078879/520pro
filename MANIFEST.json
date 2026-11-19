@@ -40,6 +40,13 @@
           "self_check": "python3 scripts/http_recon.py --help → usage 正常（5 脚本 5/5 实测）",
           "version": "1.0.0"
         },
+        "skills/cred-vault/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/cred-vault/SKILL.md",
+          "role": "凭证安全落盘（云取三机制借鉴：AES-GCM 加密+域分离AAD+密钥自愈；PBKDF2 21万轮/0600/一次性失效标记）",
+          "entry": "scripts/cred_vault.py",
+          "self_check": "python3 scripts/cred_vault.py selftest → 13/0；python3 verify/tests/test_cred_vault.py → 20/0",
+          "version": "1.0.0"
+        },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",
           "version": "1.1.0"
