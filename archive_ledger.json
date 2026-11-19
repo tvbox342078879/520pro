@@ -3228,6 +3228,17 @@
    "result": "ok",
    "event_ref": "commit 3f34ebd",
    "note": "v0.8.84 L4 B-18产出可溯源升级拽回：交付段缺N/M计数→Stop block，39/39，全量verify 0✗"
+  },
+  {
+   "ts": "2026-11-19T20:38:32",
+   "round": "archive 版本台账_v0.8.84_efdc6cd.md @efdc6cd",
+   "artifact": "版本台账_v0.8.84_efdc6cd.md",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "yNpMrr7w3cs2vf3W0ED1mx",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit efdc6cd",
+   "note": "v0.8.84 版本/日期/类型/摘要/证据，commit efdc6cd"
   }
  ]
 }

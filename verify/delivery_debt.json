@@ -2959,6 +2959,24 @@
    "note": "机器核销：ledger 回执已现"
   },
   {
+   "id": "D-efdc6cd-F09",
+   "flow": "F09",
+   "folder": "🧬 520进化论/版本演化台账",
+   "commit": "efdc6cd",
+   "commit_date": "2026-11-19",
+   "parent": "3f34ebd",
+   "target_version": "0.8.84",
+   "title": "feat(delivery-trace): L4 B-18 产出可溯源升级为拽回硬闸——交付段缺计数对触发 Stop 拽回",
+   "expect": "版本台账记录一条（版本/日期/类型/摘要/证据）",
+   "evidence": "VERSION 0.8.83 → 0.8.84",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-19",
+   "closed_by": "archive 版本台账_v0.8.84_efdc6cd.md @efdc6cd @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
    "id": "D-fe2e037-F02",
    "flow": "F02",
    "folder": "🧬 520进化论/01-方法论",
