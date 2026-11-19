@@ -312,5 +312,59 @@ check('L5 端到端：状态断言无引证触发 decision:block', blk,
 check('L5 端到端：拽回文案指名 B-06 与文件行号引证',
       'B-06' in reason and '行号' in reason, f'reason={reason[:80]}')
 
+# ── ⑩ S 段施工纪律拽回（S-09 查证缺会话标记 / 派单缺中文约束）──
+DT_S = load(os.path.join(ROOT, 'verify', 'discipline_trace.py'), 'dt_s')
+
+# 真阴性：跨源查证完成态断言但无会话标记 → 拽回
+CLAIM_NO_SCOPE = '全量查证结论如下：本次扫了仓库与资料库，共四条机检，证据略。'
+CLAIM_WITH_SCOPE = '全量查证结论如下：见 会话.jsonl:65888，另核 verify/rule_map.json:12。'
+# 派单段：派了子代理但 prompt 首句无中文约束
+DISPATCH_NO_ZH = '派子代理去查：先看仓库结构，用 Explore 类型，任务如下……'
+DISPATCH_WITH_ZH = '派子代理（全程简体中文）：先看仓库结构，用 Explore 类型……'
+
+check('S-09 跨源查证缺会话标记→拽回', DT_S.verify(CLAIM_NO_SCOPE, 's09') == 'true')
+check('S-09 有会话标记→放行', DT_S.verify(CLAIM_WITH_SCOPE, 's09') == 'false')
+check('S-09 非查类断言→免疫（识别范围≠对象范围）',
+      DT_S.verify('已完成，提交 sha abc1234。', 's09') == 'unknown')
+check('S-09 空文本→unknown', DT_S.verify('', 's09') == 'unknown')
+check('派单缺中文约束→拽回', DT_S.verify(DISPATCH_NO_ZH, 'dispatch') == 'true')
+check('派单有中文约束→放行', DT_S.verify(DISPATCH_WITH_ZH, 'dispatch') == 'false')
+check('派单无派单信号→免疫', DT_S.verify('查一下 git log。', 'dispatch') == 'unknown')
+
+# judge_s_discipline 接线（端到端前先测函数）
+check('judge_s_discipline 查证缺标记命中',
+      S.judge_s_discipline(CLAIM_NO_SCOPE) == (True, 'S-09'))
+check('judge_s_discipline 派单缺中文命中',
+      S.judge_s_discipline(DISPATCH_NO_ZH) == (True, 'DISPATCH'))
+check('judge_s_discipline 正常放行', S.judge_s_discipline(CLAIM_WITH_SCOPE) == (False, ''))
+
+# 元变异：把 s09 的 verify 恒放行 → 真阴性溜过（自证判据在守）
+s_src = open(os.path.join(ROOT, 'verify', 'discipline_trace.py'), encoding='utf-8').read()
+sm_mut = s_src.replace("        return 'false' if _has_scope(text) else 'true'",
+                       "        return 'false'  # MUT: 拿掉会话标记判据")
+smp = os.path.join(tempfile.mkdtemp(), 'discipline_trace_mut.py')
+open(smp, 'w', encoding='utf-8').write(sm_mut)
+SMm = load(smp, 'dt_s_mut')
+check('S-09 元变异：拿掉判据后真阴性溜过', SMm.verify(CLAIM_NO_SCOPE, 's09') == 'false')
+
+# 端到端：跨源查证缺标记 + 隔离 state + 其余判据放行 → S 段命中
+_sid_s = 't-s-discipline'
+_sts = S._read_state()
+_sts.pop(_sid_s, None)
+S._write_state(_sts)
+r = subprocess.run(['python3', GUARD], input=json.dumps(
+    {'session_id': _sid_s, 'stop_hook_active': False,
+     'last_assistant_message': CLAIM_NO_SCOPE}),
+    capture_output=True, text=True, env=dict(os.environ, NEXT_ANCHOR_STATE=mk_state('cwd', 'session-start+handoff')))
+try:
+    js = json.loads(r.stdout.strip() or '{}')
+    blk_s, reason_s = js.get('decision') == 'block', js.get('reason', '')
+except Exception:
+    blk_s, reason_s = False, ''
+check('S 端到端：查证缺会话标记触发 decision:block', blk_s,
+      f'rc={r.returncode}, out={r.stdout.strip()[:80]}')
+check('S 端到端：拽回文案指名 S-09 与会话标记',
+      'S-09' in reason_s and '会话' in reason_s, f'reason={reason_s[:80]}')
+
 print('test_stop_guard：%d 例，失败 %d' % (N[0], len(fails)))
 sys.exit(1 if fails else 0)

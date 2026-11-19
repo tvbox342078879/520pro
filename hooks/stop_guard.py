@@ -108,6 +108,8 @@ def has_evidence(text):
 # impl: B-07 S5   ← L3 开机读 handoff 留痕缺失且未消解 → Stop 拽回
 # impl: B-18 S2   ← L4 交付段缺「N 条有出处 / M 条无出处」计数对 → Stop 拽回
 # impl: B-06 S2   ← L5 状态断言（规则/文件在某处/已退役）无文件:行号引证 → Stop 拽回
+# impl: S-09      ← 施工纪律：跨源查证完成态缺会话范围取证标记 → Stop 拽回（统一入口）
+# impl: DISPATCH  ← 派子代理但 prompt 首句缺"全程简体中文"约束 → Stop 拽回
 def judge(text):
     """返回 (是否拽回, 原因)。"""
     if not text or not text.strip():
@@ -182,6 +184,36 @@ def judge_trace(state_path=None):
     return bool(bad), bad
 
 
+def load_discipline_trace():
+    """加载 verify/discipline_trace.py（不依赖 sys.path，钩子独立运行）。"""
+    import importlib.util
+    vp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      'verify', 'discipline_trace.py')
+    try:
+        spec = importlib.util.spec_from_file_location('_discipline_trace', vp)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+    except Exception:
+        return None                      # fail-open：判据坏了不卡死会话
+
+
+# impl: S-09 / DISPATCH  统一入口（复现 judge_delivery/premise 的 fail-open 模式）
+def judge_s_discipline(text):
+    """施工纪律拽回：跨源查证缺会话标记 / 派单缺中文约束 → (True, 子原因)。
+
+    只判确定性形态（标记在不在），不判实质（病15）。判据坏 fail-open。
+    """
+    dt = load_discipline_trace()
+    if dt is None:
+        return False, ''
+    if dt.verify(text, 's09') == 'true':
+        return True, 'S-09'
+    if dt.verify(text, 'dispatch') == 'true':
+        return True, 'DISPATCH'
+    return False, ''
+
+
 # 单行：注入回模型后不占多行、不被当成排版块（踩过「多行字段被闸截断」的坑）
 MSG = ('⛔ B-13 完成态凭落点：上一条回复宣称「完成 / 通过」，但全文找不到任何落点证据。'
        '落点证据指：改动的文件与行号、跑过的命令与退出码（rc=0）、commit sha，或判据输出原文。'
@@ -208,6 +240,14 @@ MSG_PREMISE = ('⛔ B-06 事实源：上一条声称某事实状态（规则/文
                '请补上引证（如 docs/退役登记.md:42）后重发；'
                '若本条只是过程描述或在讨论规则本身，去掉断言口吻。'
                '这条拦的是「拿记忆当事实」——判的是引证在不在，不是引证指向真不真。')
+
+# S 段施工纪律拽回文案（单行——踩过多行字段被注入截断的坑）
+MSG_DISCIPLINE = ('⛔ 施工纪律：上一条声称做了跨源/全量查证，但正文找不到会话范围取证标记'
+                  '（会话.jsonl:行号 / transcript / payloads/ / 会话记录 任一），'
+                  '或派了子代理但 prompt 首句缺「全程简体中文」约束（S-09 / 派单语言）。'
+                  '请补上会话取证标记或中文约束后重发；'
+                  '若本条并非查证结论或派单正文，去掉相应断言口吻。'
+                  '这条拦的是「规则写了但没进执行信号」——判的是标记在不在，不判取证真不真。')
 
 
 def main():
@@ -280,7 +320,9 @@ def main():
     deny_t, bad_rules = judge_trace() if not deny else (False, [])
     deny_d, _ = judge_delivery(text) if (not deny and not deny_t) else (False, '')
     deny_p, _ = judge_premise(text) if (not deny and not deny_t and not deny_d) else (False, '')
-    if not (deny or deny_t or deny_d or deny_p):
+    deny_s, why_s = judge_s_discipline(text) if (not deny and not deny_t
+                                                and not deny_d and not deny_p) else (False, '')
+    if not (deny or deny_t or deny_d or deny_p or deny_s):
         return 0
 
     if deny:
@@ -290,8 +332,10 @@ def main():
                          '留痕缺失:' + ','.join(bad_rules)
     elif deny_d:
         reason, why_log = MSG_DELIVERY, '交付缺溯源计数:B-18'
-    else:
+    elif deny_p:
         reason, why_log = MSG_PREMISE, '状态断言缺文件行号引证:B-06'
+    else:
+        reason, why_log = MSG_DISCIPLINE, '施工纪律缺执行标记:' + why_s
     st.setdefault(sid, {})['n'] = n + 1
     st[sid]['last_why'] = why_log
     _write_state(st)

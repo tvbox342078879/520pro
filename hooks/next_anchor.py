@@ -364,6 +364,10 @@ def main():
                 _hits.sort(key=lambda x: -x[0])
                 _top = _hits[0][1]
                 msg += '｜📚 本轮同型坑 %s·%s：%s' % (_top['id'], _top['name'], _top['fix'][:60])
+                # S-02 机制解决（施工纪律·条件触发喂判据问句）：命中同型坑时当场问
+                # "打补丁还是改真源"——不每轮念（会 habituate 成噪音），只在遇到
+                # 具体坑、有据可查时提醒。不做机检、不进 Stop（做事态度机器判会误伤）。
+                msg += '｜🔧 S-02：这坑这次是打补丁绕过，还是从机制/真源上解决？'
             # 经验闭环 v2 · ④呈现：注入经验池里的**具体条目**（不再只有坑名），
             # 按当前 Next 的 tags 命中同病号 → 带出 lesson/reuse 经验原文（可核实 evidence）。
             # 真源=exp_entries（exp_distill.py 从台账+commit 派生的可重建视图）。
@@ -423,7 +427,7 @@ def main():
         # 三问，不靠模型临场自觉（M-R121：写进册子≠改掉行为）。挂在 UserPromptSubmit
         # 这个必经点——任何一轮都过，模型侧 additionalContext 实测能进上下文。
         msg += ('｜🧠 思考闸：①定性——要方案就零探查零施工直接出，要施工才动手；'
-                '②探查——要查仓库丢子代理，主会话不连发命令；'
+                '②探查——查类指令先扫会话记录/transcript（S-09），再查仓库丢子代理，主会话不连发命令；'
                 '③收尾——后台非阻塞取（禁 block 等/禁轮询/禁前台 sleep），一目标收敛即停')
         # S-04 简洁输出（施工纪律·用户级，2026-11-17）：结论前置、文字压缩、不客套、不追加提问。
         msg += ('｜✂️ S-04：结论前置、一句讲清不拆段；去客套/开场白/多余总结；'
@@ -442,6 +446,22 @@ def main():
                 msg += _bh
         except Exception:
             pass  # 出场提示失败不影响主提醒（永不拦截）
+        # S-09 会话证据「丑喂」（施工纪律闭环后硬化）：查类指令不再靠模型记得去扫
+        # 会话——hook 主动从会话 jsonl 检索相关历史片段连行号注入，模型不必回想。
+        # 只注入不拦截；模块加载/检索失败静默降级（永不拦截铁律），但写 probe 留痕。
+        try:
+            _prompt = str(data.get('prompt') or data.get('message') or '')
+            _se_path = os.path.join(root, 'verify', 'session_evidence.py') if root else ''
+            if _se_path and os.path.isfile(_se_path) and _prompt.strip():
+                import importlib.util as _iu
+                _spec = _iu.spec_from_file_location('_session_evidence', _se_path)
+                _se = _iu.module_from_spec(_spec)
+                _spec.loader.exec_module(_se)
+                _ev = _se.inject(_prompt)
+                if _ev:
+                    msg += _ev
+        except Exception:
+            pass  # 检索失败静默降级——永不拦截，也不因留痕失败影响注入主流程
         # 在途任务跟踪（2026-11-15）：后台任务发时 --task-add 登记，完成通知到了自动
         # 销账（扫本轮 prompt 的 <task-notification>），每轮显示剩余清单——超 STALE_SEC
         # 标红提醒主动查。不再靠记忆/用户追问跟踪"完成了没"（用户实证痛点）。
