@@ -135,5 +135,75 @@ if os.path.exists(sp):
         regd = False
 check('settings.json 注册了 stop_guard.py', regd, '写了没挂 = 等于没写')
 
+# ── ⑦ L3 留痕拽回（真消费 next_anchor state，非只测纯函数）──
+RT = load(os.path.join(ROOT, 'verify', 'rule_trace.py'), 'rt_l3')
+
+
+def mk_state(b03_via, b07_via, confirmed=None):
+    """造隔离 state：按事件分槽 + 可选消解证据。"""
+    d = {'probe_by_event': {
+        'UserPromptSubmit': {'event': 'UserPromptSubmit', 'via': b03_via, 'root': '/x'},
+        'SessionStart': {'event': 'SessionStart', 'via': b07_via},
+    }}
+    if confirmed:
+        d['confirmed'] = confirmed
+    td = tempfile.mkdtemp()
+    fp = os.path.join(td, 'anchor_state.json')
+    json.dump(d, open(fp, 'w', encoding='utf-8'))
+    return fp
+
+
+# 真阴性未消解 → 拽回（B-03 last_repo + B-07 no-handoff）
+fp_bad = mk_state('last_repo', 'session-start+no-handoff')
+deny_t, bad = S.judge_trace(fp_bad)
+check('L3 留痕真阴性未消解→拽回', deny_t is True, f'bad={bad}')
+check('L3 拽回规则含 B-03', 'B-03' in bad, f'bad={bad}')
+check('L3 拽回规则含 B-07', 'B-07' in bad, f'bad={bad}')
+
+# 病15 反向：已 confirm 消解（补做了行为）→ 不误拦
+fp_ok = mk_state('last_repo', 'session-start+no-handoff',
+                 confirmed={'B-03': {'proof': '手工 cat ENV_ID.json', 'ts': 1},
+                            'B-07': {'proof': '手工读 handoff_latest.md', 'ts': 1}})
+deny_ok, bad_ok = S.judge_trace(fp_ok)
+check('L3 病15反向：已消解不误拦（识别范围≠对象范围）', deny_ok is False, f'bad={bad_ok}')
+
+# 真阳性 → 不拦（真做了行为）
+fp_true = mk_state('cwd', 'session-start+handoff')
+check('L3 真阳性不拦', S.judge_trace(fp_true)[0] is False)
+
+# unknown（无对应事件槽，回退旧 probe=PreToolUse）→ 不冒充红
+fp_unk = os.path.join(tempfile.mkdtemp(), 'minimal.json')
+json.dump({'probe': {'event': 'PreToolUse', 'via': 'command'}}, open(fp_unk, 'w', encoding='utf-8'))
+check('L3 unknown 不冒充红', S.judge_trace(fp_unk)[0] is False)
+
+# 元变异：清空 EV_OF 后留痕判据失效 → 真阴性样本溜过（自证判据真在守）
+sg_src = open(GUARD, encoding='utf-8').read()
+sd = tempfile.mkdtemp()
+sgp = os.path.join(sd, 'sg_noimpl.py')
+# 把 judge_trace 换成恒放行，验证「是这段代码在拦」而非环境巧合
+mut = sg_src.replace("    bad = [r for r in ('B-07', 'B-03') if rt.unresolved(st, r)]",
+                     "    bad = []  # MUT: 拿掉留痕判据")
+open(sgp, 'w', encoding='utf-8').write(mut)
+Sm = load(sgp, 'sg_mut2')
+check('L3 元变异：拿掉判据后真阴性溜过', Sm.judge_trace(fp_bad)[0] is False)
+
+# 端到端：Stop payload + 环境变量注入隔离 state → stdout 出 JSON decision:block
+# 必须先清本用例 sid（否则多次运行累积达 MAX_RETRY → gave_up 放行 → 假红，与用例⑤同病）
+_sid_l3 = 't-l3-trace'
+_stg = S._read_state()
+_stg.pop(_sid_l3, None)
+S._write_state(_stg)
+env = dict(os.environ, NEXT_ANCHOR_STATE=fp_bad)
+r = subprocess.run(['python3', GUARD], input=json.dumps(
+    {'session_id': _sid_l3, 'stop_hook_active': False,
+     'last_assistant_message': '部署好了。'}), capture_output=True, text=True, env=env)
+try:
+    blk = json.loads(r.stdout.strip() or '{}').get('decision') == 'block'
+    reason = json.loads(r.stdout.strip() or '{}').get('reason', '')
+except Exception:
+    blk, reason = False, ''
+check('L3 端到端：留痕缺失触发 decision:block', blk, f'rc={r.returncode}, out={r.stdout.strip()[:80]}')
+check('L3 端到端：拽回文案指名规则', 'B-03' in reason and 'confirm' in reason, f'reason={reason[:80]}')
+
 print('test_stop_guard：%d 例，失败 %d' % (N[0], len(fails)))
 sys.exit(1 if fails else 0)

@@ -45,12 +45,12 @@
    "check": "verify/rule_trace.py",
    "anchor": "def b03_trace(probe):",
    "strength": {"S5": "verify/rule_trace.py#b03_trace"},
-   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#_resolve_root"],
-   "how": "机器判据对象=真 probe 留痕：UserPromptSubmit 是否从 payload 明确定位到 git 仓（via=cwd/command=真验，via=last_repo*=回退猜仓=真阴性）。留痕在=机制触发过；「模型是否真理解环境」机器判不了，为人工项不算机检通过。",
+   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#_resolve_root", "hooks/stop_guard.py#judge_trace"],
+   "how": "机器判据对象=真 probe 留痕：UserPromptSubmit 是否从 payload 明确定位到 git 仓（via=cwd/command=真验，via=last_repo*=回退猜仓=真阴性）。L3：真阴性且未 confirm 消解 → Stop decision:block 拽回（hooks/stop_guard.py#judge_trace）；已补做并 confirm 者放行（病15 识别范围≠对象范围）。留痕在=机制触发过；「模型是否真理解环境」机器判不了，为人工项不算机检通过。",
    "proven_by": {
-    "cmd": "python3 verify/tests/test_rule_trace.py",
-    "expect": "B-03 三态 6 例全绿（cwd/command→true，last_repo/none→false，cwd无root/错事件→unknown）",
-    "got": "2026-11-19 L2 实测 6/6：真函数喂真 probe 样本，真阴性覆盖回退猜仓；见 test_rule_trace.py"
+    "cmd": "python3 verify/tests/test_rule_trace.py && python3 verify/tests/test_stop_guard.py",
+    "expect": "B-03 三态 6 例 + L3 留痕拽回（真阴性未消解→block、已消解/真阳/unknown→放行、元变异、端到端 decision:block）全绿",
+    "got": "2026-11-19 L2+L3 实测：test_rule_trace 全绿 + test_stop_guard 29/29（病15 反向已消解不误拦 + 拿掉判据溜过 + 端到端 block）；见两测试文件"
    },
    "retire_if": ""
   },
@@ -107,13 +107,13 @@
    "check": "verify/rule_trace.py",
    "anchor": "def b07_trace(probe):",
    "strength": {"S5": "verify/rule_trace.py#b07_trace"},
-   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#SessionStart"],
+   "impl": ["verify/rule_trace.py", "hooks/next_anchor.py#SessionStart", "hooks/stop_guard.py#judge_trace"],
    "retire_if": "会话开始时模型已默认携带交接摘要（平台内建该能力）时，本条的注入机制可退役",
-   "how": "机器判据对象=真 probe 留痕：SessionStart 是否真读到 handoff（via 含 +handoff=真阳，+no-handoff=真阴，无对应事件=无法判定）。留痕在=机制触发过；「模型是否真理解交接摘要」机器判不了，为人工项不算机检通过。",
+   "how": "机器判据对象=真 probe 留痕：SessionStart 是否真读到 handoff（via 含 +handoff=真阳，+no-handoff=真阴，无对应事件=无法判定）。L3：真阴性且未 confirm 消解 → Stop decision:block 拽回；已补做并 confirm 者放行。留痕在=机制触发过；「模型是否真理解交接摘要」机器判不了，为人工项不算机检通过。",
    "proven_by": {
-    "cmd": "python3 verify/tests/test_rule_trace.py",
-    "expect": "B-07 三态 5 例全绿（session-start+handoff→true，+no-handoff→false，直空/错事件→unknown）",
-    "got": "2026-11-19 L2 实测 5/5：真函数喂真 probe 样本；见 test_rule_trace.py"
+    "cmd": "python3 verify/tests/test_rule_trace.py && python3 verify/tests/test_stop_guard.py",
+    "expect": "B-07 三态 5 例 + L3 留痕拽回（no-handoff 未消解→block、已消解→放行）全绿",
+    "got": "2026-11-19 L2+L3 实测：test_rule_trace 全绿 + test_stop_guard 29/29（B-07 拽回规则命中 + 端到端 block）；见两测试文件"
    }
   },
   "B-08": {

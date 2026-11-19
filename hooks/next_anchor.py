@@ -46,7 +46,7 @@ CMD_HEAD = 80                # probe 里只留命令开头，避免存整条长�
 MAX_INFLIGHT = 20            # 在途任务台账有界，防无限增长
 STALE_SEC = 30 * 60          # 在途超 30 分钟标红提醒主动查（不等用户追问）
 
-EMPTY = {'repos': {}, 'last_repo': '', 'probe': {}, 'inflight': {}}
+EMPTY = {'repos': {}, 'last_repo': '', 'probe': {}, 'probe_by_event': {}, 'inflight': {}}
 
 # ── 环境身份锚（2026-11-19 用户实证「串仓库/多版本生态分不清」）─────────────
 # 根因：规则/锚点/会话都不绑身份，同一会话跨 tvbox-eco→520pro→新生态，
@@ -146,10 +146,11 @@ def _read_state():
         return dict(EMPTY)
     if 'repos' not in d:                                # 旧扁平格式迁移
         repos = {k: v for k, v in d.items() if isinstance(v, (int, float))}
-        return {'repos': repos, 'last_repo': '', 'probe': {}}
+        return {'repos': repos, 'last_repo': '', 'probe': {}, 'probe_by_event': {}}
     d.setdefault('repos', {})
     d.setdefault('last_repo', '')
     d.setdefault('probe', {})
+    d.setdefault('probe_by_event', {})                   # L3：按事件留痕槽（不互相覆盖）
     d.setdefault('inflight', {})
     if not isinstance(d['inflight'], dict):
         d['inflight'] = {}
@@ -231,7 +232,12 @@ def _next_line(root):
 
 def _save(d, probe, hit=False):
     probe['hit'] = bool(hit)
-    d['probe'] = probe
+    d['probe'] = probe                                   # 兼容：最后一次调用快照
+    # L3：按事件分槽——否则 Stop 时 d['probe'] 恒为最后一次 PreToolUse，
+    # SessionStart/UserPromptSubmit 的留痕被覆盖，verdict 恒 unknown，硬闸失效（病15 识别范围≠对象范围）。
+    ev = str(probe.get('event') or 'unknown')
+    if ev in ('SessionStart', 'UserPromptSubmit'):
+        d.setdefault('probe_by_event', {})[ev] = dict(probe)
     _write_state(d)
 
 

@@ -3184,6 +3184,17 @@
    "result": "ok",
    "event_ref": "commit b6df153",
    "note": "人工判据硬化为可机检留痕：双层防假绿+三态+三道闸，形态/修法/边界/实例坐标"
+  },
+  {
+   "ts": "2026-11-19T19:32:47",
+   "round": "archive 交付报告_L3行为留痕硬闸_v0.8.83.md @67e075e",
+   "artifact": "交付报告_L3行为留痕硬闸_v0.8.83.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "iV47RtNq2KE8rd5G7z07Vu",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 67e075e",
+   "note": "v0.8.83 L3行为留痕硬闸交付报告：真阴性未消解→Stop拽回，confirm消解；全量verify 0✗"
   }
  ]
 }

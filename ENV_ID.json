@@ -1,7 +1,7 @@
 {
   "env_id": "520pro-main",
   "role": "源仓·规则闭环主线",
-  "version": "0.8.82",
+  "version": "0.8.83",
   "repo": "tvbox342078879/520pro",
   "head": "caa9608",
   "note": "完整 git 仓库、网络通、打包源；规则/经验判据真源在此"

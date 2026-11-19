@@ -104,6 +104,8 @@ def has_evidence(text):
 
 
 # impl: B-13 S2   ← 断言词命中且零落点证据 → JSON decision:block 拽回
+# impl: B-03 S5   ← L3 环境定位留痕缺失且未消解 → Stop 拽回
+# impl: B-07 S5   ← L3 开机读 handoff 留痕缺失且未消解 → Stop 拽回
 def judge(text):
     """返回 (是否拽回, 原因)。"""
     if not text or not text.strip():
@@ -115,11 +117,46 @@ def judge(text):
     return True, '宣称完成但全文无任何落点证据'
 
 
+def load_rule_trace():
+    """加载 verify/rule_trace.py（不依赖 sys.path，钩子独立运行）。"""
+    import importlib.util
+    vp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      'verify', 'rule_trace.py')
+    try:
+        spec = importlib.util.spec_from_file_location('_rule_trace', vp)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return m
+    except Exception:
+        return None                      # fail-open：判据坏了不卡死会话
+
+
+def judge_trace(state_path=None):
+    """L3 留痕拽回：B-03/B-07 真阴性且未消解 → (True, 规则列表)。
+
+    真阳性/unknown 不拦（B-02 不折叠）；已 confirm 的不误伤（病15 识别范围≠对象范围）。
+    判据坏（rule_trace 加载失败）fail-open。
+    """
+    rt = load_rule_trace()
+    if rt is None:
+        return False, []
+    st = rt.load_state(state_path)
+    bad = [r for r in ('B-07', 'B-03') if rt.unresolved(st, r)]
+    return bool(bad), bad
+
+
 # 单行：注入回模型后不占多行、不被当成排版块（踩过「多行字段被闸截断」的坑）
 MSG = ('⛔ B-13 完成态凭落点：上一条回复宣称「完成 / 通过」，但全文找不到任何落点证据。'
        '落点证据指：改动的文件与行号、跑过的命令与退出码（rc=0）、commit sha，或判据输出原文。'
        '请二选一：①补上上述证据后重发结论；②把结论改写成「未验证 / 无法判定」。'
        '这条拦的是「我看了一下，应该没问题」——它不算完成。')
+
+# L3 留痕拽回文案（单行——踩过「多行字段被注入截断」的坑）
+MSG_TRACE = ('⛔ 行为留痕缺失：本轮 B-03（动手前核环境）/ B-07（换模型读交接）的执行留痕'
+             '判为真阴性（回退猜仓/开机没读到交接）且未补证据。'
+             '请二选一：①真补做后运行 python3 verify/rule_trace.py confirm <规则> --proof "证据" 消解，'
+             '再重发；②若本轮确实无法判定，把结论改写成「本会话未对齐 / 无法判定」。'
+             '这条拦的是「规则写了但没发生」——软约束必须有牙。')
 
 
 def main():
@@ -134,7 +171,8 @@ def main():
         if not st:
             print('（无拽回记录：判据从未命中，或钩子未被调用——病13 三态要分清）')
             return 0
-        out = {'event': 'Stop', 'hit': False, 'via': 'pass', 'sessions': {}}
+        out = {'event': 'Stop', 'hit': False, 'via': 'pass', 'sessions': {},
+               'trace': {}}
         for sid, v in st.items():
             n = int(v.get('n', 0))
             out['sessions'][sid] = {
@@ -145,6 +183,13 @@ def main():
             if n > 0:
                 out['hit'] = True
                 out['via'] = 'deny'
+        # L3：留痕侧观测（读真实 next_anchor state）
+        rt = load_rule_trace()
+        if rt:
+            rstate = rt.load_state()
+            out['trace'] = {'rules': {r: {'verdict': rt.verdict(rstate, r),
+                                          'unresolved': rt.unresolved(rstate, r)}
+                                      for r in ('B-07', 'B-03')}}
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 0
 
@@ -181,14 +226,16 @@ def main():
 
     text = str(data.get('last_assistant_message') or '')
     deny, why = judge(text)
-    if not deny:
+    deny_t, bad_rules = judge_trace() if not deny else (False, [])
+    if not deny and not deny_t:
         return 0
 
+    reason = MSG if deny else MSG_TRACE + '（规则：%s）' % ','.join(bad_rules)
     st.setdefault(sid, {})['n'] = n + 1
-    st[sid]['last_why'] = why
+    st[sid]['last_why'] = why if deny else '留痕缺失:' + ','.join(bad_rules)
     _write_state(st)
     # JSON decision:block（实测能拽回；exit 2 + stderr 不能，见文件头「协议」）
-    print(json.dumps({'decision': 'block', 'reason': MSG}, ensure_ascii=False))
+    print(json.dumps({'decision': 'block', 'reason': reason}, ensure_ascii=False))
     return 0
 
 
