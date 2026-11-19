@@ -3195,6 +3195,28 @@
    "result": "ok",
    "event_ref": "commit 67e075e",
    "note": "v0.8.83 L3行为留痕硬闸交付报告：真阴性未消解→Stop拽回，confirm消解；全量verify 0✗"
+  },
+  {
+   "ts": "2026-11-19T19:48:25",
+   "round": "archive 方法论_留痕硬闸识别范围三防_ddce00d.md @ddce00d",
+   "artifact": "方法论_留痕硬闸识别范围三防_ddce00d.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "Q64D2iMXuqeUeLz6E0q41h",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit ddce00d",
+   "note": "ddce00d 形态+修法+实例坐标：留痕硬闸三防（分槽/消解/执行牙），病15识别范围≠对象范围"
+  },
+  {
+   "ts": "2026-11-19T19:48:30",
+   "round": "archive 版本台账_v0.8.83_ddce00d.md @ddce00d",
+   "artifact": "版本台账_v0.8.83_ddce00d.md",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "PfZGNBdv3x5WjPLIlRqbAY",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit ddce00d",
+   "note": "v0.8.83 版本/日期/类型/摘要/证据，commit ddce00d"
   }
  ]
 }
