@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-19",
+ "updated": "2026-11-20",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -3063,6 +3063,42 @@
    "age_commits": 0,
    "first_seen": "2026-11-19",
    "closed_by": "archive 方法论_环境身份锚_fe2e037.md @fe2e037 @ 2026-11-19",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-c987b98-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "c987b98",
+   "commit_date": "2026-11-20",
+   "parent": "7ed517f",
+   "target_version": "",
+   "title": "feat(discipline): 施工纪律闭环三笔——S-09/S-10 升机检 + 会话证据注入 + S-02 机制问句",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15（同型非新增）三笔施工多次复发——S-10 标题缺 S-10 字样致对账假绿、S-09 判据放宽误伤技术回复、grep 位置序够不到真出处——均当场实测发",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-20",
+   "closed_by": "archive 方法论_施工纪律硬化病15三形态_d79ff1c.md @c987b98 @ 2026-11-20",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-d79ff1c-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "d79ff1c",
+   "commit_date": "2026-11-20",
+   "parent": "7ed517f",
+   "target_version": "",
+   "title": "feat(discipline): 施工纪律闭环三笔——S-09/S-10 升机检 + 会话证据注入 + S-02 机制问句",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15（同型非新增）三笔施工多次复发——S-10 标题缺 S-10 字样致对账假绿、S-09 判据放宽误伤技术回复、grep 位置序够不到真出处——均当场实测发",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-20",
+   "closed_by": "archive 方法论_施工纪律硬化病15三形态_d79ff1c.md @d79ff1c @ 2026-11-20",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
   }
