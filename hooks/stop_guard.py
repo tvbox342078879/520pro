@@ -106,6 +106,8 @@ def has_evidence(text):
 # impl: B-13 S2   ← 断言词命中且零落点证据 → JSON decision:block 拽回
 # impl: B-03 S5   ← L3 环境定位留痕缺失且未消解 → Stop 拽回
 # impl: B-07 S5   ← L3 开机读 handoff 留痕缺失且未消解 → Stop 拽回
+# impl: B-18 S2   ← L4 交付段缺「N 条有出处 / M 条无出处」计数对 → Stop 拽回
+# impl: B-06 S2   ← L5 状态断言（规则/文件在某处/已退役）无文件:行号引证 → Stop 拽回
 def judge(text):
     """返回 (是否拽回, 原因)。"""
     if not text or not text.strip():
@@ -149,6 +151,23 @@ def judge_delivery(text):
         return False, ''                     # fail-open
 
 
+def judge_premise(text):
+    """L5 事实源拽回：状态断言无文件:行号引证 → (True, 'B-06')；真阳/unknown 放行。
+
+    判据坏（premise_trace 加载失败）fail-open。对象=断言句式形态，非引证真伪（病15）。
+    """
+    import importlib.util
+    vp = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      'verify', 'premise_trace.py')
+    try:
+        spec = importlib.util.spec_from_file_location('_premise_trace', vp)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        return (True, 'B-06') if m.unresolved(text) else (False, '')
+    except Exception:
+        return False, ''                     # fail-open
+
+
 def judge_trace(state_path=None):
     """L3 留痕拽回：B-03/B-07 真阴性且未消解 → (True, 规则列表)。
 
@@ -182,6 +201,13 @@ MSG_DELIVERY = ('⛔ B-18 产出可溯源：上一条有交付段（交付物/�
                 '请补上这两个数（无出处项单列「⚠️ 无出处」，不要删掉或混进正文）后重发；'
                 '若本条并非交付正文，把交付段标记去掉或改写成过程描述。'
                 '这条拦的是「交付了却不报溯源账」——计数模板是确定性形态，机器可判。')
+
+# L5 事实源拽回文案（单行）
+MSG_PREMISE = ('⛔ B-06 事实源：上一条声称某事实状态（规则/文件/技能「已退役 / 已删除 / '
+               '在某处 / 不存在」），但没给出「文件 + 行号」引证。'
+               '请补上引证（如 docs/退役登记.md:42）后重发；'
+               '若本条只是过程描述或在讨论规则本身，去掉断言口吻。'
+               '这条拦的是「拿记忆当事实」——判的是引证在不在，不是引证指向真不真。')
 
 
 def main():
@@ -253,7 +279,8 @@ def main():
     deny, why = judge(text)
     deny_t, bad_rules = judge_trace() if not deny else (False, [])
     deny_d, _ = judge_delivery(text) if (not deny and not deny_t) else (False, '')
-    if not deny and not deny_t and not deny_d:
+    deny_p, _ = judge_premise(text) if (not deny and not deny_t and not deny_d) else (False, '')
+    if not (deny or deny_t or deny_d or deny_p):
         return 0
 
     if deny:
@@ -261,8 +288,10 @@ def main():
     elif deny_t:
         reason, why_log = MSG_TRACE + '（规则：%s）' % ','.join(bad_rules), \
                          '留痕缺失:' + ','.join(bad_rules)
-    else:
+    elif deny_d:
         reason, why_log = MSG_DELIVERY, '交付缺溯源计数:B-18'
+    else:
+        reason, why_log = MSG_PREMISE, '状态断言缺文件行号引证:B-06'
     st.setdefault(sid, {})['n'] = n + 1
     st[sid]['last_why'] = why_log
     _write_state(st)

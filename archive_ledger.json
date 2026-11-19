@@ -3239,6 +3239,17 @@
    "result": "ok",
    "event_ref": "commit efdc6cd",
    "note": "v0.8.84 版本/日期/类型/摘要/证据，commit efdc6cd"
+  },
+  {
+   "ts": "2026-11-19T20:49:21",
+   "round": "archive 交付报告_L5事实源拽回_v0.8.85.md @a0a648e",
+   "artifact": "交付报告_L5事实源拽回_v0.8.85.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "8blB40dGdgwMZgEopMvNUv",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit a0a648e",
+   "note": "v0.8.85 L5 B-06事实源拽回：状态断言无文件行号引证→Stop block，51/51，全量verify 0✗；合并B13+B18经探查否决"
   }
  ]
 }

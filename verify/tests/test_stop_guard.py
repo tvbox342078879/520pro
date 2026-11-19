@@ -261,5 +261,56 @@ check('L4 端到端：交付缺计数触发 decision:block', blk, f'rc={r.return
 check('L4 端到端：拽回文案指名 B-18 与计数模板',
       'B-18' in reason and '有出处' in reason and '无出处' in reason, f'reason={reason[:80]}')
 
+# ── ⑨ L5 B-06 事实源拽回（状态断言无文件:行号引证）──
+PT = load(os.path.join(ROOT, 'verify', 'premise_trace.py'), 'pt_l5')
+
+PREMISE_NO_CITE = '结论：B-11 已退役，不用再查了。'          # 状态断言、无引证
+PREMISE_WITH_CITE = 'B-11 已退役（见 docs/退役登记.md:42）。'  # 有引证
+PREMISE_NEG = '该规则尚未退役，仍在使用。'                    # 否定语境
+PREMISE_META = '规则原文举例「某规则已退役」——这是形态说明。'  # 元话语
+
+# 真阴性：状态断言无引证 → judge_premise 拽回
+check('L5 B-06 状态断言无引证→拽回', S.judge_premise(PREMISE_NO_CITE)[0] is True)
+# 真阳性：带文件:行号引证 → 放行
+check('L5 B-06 有引证→放行', S.judge_premise(PREMISE_WITH_CITE)[0] is False)
+# 病15 反向：否定语境 / 元话语 / 过程描述 / B-13 域完成断言 → 不误伤
+check('L5 B-06 否定语境→放行（识别范围≠对象范围）', S.judge_premise(PREMISE_NEG)[0] is False)
+check('L5 B-06 元话语→放行', S.judge_premise(PREMISE_META)[0] is False)
+check('L5 B-06 过程描述→放行', S.judge_premise('我查了仓库，然后改了脚本。')[0] is False)
+check('L5 B-06 B-13完成断言→放行（对象域错开）',
+      S.judge_premise('部署好了，提交 sha abc1234。')[0] is False)
+# 纯函数三态直测
+check('L5 B-06 verify 真阴性', PT.verify(PREMISE_NO_CITE) == 'false')
+check('L5 B-06 verify 真阳性', PT.verify(PREMISE_WITH_CITE) == 'true')
+check('L5 B-06 verify unknown',
+      PT.verify(PREMISE_NEG) == 'unknown' and PT.verify('') == 'unknown')
+# 元变异：把 unresolved 恒放行 → 真阴性溜过
+pt_src = open(os.path.join(ROOT, 'verify', 'premise_trace.py'), encoding='utf-8').read()
+ptd = tempfile.mkdtemp()
+pt_mut = pt_src.replace("    return verify(text) == 'false'", "    return False  # MUT: 拿掉引证判据")
+ptp = os.path.join(ptd, 'premise_trace_mut.py')
+open(ptp, 'w', encoding='utf-8').write(pt_mut)
+PTm = load(ptp, 'pt_mut')
+check('L5 B-06 元变异：拿掉判据后真阴性溜过', PTm.unresolved(PREMISE_NO_CITE) is False)
+# 端到端：状态断言无引证 + 隔离 state（B-03/B-07 真阳）+ 无交付段（B-18 放行）→ B-06 命中
+_sid_l5 = 't-l5-premise'
+_stg5 = S._read_state()
+_stg5.pop(_sid_l5, None)
+S._write_state(_stg5)
+fp_l5_anchor = mk_state('cwd', 'session-start+handoff')
+r = subprocess.run(['python3', GUARD], input=json.dumps(
+    {'session_id': _sid_l5, 'stop_hook_active': False,
+     'last_assistant_message': PREMISE_NO_CITE}),
+    capture_output=True, text=True, env=dict(os.environ, NEXT_ANCHOR_STATE=fp_l5_anchor))
+try:
+    j = json.loads(r.stdout.strip() or '{}')
+    blk, reason = j.get('decision') == 'block', j.get('reason', '')
+except Exception:
+    blk, reason = False, ''
+check('L5 端到端：状态断言无引证触发 decision:block', blk,
+      f'rc={r.returncode}, out={r.stdout.strip()[:80]}')
+check('L5 端到端：拽回文案指名 B-06 与文件行号引证',
+      'B-06' in reason and '行号' in reason, f'reason={reason[:80]}')
+
 print('test_stop_guard：%d 例，失败 %d' % (N[0], len(fails)))
 sys.exit(1 if fails else 0)

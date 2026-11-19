@@ -90,14 +90,16 @@
   },
   "B-06": {
    "verify_id": "V-MANUAL-06",
-   "kind": "manual",
-   "how": "每个前提断言能否给出「文件 + 行号」；给不出就应标「无法判定」，不得用记忆顶替。",
-   "strength": {},
-   "impl": [],
+   "kind": "machine",
+   "check": "verify/premise_trace.py",
+   "anchor": "def verify(text):",
+   "how": "机器判据对象=前提断言句式的确定性形态（规则/文件/技能/条款/脚本/配置/B-xx + 已退役/已删除/不存在/在某处/位于），判其是否带「文件:行号」引证（premise_trace.verify 三态）。有断言无引证=真阴性→Stop 拽回；真阳/unknown/否定语境/元话语放行。与 B-13 完成断言对象域错开，互不替代。**边界**：判的是「引证形态在不在」，不是「引证指向的事实真不真」；模型伪造引证机器判不了，仍是人工项。",
+   "strength": {"S2": "hooks/stop_guard.py#judge_premise"},
+   "impl": ["verify/premise_trace.py", "hooks/stop_guard.py#judge_premise"],
    "proven_by": {
-    "cmd": "",
-    "expect": "",
-    "got": ""
+    "cmd": "python3 verify/tests/test_stop_guard.py",
+    "expect": "B-06 12 例全绿（judge_premise 真阴拽回/真阳放行/否定/元话语/过程/B13域放行 + verify 三态 + 元变异 + 端到端 decision:block）",
+    "got": "2026-11-19 L5 实测：test_stop_guard 51/51（含 B-06 12 例），premise_trace 纯函数 11/11，端到端文案指名 B-06"
    },
    "retire_if": ""
   },
