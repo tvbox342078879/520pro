@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-20",
+ "updated": "2026-11-21",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -3153,6 +3153,24 @@
    "age_commits": 0,
    "first_seen": "2026-11-20",
    "closed_by": "archive 方法论_施工纪律硬化病15三形态_d79ff1c.md @d79ff1c @ 2026-11-20",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-f427131-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "f427131",
+   "commit_date": "2026-11-21",
+   "parent": "b8aa042",
+   "target_version": "",
+   "title": "feat(yunqu): 云取借鉴二期收口——网盘解析统一(26+33)+转存轮询设备标识(32+56/23)",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 通用层/skills/share-parser/CHANGELOG.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-21",
+   "closed_by": "archive 演进_云取二期_20261121.md @f427131 @ 2026-11-21",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
   }
