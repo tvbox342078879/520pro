@@ -3371,6 +3371,28 @@
    "result": "ok",
    "event_ref": "VERSION=0.8.89 · 交付报告 ilt8jWPDJ920OAu2lx2DFF；test_hook_heartbeat 27/27 + test",
    "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-20T21:05:38",
+   "round": "archive 方法论_download_probe_19bb5d9.md @19bb5d9",
+   "artifact": "方法论_download_probe_19bb5d9.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "WbsChbyUREX3WMxJsNwmEd",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 19bb5d9",
+   "note": "云取28+52下载探测三态+SSRF方法论 commit 19bb5d9"
+  },
+  {
+   "ts": "2026-11-20T21:05:53",
+   "round": "archive 演进_download_probe_19bb5d9.md @19bb5d9",
+   "artifact": "演进_download_probe_19bb5d9.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "MIY8XTPYMfcH0dcAtLLf4z",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 19bb5d9",
+   "note": "云取57条四期落地时间线+断点恢复 commit 19bb5d9"
   }
  ]
 }
