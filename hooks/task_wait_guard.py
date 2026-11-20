@@ -93,6 +93,12 @@ def main():
     _save(d)
 
     if rec['count'] >= DENY_AT:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import hook_heartbeat
+            hook_heartbeat.beat_from_payload(inp, 'task_wait_guard.py', blocked=True)
+        except Exception:
+            pass
         deny_payload(
             '防卡死闸（等待死）：任务 %s 已连续 %d 次 block=true 前台等待——'
             '禁轮询（B-11）。改 block=false 立即返回（非阻塞），等完成通知到了再取；'
@@ -112,6 +118,7 @@ def selftest():
         st = os.path.join(td, 'st.json')
         # 子进程经 env _TASKWAIT_STATE 隔离状态，本进程常量无需重读
         os.environ['_TASKWAIT_STATE'] = st
+        os.environ['HOOK_HEARTBEAT_STATE'] = os.path.join(td, '.hb.json')  # 心跳账隔离，测试不污染生产
 
         def run(payload):
             p = __import__('subprocess').run(

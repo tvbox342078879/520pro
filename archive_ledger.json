@@ -3349,6 +3349,28 @@
    "result": "ok",
    "event_ref": "VERSION=0.8.88 · commit 3e2fbdf；hooks/parallel_guard.py；verify/tests/test_par",
    "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
+  },
+  {
+   "ts": "2026-11-20T13:01:56",
+   "round": "archive 交付报告_钩子自证账本_v0.8.89.md @4262845",
+   "artifact": "交付报告_钩子自证账本_v0.8.89.md",
+   "target": "📦 产物归档/文档",
+   "node_id": "ilt8jWPDJ920OAu2lx2DFF",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 4262845",
+   "note": "v0.8.89 钩子自证账本：hook_heartbeat+hook_ledger+5钩接线，测试27+17+19全绿，全量verify 0✗"
+  },
+  {
+   "ts": "2026-11-20T13:03:19",
+   "round": "evolve-log 0.8.89",
+   "artifact": "版本演化台账记录 0.8.89",
+   "target": "🧬 520进化论/版本演化台账",
+   "node_id": "E0GETdD3JaFiEQg6y0MqlO",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "VERSION=0.8.89 · 交付报告 ilt8jWPDJ920OAu2lx2DFF；test_hook_heartbeat 27/27 + test",
+   "note": "evolve-log 正门写入（v2.7.9 起自动回执）"
   }
  ]
 }

@@ -63,6 +63,14 @@ def main():
         sys.exit(0)
 
     # ② 缺时限：deny（逃生口=补参数即可，会话侧可达）
+    try:
+        import os as _os
+        import sys as _sys
+        _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+        import hook_heartbeat
+        hook_heartbeat.beat_from_payload(inp, 'agent_turns_guard.py', blocked=True)
+    except Exception:
+        pass
     deny_payload(
         '防卡死闸（子任务时限）：派子代理（Agent/Task）未带 max_turns——子代理跑飞时'
         '主会话会无限白等（B-11：派子任务必须带时限）。补 max_turns（建议 15–30）后重发；'
@@ -80,6 +88,8 @@ def selftest():
         results.append((name, bool(cond)))
 
     with tempfile.TemporaryDirectory() as td:
+        os.environ['HOOK_HEARTBEAT_STATE'] = os.path.join(td, '.hb.json')  # 心跳账隔离，测试不污染生产
+
         def run(payload):
             p = subprocess.run([sys.executable, __file__], input=json.dumps(payload),
                                capture_output=True, text=True,

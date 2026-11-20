@@ -43,7 +43,7 @@ import os
 import re
 import sys
 
-STATE = os.path.join(os.path.expanduser('~'), '.codebuddy', 'hooks', '.stop_guard_state')
+STATE = os.environ.get('STOP_GUARD_STATE') or os.path.join(os.path.expanduser('~'), '.codebuddy', 'hooks', '.stop_guard_state')
 MAX_RETRY = 2
 
 # 断言词：只收「宣称一件事已经办完」的说法，不收「完成了 X 功能」这类过程描述
@@ -339,6 +339,15 @@ def main():
     st.setdefault(sid, {})['n'] = n + 1
     st[sid]['last_why'] = why_log
     _write_state(st)
+    # 心跳账：Stop 拽回也是一次真拦截（v0.8.89）。账本失败静默。
+    try:
+        import os as _os
+        import sys as _sys
+        _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+        import hook_heartbeat
+        hook_heartbeat.beat_from_payload(data, 'stop_guard.py', blocked=True)
+    except Exception:
+        pass
     # JSON decision:block（实测能拽回；exit 2 + stderr 不能，见文件头「协议」）
     print(json.dumps({'decision': 'block', 'reason': reason}, ensure_ascii=False))
     return 0

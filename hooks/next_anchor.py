@@ -559,7 +559,7 @@ def main():
             if _w:
                 probe['via'] = 'write-guard:' + _w['id']
                 _save(d, probe, hit=True)               # 命中守卫也算 hit（否则 probe 看着像没干活）
-                print(json.dumps(guard_cmd.deny_payload(_w), ensure_ascii=False))
+                print(json.dumps(guard_cmd.deny_payload(_w, payload=data), ensure_ascii=False))
                 return 2
         except Exception as _e:
             probe['guard_err'] = ('%s: %s' % (type(_e).__name__, _e))[:120]
@@ -584,7 +584,7 @@ def main():
         if _hit:
             probe['via'] += '+guard:' + _hit['id']
             _save(d, probe, hit=True)                   # 同上：拦下来就是命中了
-            print(json.dumps(guard_cmd.deny_payload(_hit), ensure_ascii=False))
+            print(json.dumps(guard_cmd.deny_payload(_hit, payload=data), ensure_ascii=False))
             return 2
     except Exception as _e:
         probe['guard_err'] = ('%s: %s' % (type(_e).__name__, _e))[:120]

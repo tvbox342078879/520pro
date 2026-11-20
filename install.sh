@@ -409,9 +409,10 @@ if [ "$DRY" = 0 ] && [ -f "$ROOT/hooks/next_anchor.py" ] && [ "$SCOPE" != "capab
      && cp "$ROOT/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" \
      && cp "$ROOT/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" \
      && cp "$ROOT/hooks/parallel_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py" \
-     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py"; then
+     && cp "$ROOT/hooks/hook_heartbeat.py" "$HOME/.codebuddy/hooks/hook_heartbeat.py" \
+     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py" "$HOME/.codebuddy/hooks/hook_heartbeat.py"; then
     python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py" <<'PY' 2>/dev/null \
-      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）、agent_turns_guard.py（子任务时限闸：派 Agent 缺 max_turns deny）、parallel_guard.py（B-04 并行闸：PreToolUse·Bash 连续单发达阈值 deny）——新会话生效" \
+      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）、agent_turns_guard.py（子任务时限闸：派 Agent 缺 max_turns deny）、parallel_guard.py（B-04 并行闸：PreToolUse·Bash 连续单发达阈值 deny）、hook_heartbeat.py（钩子自证账：各硬拦钩拦截次数落账）——新会话生效" \
       || echo " ⚠ 锚点钩子脚本已复制，但 settings.json 合并失败——手动在 hooks.UserPromptSubmit 加 command"
 import json, sys
 p, script = sys.argv[1], sys.argv[2]

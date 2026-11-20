@@ -191,11 +191,15 @@ def _current_batch(path):
     return last_mid, n
 
 
-def _beat(blocked=False, missed=False):
-    """可观测性钩子：520 当前无心跳账，import 失败即静默 noop（保留接口）。"""
+def _beat(payload=None, blocked=False, missed=False):
+    """可观测性钩子：写心跳账（v0.8.89 填实，原 noop）。
+
+    import 失败 / 账本写失败一律静默——心跳账是可观测性，绝不能反噬拦截主逻辑。
+    """
     try:
         import hook_heartbeat
-        hook_heartbeat.beat('parallel_guard.py', blocked=blocked, missed=missed)
+        hook_heartbeat.beat_from_payload(payload, 'parallel_guard.py',
+                                         blocked=blocked, missed=missed)
     except Exception:
         pass
 
@@ -308,9 +312,9 @@ def main():
                   % (_blocks_now, _threshold_for(_blocks_now), MIN_THRESHOLD), file=sys.stderr)
         print('   ① 挑出「参数不依赖前一步输出」的动作；', file=sys.stderr)
         print('   ② 下一条消息里一次性并发发出（同一消息多个工具调用块）。', file=sys.stderr)
-        _beat(True)
+        _beat(payload, True)
         return 2
-    _beat()
+    _beat(payload)
     return 0
 
 

@@ -395,14 +395,23 @@ def audit_landings():
     return {'rules': result, 'bare': bare}
 
 
-def deny_payload(rule):
-
+def deny_payload(rule, payload=None):
     """PreToolUse 的阻断载荷（协议已实测）。
 
     步骤4：落点是硬要求——命中规则但 gate_target 为 None（裸闸）时，仍 fail-closed
     照常 deny（绝不因缺落点就放行），但 reason 明确标注 ⚠裸闸 + 自检命令，
     让"缺判据落点"可见、可修；正常规则带真实判据落点（机器喂正门）。
+
+    v0.8.89 心跳账：此处是所有 Bash/Write 硬拦的共同出口（next_anchor 两路径 +
+    本模块 main），记一笔 blocked=True，回答"这个闸拦过没有"。账本写失败静默
+    fail-open，不影响 deny 本身。payload 可选：给了就按 session_id 分账。
     """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import hook_heartbeat
+        hook_heartbeat.beat_from_payload(payload, 'guard_cmd.py', blocked=True)
+    except Exception:
+        pass
     reason = f"⛔ [{rule['id']}] {rule['why']}｜正门：{rule['fix']}" + _disease_hint(rule['id'])
     _t = gate_target(rule['id'])
     if _t:
@@ -475,7 +484,7 @@ def main():
         hit = check(cmd)
     if hit:
         _bump_recurrence(hit['id'])
-        print(json.dumps(deny_payload(hit), ensure_ascii=False))
+        print(json.dumps(deny_payload(hit, payload=data), ensure_ascii=False))
         return 2
     return 0
 
