@@ -408,9 +408,10 @@ if [ "$DRY" = 0 ] && [ -f "$ROOT/hooks/next_anchor.py" ] && [ "$SCOPE" != "capab
      && cp "$ROOT/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/stop_guard.py" \
      && cp "$ROOT/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" \
      && cp "$ROOT/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" \
-     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py"; then
-    python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" <<'PY' 2>/dev/null \
-      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）、agent_turns_guard.py（子任务时限闸：派 Agent 缺 max_turns deny）——新会话生效" \
+     && cp "$ROOT/hooks/parallel_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py" \
+     && chmod +x "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/guard_cmd.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py"; then
+    python3 - "$HOME/.codebuddy/settings.json" "$HOME/.codebuddy/hooks/next_anchor.py" "$HOME/.codebuddy/hooks/stop_guard.py" "$HOME/.codebuddy/hooks/task_wait_guard.py" "$HOME/.codebuddy/hooks/agent_turns_guard.py" "$HOME/.codebuddy/hooks/parallel_guard.py" <<'PY' 2>/dev/null \
+      && echo " · 钩子已装：next_anchor.py（锚点注入 + PreToolUse 提示）、guard_cmd.py（G1–G4 硬拦截）、stop_guard.py（B-13 完成凭落点，Stop 拽回）、task_wait_guard.py（等待闸：同任务第3次阻塞等待 deny，防轮询死等）、agent_turns_guard.py（子任务时限闸：派 Agent 缺 max_turns deny）、parallel_guard.py（B-04 并行闸：PreToolUse·Bash 连续单发达阈值 deny）——新会话生效" \
       || echo " ⚠ 锚点钩子脚本已复制，但 settings.json 合并失败——手动在 hooks.UserPromptSubmit 加 command"
 import json, sys
 p, script = sys.argv[1], sys.argv[2]
@@ -493,6 +494,23 @@ if agent_guard:
             if e.get('matcher') != 'Agent':
                 e['matcher'] = 'Agent'
                 json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+
+# 并行纪律闸：PreToolUse·Bash（v0.8.88 C 步 / B-04，真源 hooks/parallel_guard.py）
+# 独立 matcher='Bash' 注册（与 next_anchor 的 Bash 条目平行：同一 matcher 可挂多个 hook，
+# 平台按数组顺序执行；不合并进 next_anchor 的 command，避免两者耦合、单独排障困难）。
+# fail-open：钩子读不到 transcript/批次时自行放行，缺锁/异常也不阻塞调用方。
+parallel_guard = sys.argv[6] if len(sys.argv) > 6 else ''
+if parallel_guard:
+    d.setdefault('hooks', {}).setdefault('PreToolUse', [])
+    pre = d['hooks']['PreToolUse']
+    has = any('parallel_guard.py' in h.get('command', '')
+              for e in pre for h in e.get('hooks', []))
+    if not has:
+        pre.append({
+            'matcher': 'Bash',
+            'hooks': [{'type': 'command', 'command': 'python3 ' + parallel_guard, 'timeout': 10}],
+        })
+        json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 sys.exit(0)
 PY
   else

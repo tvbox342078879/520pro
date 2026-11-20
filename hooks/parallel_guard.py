@@ -24,7 +24,7 @@
   · 非阻塞锁：拿不到锁跳过本轮统计，绝不阻塞
   · 工具不在 CONCURRENCY_SAFE（Edit/Write 等有写冲突风险）→ 不拦（但仍参与计数）
 
-# impl: B-04 S5   ← 判据脚本+单测在册（A 步）；未注册 PreToolUse 前不生效，注册后升 S1
+# impl: B-04 S1   ← PreToolUse·Bash 已注册（C 步）；messageId 实数判单发 + 会话隔离 + 依赖豁免
 """
 import fcntl
 import json
@@ -201,6 +201,28 @@ def _beat(blocked=False, missed=False):
 
 
 def main():
+    # --probe（病13 观测要件）：报本会话并行闸实况——hit=是否真拦过(blocks>0)，
+    # via=判定来源(state 路径 + messageId 判据)。让"闸到底生效没有"可自证，
+    # 不靠"装了脚本"这种口头承诺。无 state 时 hit=false，三态分清（没拦过≠没生效，
+    # 需配合 via 指向的 state 是否在更新判断）。
+    if '--probe' in sys.argv:
+        probe_sid = 'default'
+        if '--sid' in sys.argv:
+            try:
+                probe_sid = sys.argv[sys.argv.index('--sid') + 1]
+            except (IndexError, ValueError):
+                pass
+        ps = _state_for(probe_sid)
+        pd = _load(ps)
+        print(json.dumps({
+            'event': 'PreToolUse/Bash',
+            'hit': int(pd.get('blocks') or 0) > 0,
+            'via': 'transcript.messageId + state:' + ps,
+            'solo': int(pd.get('solo') or 0),
+            'blocks': int(pd.get('blocks') or 0),
+            'mid': pd.get('mid', ''),
+        }, ensure_ascii=False))
+        return 0
     if os.environ.get('PARALLEL_GUARD_OFF') == '1':
         return 0
     if os.environ.get('CODEBUDDY_SESSION_TYPE') == 'automation':
