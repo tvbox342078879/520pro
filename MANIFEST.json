@@ -47,6 +47,13 @@
           "self_check": "python3 scripts/cred_vault.py selftest → 13/0；python3 verify/tests/test_cred_vault.py → 20/0",
           "version": "1.0.0"
         },
+        "skills/download-probe/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/download-probe/SKILL.md",
+          "role": "下载能力探测（云取 28+52 借鉴：Range 探测识别 HTML 假成功页 + SSRF 拒内网；标准库独立实现）",
+          "entry": "scripts/probe.py",
+          "self_check": "python3 scripts/probe.py --help → usage 正常；python3 verify/tests/test_download_probe.py → 30/0",
+          "version": "1.0.0"
+        },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",
           "version": "1.1.0"

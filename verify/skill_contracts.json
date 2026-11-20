@@ -163,6 +163,20 @@
       "entry": "scripts/push_safe.sh",
       "trigger_samples": "references/trigger-samples.md"
     },
+    "download-probe": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/download-probe",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/probe.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/probe.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
     "probe-hub": {
       "kind": "skill",
       "layer": "能力层",
