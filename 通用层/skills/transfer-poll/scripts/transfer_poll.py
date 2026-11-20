@@ -19,25 +19,29 @@
 import argparse
 import hashlib
 import json
+import os
 import secrets
 import sys
 
-# ── 平台轮询间隔常量（DEX 实证：GuangYaApi 750 / QuarkApi·UCApi 1000）──
-POLL_INTERVAL_MS = {'guangya': 750, 'quark': 1000, 'uc': 1000}
-DEFAULT_INTERVAL_MS = 1000
+# ── 平台差异表已从 pan-registry 统一底座投影（云取借鉴第 10 条）──
+# 此前本文件自建 POLL_INTERVAL_MS / TEXT_IN_PROGRESS，新增平台要改多处；
+# 现从唯一真源投影，新增网盘只在 pan-registry 的 PLATFORMS 加一条，主流程零改。
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(_SKILLS, 'pan-registry', 'scripts'))
+import registry as _reg
+
+POLL_INTERVAL_MS = _reg.poll_intervals()
+DEFAULT_INTERVAL_MS = _reg.default_poll_ms()
 
 # ── 终态判定（DEX 读 status/detail/code/finished_at）──
 # 约定：done 集合 = 成功终态；failed 集合 = 失败终态；其余 = pending（继续轮询）。
 DONE_STATUSES = {'done', 'success', 'completed', 'finished', '2'}
 FAILED_STATUSES = {'failed', 'error', 'canceled', 'cancelled', 'expired', '-1', '3'}
 
-# ── 用户可读文案（DEX 实证原文）──
+# ── 用户可读文案：进度文案从 pan-registry 投影（DEX 实证原文）──
 TEXT_QUERY_FAILED = '任务状态查询失败'
-TEXT_IN_PROGRESS = {
-    'guangya': '光鸭操作仍在处理中，请稍后刷新列表确认结果',
-    'quark': '夸克操作仍在处理中，请稍后刷新',
-    'uc': 'UC 操作仍在处理中，请稍后刷新',
-}
+TEXT_IN_PROGRESS = _reg.progress_texts()
+DEFAULT_PROGRESS_TEXT = _reg.default_progress_text()
 DEVICE_SIGN_PREFIX = 'div101.'
 
 
@@ -57,7 +61,7 @@ def classify_task(status, detail='', code=None, platform='guangya'):
                 'continue_polling': False}
     # 未知/空 → pending（继续轮询），不折叠成成功
     return {'status': 'pending',
-            'text': TEXT_IN_PROGRESS.get(platform, '操作仍在处理中，请稍后刷新'),
+            'text': TEXT_IN_PROGRESS.get(platform, DEFAULT_PROGRESS_TEXT),
             'continue_polling': True}
 
 

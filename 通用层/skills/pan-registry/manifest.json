@@ -1,0 +1,11 @@
+{
+  "name": "pan-registry",
+  "version": "1.0.0",
+  "kind": "lib",
+  "role": "网盘 provider 统一注册表：分享正则/有效期/轮询间隔/进度文案四类差异收敛到唯一一张 PLATFORMS 表，新增网盘只加一条记录、四类投影自动可见。无 SKILL.md，平台不注册不路由，只被 share-parser / transfer-poll import。",
+  "entry": "scripts/registry.py",
+  "owner_skills": ["share-parser", "transfer-poll"],
+  "layer": "通用层",
+  "dependency_direction": "通用层内部：share-parser / transfer-poll 按 parents[2]=skills 根的相对路径 import 本 lib；本 lib 不反向依赖任何技能、零外部依赖（纯标准库 re）。",
+  "no_skills_md": true
+}

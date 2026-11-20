@@ -616,6 +616,18 @@ if [ -f "$TARGET/verify/tests/test_handoff.py" ]; then
   fi
 fi
 
+# ★ 云取借鉴第 10 条（统一底座）：pan-registry 单一真源判据接电。
+#   正向全过 ✓；反向注册表缺失/两技能没投影/元变异不生效即 ✗（病15 识别范围=对象范围）。
+if [ -f "$TARGET/verify/tests/test_pan_registry.py" ]; then
+  prout="$(python3 "$TARGET/verify/tests/test_pan_registry.py" 2>&1)"
+  if [ $? -eq 0 ]; then
+    ok "pan-registry 单一真源 + 两技能投影 + 元变异有牙（第 10 条可核）"
+  else
+    no "pan-registry 判据未过（新增网盘仍要一个一个改）"
+    printf '%s\n' "$prout" | grep '  ✗ ' | head -3 | sed 's/^/     /'
+  fi
+fi
+
 # ★ v0.8.22（工程J·B-16）：双核必保——probe-hub 与 tvbox-core 是硬依赖，不是"最好有"。
 #   core.py 被 probe-hub 全量 import，缺了不是"某个功能不好使"，是探源司整片 ModuleNotFoundError。
 #   判据只查"在不在"（版本归契约 C4，不在这里重复判），位置取仓内真源，不取安装副本——

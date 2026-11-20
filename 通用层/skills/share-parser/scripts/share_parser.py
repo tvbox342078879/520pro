@@ -12,27 +12,26 @@
 """
 import argparse
 import json
+import os
 import re
 import sys
 
-# ── 平台 shareId 规则表（新增平台只加一条，不动 parse_share 主流程）──
-# (平台名, shareId 正则, shareId 捕获组序号)
-PLATFORM_RULES = [
-    ('quark', re.compile(r'pan\.quark\.cn/s/([A-Za-z0-9]+)', re.I), 1),
-    ('baidu', re.compile(r'pan\.baidu\.com/s/(1[A-Za-z0-9_-]+)', re.I), 1),
-    ('115', re.compile(r'115(?:cdn|rc)?\.com/(sw[A-Za-z0-9]{8,})-([A-Za-z0-9]{4,8})', re.I), 1),
-    ('lanzou', re.compile(r'lanzou[a-z]*\.com/([A-Za-z0-9]+)', re.I), 1),
-    ('xunlei', re.compile(r'pan\.xunlei\.com/s/([A-Za-z0-9]+)', re.I), 1),
-    ('mobile', re.compile(r'caiyun\.139\.com/(?:s|share)/([A-Za-z0-9]+)', re.I), 1),
-]
+# ── 平台差异表已从 pan-registry 统一底座投影（云取借鉴第 10 条）──
+# 此前本文件自建 PLATFORM_RULES，新增平台要改多处；现改为从唯一真源投影，
+# 新增网盘只在 pan-registry 的 PLATFORMS 加一条，本文件主流程零改。
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(_SKILLS, 'pan-registry', 'scripts'))
+import registry as _reg
+
+PLATFORM_RULES = _reg.share_rules()   # 投影：(平台名, 编译正则, 捕获组序号)
 URL_RE = re.compile(r'https?://[^\s<>"\']+', re.I)
 
 # ── 密码双通道：URL query 优先，全文中文标签回退 ──
 PWD_QUERY_RE = re.compile(r'[?&](?:pwd|pass|passcode|password)=([A-Za-z0-9]{4,12})', re.I)
 PWD_TEXT_RE = re.compile(r'(?:提取码|访问码|密码)[：:\s]*([A-Za-z0-9]{4,8})', re.I)
 
-# ── 有效期代码映射（DEX ShareExpire.fromCode/toText 实证）──
-EXPIRE_CODES = {-1: '永久有效', 1: '1 天', 3: '3 天', 7: '7 天', 15: '15 天'}
+# ── 有效期代码映射：从 pan-registry 投影（DEX ShareExpire.fromCode/toText 实证）──
+EXPIRE_CODES = _reg.expire_codes()
 
 
 class UnknownExpireCode(Exception):

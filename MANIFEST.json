@@ -144,6 +144,12 @@
           "role": "熔铸司共享引擎内核（lib，无 SKILL.md，不注册不路由）：26 工具 inputSchema + 真调配方 / 参数链规则 / jadx_engine.py 泛化引擎",
           "entry": "scripts/core.py",
           "version": "1.1.0"
+        },
+        "skills/pan-registry/": {
+          "install_to": "~/.codebuddy/skills/pan-registry/",
+          "role": "网盘 provider 统一注册表（lib，无 SKILL.md，不注册不路由）：分享正则/有效期/轮询间隔/进度文案四类差异收敛唯一真源，新增网盘只加一条、两技能投影自动可见（云取借鉴第 10 条）",
+          "entry": "scripts/registry.py",
+          "version": "1.0.0"
         }
       }
     },
