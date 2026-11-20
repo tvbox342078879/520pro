@@ -54,6 +54,20 @@
           "self_check": "python3 scripts/probe.py --help → usage 正常；python3 verify/tests/test_download_probe.py → 30/0",
           "version": "1.0.0"
         },
+        "skills/diag-ops/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/diag-ops/SKILL.md",
+          "role": "诊断运维三件套（云取 53+3+48 借鉴：启动对账幂等+崩溃现场导出+日志脱敏；标准库独立实现）",
+          "entry": "scripts/diag_ops.py",
+          "self_check": "python3 scripts/diag_ops.py --selftest → OK；python3 verify/tests/test_diag_ops.py → 34/0",
+          "version": "1.0.0"
+        },
+        "skills/market-verify/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/market-verify/SKILL.md",
+          "role": "技能市场包完整性校验链（云取 4+25+47 借鉴：sha256/体积/签名三重校验+schema版本门控+安装失败回滚；标准库独立实现）",
+          "entry": "scripts/market_verify.py",
+          "self_check": "python3 scripts/market_verify.py --selftest → OK；python3 verify/tests/test_market_verify.py → 27/0",
+          "version": "1.0.0"
+        },
         "skills/transfer-poll/SKILL.md": {
           "install_to": "~/.codebuddy/skills/transfer-poll/SKILL.md",
           "role": "云转存轮询状态机+设备标识（云取 32+56/23 借鉴：task_id 三态+平台间隔表+div101 签名；标准库独立实现）",
