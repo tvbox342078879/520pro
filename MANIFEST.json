@@ -7,7 +7,7 @@
     "新生态 v0.1.0",
     "368817 存活素材"
   ],
-  "core_upgrade": "TVBox 技能从项目级（不路由）升至用户级（平台注册可路由、跨项目、云端沙箱执行、手机可触发）",
+  "core_upgrade": "TVBox 技能从项目子目录升至用户级（跨项目、云端沙箱执行、手机可触发）；2026-11-21 订正——旧『项目级不路由』是探针放错子目录的误判，放对平台根 /workspace 也路由，升用户级理由改为跨项目/跨设备",
   "deploy_modes": {
     "user-skill": "通用层→~/.codebuddy + TVBox→~/.codebuddy（★推荐）",
     "capability-only": "TVBox→<项目>/.codebuddy（项目隔离）",
@@ -250,7 +250,7 @@
     "CODEBUDDY_md_injection": "真阳性（368817：仅 CODEBUDDY.md 被注入）",
     "user_core8_load": "一次真阳性；手机历史真阴性 → 双轨兜底",
     "conditional_paths_injection": "真阴性（不注入，仅示例）",
-    "project_level_skill_routing": "真阴性（不进 active 列表）",
+    "project_level_skill_routing": "2026-11-21 二次实测订正为『真阳性（放对平台项目根 /workspace/.codebuddy/skills 即路由；旧『不路由』是把探针放子目录 520pro 的误判）』",
     "user_skill_cross_device_to_new_phone": "分环境：①持久环境（桌面沙箱/云电脑）装一次长期可用，Skill 工具自动发现加载（云电脑 02:01 实证）；②手机普通聊天会话沙箱每次新建，装了即丢，需每次重装或走账号库",
     "probe_hub_monitor_status": "真阳性（隔离 HOME 实测：输出 186 个监测目标，带存活/活跃度/判定依据）",
     "probe_hub_without_core": "真阴性（缺 tvbox-core 必报 ModuleNotFoundError: No module named core）",
@@ -258,7 +258,7 @@
     "phone_channel_account_command": "真阳性·兜底（开场自检自动重装 ~30s + 命令直达；持久环境里 Skill 自动发现是正路）",
     "mobile_pretooluse_hook": "真阳性（2026-11-12 实测：手机端会话 PreToolUse:Bash 实际拦截并给出拒绝文案）。来源不是平台内建、也不是 520 装的，而是旧生态备份仓 DmaxPro908 的 hooks/chain_guard.py 经 restore.py 还原进该环境；判据见 docs/钩子来源判定.md。旧结论「手机不跑钩子」据此作废",
     "sandbox_persistence_desktop": "真阳性（桌面沙箱 ~/.codebuddy 跨会话持久）",
-    "sandbox_persistence_phone": "真阴性（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 全部消失）",
+    "sandbox_persistence_phone": "真阴性仅指本地副本（手机云沙箱每次会话新建，2026-11-12 实测：~/520pro 与自装 skills 本地副本全部消失）——2026-11-21 订正：这不等于『能力丢失/不可用』，记忆与能力真源在 git 远端，bootstrap.sh 幂等 clone/pull 可从 git 重拉（docs/skills/verify 全在恢复清单），开场自检自动重装；持久本地副本真阴性 ≠ 能力可用性真阴性，勿混为一谈",
     "version_skew_trap": "真阳性教训：方案 C 改造未升版本号，新旧都叫 v1.20.8，手机端误载旧版（probe.py 9,051 行新版 vs 10,319 行旧版，harvest pan 在 9968 行处可判）。已升 probe-hub 1.21.0 / learn-hub 1.2.0 / tvbox-pipeline 1.0.0",
     "skill_discovery_mechanism": "真阳性·关键修正（2026-11-12 02:31）：Skill 工具扫描的是会话环境里的 ~/.codebuddy/skills/ 目录——文件在就能被发现并加载，不依赖账号技能库。之前『手工件不被检索』的判断错误，真实原因只是沙箱重建后文件消失",
     "project_rules_always_apply": "真阳性（2026-11-12 03:17 沙箱实测）：项目级 .codebuddy/rules/ + alwaysApply:true，在全新构建的上下文（子代理=新会话等价物）中自动注入，金丝雀 B7X9Q-ALWAYS 被原文引用。此前「项目级规则不注入」的定案作废——旧实验不满足官方两个前置条件（新会话 + 工作目录在项目根）",

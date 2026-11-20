@@ -3470,6 +3470,28 @@
    "result": "ok",
    "event_ref": "commit 7969145",
    "note": "历史欠账真补 F08 共3条，一手 commit message 落库，commits: d8b5b6a,fa38bb8,d54d9e9，event_ref 指回 commit 交 scan 逐条核销"
+  },
+  {
+   "ts": "2026-11-21T07:47:42",
+   "round": "archive 欠账真补_D-1263349-F02.md @1263349",
+   "artifact": "欠账真补_D-1263349-F02.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "trBfAE8ae0KpJWzuEpIyV8",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 1263349",
+   "note": "1263349 方法论欠账真补，event_ref=commit 1263349（fallback 父 baade94），交 scan 核销"
+  },
+  {
+   "ts": "2026-11-21T07:47:59",
+   "round": "archive 欠账真补_D-1263349-F06.md @1263349",
+   "artifact": "欠账真补_D-1263349-F06.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "ZrWfCRHWBXZ5G7jfSzvLHC",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 1263349",
+   "note": "1263349 复盘判例欠账真补，event_ref=commit 1263349（fallback 父 baade94），交 scan 核销"
   }
  ]
 }
