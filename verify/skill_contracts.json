@@ -177,6 +177,34 @@
       "entry": "scripts/probe.py",
       "trigger_samples": "references/trigger-samples.md"
     },
+    "transfer-poll": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/transfer-poll",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/transfer_poll.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/transfer_poll.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
+    "share-parser": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/share-parser",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/share_parser.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/share_parser.py",
+      "trigger_samples": "references/trigger-samples.md"
+    },
     "probe-hub": {
       "kind": "skill",
       "layer": "能力层",

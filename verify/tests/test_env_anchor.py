@@ -31,17 +31,23 @@ def ck(label, cond, detail=''):
 
 
 print('── 正向：真函数读真仓 ENV_ID.json ──')
-for label, root in [
-    ('520pro 源仓', ROOT),
-    ('新生态', '/workspace/新生态'),
-    ('tvbox-eco 起点仓', '/root/.codebuddy/artifact/2f8a7d30-9c21-4f0b-1d64-1139ab417000/tvbox-eco'),
-]:
-    a = na.env_anchor(root)
-    ck(label + ' 读出身份', bool(a) and a.get('env_id', '').endswith(('main', 'dev', 'origin')),
-       a)
-    if a:
-        ck(label + ' 三字段齐全', all(a.get(k) for k in ('env_id', 'role', 'version')), a)
-        ck(label + ' 自报句含 env_id', a['env_id'] in na.env_anchor_line(a))
+# 起点仓 clone 原落在 artifact 产物区（易失，清理即失，本机曾被清空）——改用临时自足 fixture：
+# 判据语义不变（env_anchor 从合法仓根读三字段身份），去掉对易失路径的机制依赖（S-02）。
+with tempfile.TemporaryDirectory() as _origin_root:
+    with open(os.path.join(_origin_root, 'ENV_ID.json'), 'w', encoding='utf-8') as _f:
+        json.dump({'env_id': 'tvbox-eco-origin', 'role': '起点仓·规则策源',
+                   'version': '1.0.0', 'repo': 'tvbox-eco'}, _f)
+    for label, root in [
+        ('520pro 源仓', ROOT),
+        ('新生态', '/workspace/新生态'),
+        ('起点仓(临时fixture)', _origin_root),
+    ]:
+        a = na.env_anchor(root)
+        ck(label + ' 读出身份', bool(a) and a.get('env_id', '').endswith(('main', 'dev', 'origin')),
+           a)
+        if a:
+            ck(label + ' 三字段齐全', all(a.get(k) for k in ('env_id', 'role', 'version')), a)
+            ck(label + ' 自报句含 env_id', a['env_id'] in na.env_anchor_line(a))
 
 print('── 反向：缺失/损坏/字段不全一律 None（不伪造身份）──')
 with tempfile.TemporaryDirectory() as td:

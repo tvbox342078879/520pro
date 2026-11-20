@@ -54,6 +54,20 @@
           "self_check": "python3 scripts/probe.py --help → usage 正常；python3 verify/tests/test_download_probe.py → 30/0",
           "version": "1.0.0"
         },
+        "skills/transfer-poll/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/transfer-poll/SKILL.md",
+          "role": "云转存轮询状态机+设备标识（云取 32+56/23 借鉴：task_id 三态+平台间隔表+div101 签名；标准库独立实现）",
+          "entry": "scripts/transfer_poll.py",
+          "self_check": "python3 scripts/transfer_poll.py --selftest → OK；python3 verify/tests/test_transfer_poll.py → 37/0",
+          "version": "1.0.0"
+        },
+        "skills/share-parser/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/share-parser/SKILL.md",
+          "role": "网盘分享链接统一解析（云取 26+33 借鉴：平台正则表+密码双通道+有效期代码映射；标准库独立实现）",
+          "entry": "scripts/share_parser.py",
+          "self_check": "python3 scripts/share_parser.py --selftest → OK；python3 verify/tests/test_share_parser.py → 33/0",
+          "version": "1.0.0"
+        },
         "skills/artifact-store/SKILL.md": {
           "role": "本地产物轻量化·防手机卡顿",
           "version": "1.1.0"
