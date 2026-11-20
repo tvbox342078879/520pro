@@ -409,6 +409,62 @@ def waive(ids, until, why, by='agent'):
     return 2 if bad else 0
 
 
+def _reopen_check(status, why, today=None):
+    """解除豁免校验（纯函数，供 selftest 正反向）。返回 (ok, 原因)。
+
+    两道硬条件，堵两种洗绿：
+      · 非 waived 账 reopen → 改历史（closed 是终态；open 本就在核销路径上，无需 reopen）
+      · why 空话 → 无主无期（B-14）：解除豁免必须写实「为什么现在要重判」
+    与 _waive_check 对称：waive 是 open→waived（带期限），reopen 是 waived→open（带原因）。
+    reopen 只改状态、绝不写 closed；是否真还清仍由 scan 的 _closed 判据决定（不假绿）。
+    """
+    if status != 'waived':
+        return False, f'只有 waived 账可解除豁免（当前 {status}）；open/closed 不许 reopen'
+    why = (why or '').strip()
+    if len(why) < 20:
+        return False, f'理由需 ≥20 字且写实（当前 {len(why)} 字）：不是"清账/销掉"这类无主无期的话'
+    return True, ''
+
+
+def reopen(ids, why, by='agent'):
+    """解除豁免正门（waived → open）：让账重新进入 scan 的核销重判路径。
+
+    为什么要有这个入口：waived 是「带期限的暂缓」，不是「永久绿」。当初 waive 的前提
+    （如 connector 未绑定 / 判据盲区）若已消失，账必须能合法回到 open，让 scan 用真实
+    回执机器核销——否则只能手改 JSON（=模型手工记账，违反本文件 _doc 口径），或乾脆
+    等到期自动转 open（复检窗口被动）。reopen 只改状态 + 留审计痕迹，不碰 closed；
+    解豁免后有没有回执、能不能真销，一律由 scan 的 _closed 判据判（不静默洗绿）。
+    """
+    debt = load_json(DEBT)
+    if not debt:
+        print('  · [delivery-probe] 无法判定：delivery_debt.json 不可读')
+        return 2
+    rows = {d['id']: d for d in debt.get('debts', [])}
+    bad, done = [], []
+    for i in ids:
+        d = rows.get(i)
+        if not d:
+            bad.append((i, '账本无此 id（先 --list 看清单，别猜）'))
+            continue
+        ok, msg = _reopen_check(d.get('status', ''), why)
+        if not ok:
+            bad.append((i, msg))
+            continue
+        d['status'] = 'open'
+        d['age_commits'] = 0
+        d['reopen_by'] = by
+        d['reopen_ts'] = datetime.datetime.now().isoformat(timespec='seconds')
+        d['note'] = (d.get('note', '') + f'｜解除豁免：{why.strip()}').strip('｜')
+        done.append(i)
+    if done:
+        debt['updated'] = datetime.date.today().isoformat()
+        save_json_atomic(DEBT, debt)
+        print(f'🔓 已解除豁免 {len(done)} 条（转 open 交 scan 核销判据重判，不写 closed）：' + '，'.join(done))
+    for i, m in bad:
+        print(f'  ✗ {i}：{m}')
+    return 2 if bad else 0
+
+
 def scan(limit=None, quiet=False):
     cs = load_json(CS)
     led = load_json(LEDGER)
@@ -739,6 +795,44 @@ def selftest():
     wcase('改历史', 'closed', (today + datetime.timedelta(days=30)).isoformat(),
           '判据盲区期的历史旧账，按不回溯原则不追补', False)
 
+    # ── 解除豁免（--reopen）正反 + 元变异：只转 open、不写 closed、不静默销账
+    print('── reopen 正向：waived + 写实理由 → 放行')
+    def rcase(name, status, why, want):
+        nonlocal ok
+        got, msg = _reopen_check(status, why, today=today)
+        good = got == want
+        ok = ok and good
+        print(f'  {"✓" if good else "✗"} {name}：{"放行" if got else "拒绝"}（期望 {"放行" if want else "拒绝"}）'
+              + ('' if got else f' — {msg[:40]}'))
+    rcase('waived+写实理由', 'waived', '判据盲区前提已消失，解除豁免交 scan 用真实回执重判', True)
+    print('── reopen 反向①：open 账 → 拒（本就在核销路径上）')
+    rcase('open账', 'open', '判据盲区前提已消失，解除豁免交 scan 用真实回执重判', False)
+    print('── reopen 反向②：closed 账 → 拒（终态不许改）')
+    rcase('closed账', 'closed', '判据盲区前提已消失，解除豁免交 scan 用真实回执重判', False)
+    print('── reopen 反向③：空话理由 → 拒（无主无期，B-14）')
+    rcase('理由空话', 'waived', '清账', False)
+
+    # 元变异：reopen 真函数只能把 waived→open，绝不写 closed（写 closed=静默洗绿）。
+    # 用临时账本跑真函数，断言 status=='open' 且 closed_by 未被写入。
+    import tempfile
+    global DEBT
+    _orig_debt = DEBT
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            fixture = os.path.join(td, 'delivery_debt.json')
+            json.dump({'debts': [
+                {'id': 'D-test-F06', 'status': 'waived', 'waived_until': '2026-12-31',
+                 'commit': 'test000', 'flow': 'F06', 'folder': 'x', 'closed_by': ''}
+            ]}, open(fixture, 'w'))
+            DEBT = fixture
+            reopen(['D-test-F06'], '判据盲区前提已消失，解除豁免交 scan 用真实回执重判')
+            after = json.load(open(fixture))['debts'][0]
+            good = after['status'] == 'open' and not after.get('closed_by') and after.get('reopen_by') == 'agent'
+            ok = ok and good
+            print(f'  {"✓" if good else "✗"} 元变异-reopen只转open不写closed：status={after["status"]} closed_by={after.get("closed_by")!r}（期望 open/空）')
+    finally:
+        DEBT = _orig_debt
+
     print('✓ selftest 全通过（探测器活着，正反向皆如预期）' if ok
           else '✗ selftest 有失败——闸失灵，不许上线')
     return 0 if ok else 2
@@ -811,6 +905,16 @@ if __name__ == '__main__':
             print('  ✗ --waive 需要至少一个欠账 id（先 --list 看清单）')
             sys.exit(2)
         sys.exit(waive(ids, until, why))
+    if '--reopen' in a:
+        ids, i = [], a.index('--reopen') + 1
+        while i < len(a) and not a[i].startswith('--'):
+            ids.append(a[i])
+            i += 1
+        why = a[a.index('--why') + 1] if '--why' in a else ''
+        if not ids:
+            print('  ✗ --reopen 需要至少一个欠账 id（先 --list 看清单）')
+            sys.exit(2)
+        sys.exit(reopen(ids, why))
     lim = None
     if '--commits' in a:
         lim = int(a[a.index('--commits') + 1])

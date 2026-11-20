@@ -3415,6 +3415,61 @@
    "result": "ok",
    "event_ref": "commit 513069b",
    "note": "market-verify(4·25·47)+diag-ops(53·3·48) 两技能逐项交付与三态边界"
+  },
+  {
+   "ts": "2026-11-21T06:49:12",
+   "round": "archive 历史欠账真补_F03_2026-11-21.md @7969145",
+   "artifact": "历史欠账真补_F03_2026-11-21.md",
+   "target": "🧬 520进化论/02-生态总览",
+   "node_id": "JYFCtKpxQDm2LdsFk6hXwy",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 7969145",
+   "note": "历史欠账真补 F03 共1条 commit d8b5b6a，一手 commit message 落库，event_ref 指回 commit 交 scan 核销"
+  },
+  {
+   "ts": "2026-11-21T06:49:59",
+   "round": "archive 历史欠账真补_F02_2026-11-21.md @7969145",
+   "artifact": "历史欠账真补_F02_2026-11-21.md",
+   "target": "🧬 520进化论/01-方法论",
+   "node_id": "KJVZXeU0mHit2E2IXzA5m4",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 7969145",
+   "note": "历史欠账真补 F02 共17条，一手 commit message 落库，commits: 13ea480,46fc914,903ada7,fbac7c0,7b1769d,af35bf3,c1fd64d,d6262dd,34e7ea2,76c7db5,90d62a6,bd8dc18,c30284b,cebfff8,d506994,d54d9e9,f1781e0，event_ref 指回 commit 交 scan 逐条核销"
+  },
+  {
+   "ts": "2026-11-21T06:50:02",
+   "round": "archive 历史欠账真补_F04_2026-11-21.md @7969145",
+   "artifact": "历史欠账真补_F04_2026-11-21.md",
+   "target": "🧬 520进化论/03-子项目演进",
+   "node_id": "N4DSDJ3q0h1HrnF72JoBIc",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 7969145",
+   "note": "历史欠账真补 F04 共12条，一手 commit message 落库，commits: 27ef5a0,3928d52,556bf7a,56f6031,94242f8,203b28f,7b1769d,d6262dd,1cfa501,1d9de78,cebfff8,d506994，event_ref 指回 commit 交 scan 逐条核销"
+  },
+  {
+   "ts": "2026-11-21T06:50:05",
+   "round": "archive 历史欠账真补_F06_2026-11-21.md @7969145",
+   "artifact": "历史欠账真补_F06_2026-11-21.md",
+   "target": "🧬 520进化论/05-复盘与判例",
+   "node_id": "T7nuADRDS64vHPTjkOAFwJ",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 7969145",
+   "note": "历史欠账真补 F06 共22条，一手 commit message 落库，commits: 1954613,27ef5a0,29fd198,3928d52,56f6031,6529043,6ed5df1,94242f8,ca47338,d1d8b4a,ea5f161,0cbf1b5,10d0f35,13ea480,46fc914,6735a4b,7b1769d,90d62a6,bd8dc18,cebfff8,d506994,d54d9e9，event_ref 指回 commit 交 scan 逐条核销"
+  },
+  {
+   "ts": "2026-11-21T06:50:09",
+   "round": "archive 历史欠账真补_F08_2026-11-21.md @7969145",
+   "artifact": "历史欠账真补_F08_2026-11-21.md",
+   "target": "🧬 520进化论/07-落地监测",
+   "node_id": "YiebjVB7RcuPemGaq9nFNc",
+   "idx_row": "",
+   "result": "ok",
+   "event_ref": "commit 7969145",
+   "note": "历史欠账真补 F08 共3条，一手 commit message 落库，commits: d8b5b6a,fa38bb8,d54d9e9，event_ref 指回 commit 交 scan 逐条核销"
   }
  ]
 }
