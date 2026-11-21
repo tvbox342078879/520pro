@@ -1,3 +1,10 @@
+## v1.28.11 — harvest scan 三态折叠修复：404 不再冒充"网络失败"（2026-11-22）
+- **需求**：重采试点 10 仓，5 仓 `scan rc=2「全部候选拉取失败＝网络问题」`，每仓白等 112–150s；但独立 tree/API 诊断铁证显示 API 全 HTTP 200、仓库根本无配置文件。用户要求"从脚本根源解决、不返工、用实测数据"。
+- **根因（实测）**：`core.http_get` 在默认 `err_body=False` 下对 HTTP 404/410 返回 `('error', None, 'http_404')`——状态码只在 reason、payload=None。旧 `_fetch` 只认 `st=='ok'` 的 `(code,body)`（尾部 `code in (404,410)` 只对 ok 分支生效），于是 error+404 走不到 notfound，被折叠成 `fail`→ 逐个重试 3 条 URL ×2 次（实测 config.json 28.8s/候选）→ scan 判 `n_fail==n_tried` 报 rc=2，把"文件不存在（真阴性）"说成"网络问题（无法判定）"。病15 同型：识别范围（拉取返回 error）≠ 对象范围（文件真不在）。
+- **落地**：`probe.py#_fetch` 循环加一条早退——`st=='error' and reason in ('http_404','http_410')` → 直接 `('notfound','')`，不重试镜像（镜像改变的只是"从哪拉"，改变不了"有没有"）；其余 error（conn/timeout/dns/5xx）仍按原逻辑重试，不冒充 notfound。改动 11 行、只碰 `_fetch`，不动 core.py 双核、不动现有 selftest。
+- **判据**：`scripts/test_fetch_tristate.py` 6+ 向量（http_404/410→notfound 且早退调用=1；ok+(404,body) 旧路径不回归；conn/timeout/dns/503→fail）；`verify/tests/test_fetch_tristate.py` 薄壳转发供 glob 发现。端到端实测 tvbox_live 4 候选全 `notfound`（改前 `fail`）。
+- **效果**：修复后 scan 对"仓库无配置"正确判 rc=1"未找到可解析线路文件"（真阴性），不再误报 rc=2 网络问题；404 早退消除无效镜像重试。三态口径：`不能把"文件不存在"说成"网络失败"`，与 monitor 侧 S088 同源。
+
 ## v1.28.10 — parse4k：4K解析批量探测按实测不按标签（2026-11-22）
 - **需求**：用户三问「未标4K会不会漏检」成立——作者包 8 条 parses 只测了标 4K 的 1 条，7 条未标漏测；且外部十几条名字标 4K 的接口实测全翻车（超时/404/功能不符）。要把「按实测不按标签」固化成可复用能力，不只是一次性脚本。
 - **落地**：新增 `scripts/parse4k_scan.py`——扫配置全部 parses（不按名字/type 过滤）→ 4K片源逐条打 → 读回流 mpd/m3u8 清单分辨率判真伪。判据委托 `quality.py#resolution_level`（宽高任一达标判 4K，M2 不复制），取流复用 `quality._curl`。三态：真4K/非4K/无法判定；名字标4K但实测1080p判非4K（标签证伪）。

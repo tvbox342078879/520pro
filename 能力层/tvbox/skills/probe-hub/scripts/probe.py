@@ -1620,7 +1620,17 @@ def _fetch(url, timeout=15):
             if _try:
                 time.sleep(1)
             # C1：底层取数统一走 core.http_get（保留镜像重试/慢标记/状态码语义）
-            st, _pl, _ = http_get(_u, timeout=_t0, ua=UA, return_status=True)
+            st, _pl, _why = http_get(_u, timeout=_t0, ua=UA, return_status=True)
+            # ★ S234 修（病15·三态折叠）：core.http_get 在 err_body=False 下对 HTTP 404/410
+            #   返回 ('error', None, 'http_404')——状态码只在 reason 里、payload 为 None。
+            #   原 _fetch 只认 st=='ok' 的 (code,body)，于是"目标文件不存在"（真阴性 notfound）
+            #   被折叠成"拉取失败"fail，进而重试全部镜像（实测 28.8s/候选），最终 scan 报
+            #   rc=2"全部候选拉取失败＝网络问题"，把"仓库无此配置"误说成"无法判定"。
+            #   正确：error + http_404/410 = 文件不存在，立即判 notfound 早退——
+            #   文件真不在时重试镜像毫无意义（镜像改变的只是"从哪拉"，改变不了"有没有"）。
+            #   其余 error（conn/timeout/http_5xx）仍按原逻辑重试，不得冒充 notfound。
+            if st == 'error' and _why in ('http_404', 'http_410'):
+                return 'notfound', ''
             if st == 'ok' and _pl:
                 _code, _body = _pl            # _pl = (http_status, text)
                 out = f'{_body}\n{_code}'     # 维持 rpartition('\n') 解析契约
