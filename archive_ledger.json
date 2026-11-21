@@ -3536,6 +3536,28 @@
       "result": "ok",
       "event_ref": "commit 93b8718",
       "note": "93b8718 F04 子项目演进欠账真补，event_ref=commit 93b8718，交 scan 核销"
+    },
+    {
+      "ts": "2026-11-21T23:04:58",
+      "round": "archive 欠账真补_D-38ba138-F02.md @38ba138",
+      "artifact": "欠账真补_D-38ba138-F02.md",
+      "target": "🧬 520进化论/01-方法论",
+      "node_id": "jTytuRsn4ndO4tVyq2GL89",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 38ba138",
+      "note": "38ba138 F02 方法论落库：4K判据宽高任一达标+HLS/DASH双支持，event_ref=commit 38ba138"
+    },
+    {
+      "ts": "2026-11-21T23:05:02",
+      "round": "archive 欠账真补_D-38ba138-F06.md @38ba138",
+      "artifact": "欠账真补_D-38ba138-F06.md",
+      "target": "🧬 520进化论/05-复盘与判例",
+      "node_id": "cc3YWMVLfihBzEytDqF0zC",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 38ba138",
+      "note": "38ba138 F06 判例落库：牛马4K解析真伪取证链，流清单分辨率证伪标题标签，event_ref=commit 38ba138"
     }
   ]
 }
