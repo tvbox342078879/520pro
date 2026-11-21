@@ -169,7 +169,8 @@ def mut_c4_contracts(repo, install):
     orig = read(p)
     d = json.loads(orig)
     target = d['skills']['probe-hub']
-    assert target['version'] == '1.28.9', f"contracts 版本已变（{target['version']}），变异失效"
+    # 动态读当前版本（不写死）：升版后本变异不得失效（S-02 从机制修，非打补丁改数字）
+    assert target['version'] and target['version'] != '0.0.1', 'contracts 版本缺失或已是变异值，变异失效'
     target['version'] = '0.0.1'
     new = json.dumps(d, ensure_ascii=False, indent=2)
     write(p, new)
@@ -184,9 +185,12 @@ def mut_c4_manifest(repo, install):
     target = '"tvbox/skills/probe-hub/": {'
     i = orig.find(target)
     assert i >= 0, 'MANIFEST 无 probe-hub 条目'
-    seg_end = orig.find('"version": "1.28.9"', i)
-    assert 0 <= seg_end < i + 600, 'probe-hub 段内无 version 1.28.9'
-    new = orig[:seg_end] + '"version": "0.0.1"' + orig[seg_end + len('"version": "1.28.9"'):]
+    # 动态读当前版本（不写死）：从 contracts.json 取 probe-hub 现版本构造 needle
+    cj = json.load(open(os.path.join(repo, 'verify/skill_contracts.json'), encoding='utf-8'))
+    needle = '"version": "%s"' % cj['skills']['probe-hub']['version']
+    seg_end = orig.find(needle, i)
+    assert 0 <= seg_end < i + 600, f'probe-hub 段内无 {needle}'
+    new = orig[:seg_end] + '"version": "0.0.1"' + orig[seg_end + len(needle):]
     write(p, new)
     assert read(p) != orig, '变异未落盘'
     return (lambda: write(p, orig)), orig

@@ -102,6 +102,14 @@
       "action": "①只对成品源库有意义（线路源库全是 csp/本地形态，沙箱无 spider，实测 620/620 无法判定）②沙箱测速仅作同批相对比较，不得当绝对值③评分以画质为基准、速度/首片只在基准上加减，保证画质档位严格单调"
     },
     {
+      "no": 11,
+      "name": "4K解析批量探测（不按标签按实测）",
+      "rule": "判断解析接口能否出4K，不能按名字里的4K标签——标签≠能力（病15），必须实测流清单分辨率",
+      "cmd": "python3 parse4k_scan.py --config <配置> --sample <4K片源> [--json-out out.json]",
+      "artifact": "每条解析 → 真4K/非4K/无法判定 + 流清单分辨率证据",
+      "action": "①扫配置全部parses不按名字/type过滤（防漏检）②用已知4K片源逐条打，读回流mpd/m3u8的height>=2160 or width>=3840才判真4K（委托quality.py）③超时记无法判定非失败④名字标4K但实测1080p判非4K⑤作者包实测8条：牛马真4K+5无法判定+2非http跳过"
+    },
+    {
       "id": "S194",
       "name": "写源模块增强：留档审计 + 站点画像（借鉴道长 spider-craft）",
       "desc": "forge audit 七项闸门查 sources/ 账实一致性（索引可读/file唯一/四要素/双向对账[孤儿WARN·幽灵FAIL]/内部计数自洽/在册必须「通过」/时间可解析；FAIL→exit1、WARN→exit0、索引坏→exit2）；forge profile 39 项特征扫描→防御等级 0-4→CMS 判定，道长 modules_for 改造为 next_steps 推荐探源司命令；quality.bandwidth_trust BANDWIDTH 全等/矛盾不可信（只作证据不改分）；livecheck 仅父级补 pagecount/total 聚合判据（「1 条数据配 697 页」）。",

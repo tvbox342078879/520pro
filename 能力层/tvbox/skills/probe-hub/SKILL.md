@@ -1,7 +1,7 @@
 ---
 name: probe-hub
-description: "当用户说「作者仓库还在吗」「找源」「采集线路」「这个源好没好」「修源」「AI项目监测」时使用本技能。探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测上游仓库动态（存活/内容变更/新增文件/活跃度；类目=TVBox上游/AI项目）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12；写源四门禁 `gate`（能播放/稳定兜底/内容齐全/精简体积，S223）、模板库内联 `hook`（flags/线路分组/封面/AES兜底打进单文件，S225），见 §3.12.2。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定；`livecheck` 单条/批量输出带死因分型（S221）。★修源 `repair`：死因七型→五路由（换域/接口改道/小补/整站重写/复验），checkup/route/drafts/apply/repair/recon/rewrite 七动作，**没验过不许说修好**，见 §3.17。★广告治理 `hls_clean`：61 域名黑名单 + Allow→Block→启发式三段判定，`quality` 的广告判定已委托它（S225），见 §3.11。★破甲 `decrypt`。★AES 兜底 `scripts/_aes_fallback.py`：羊壳无 pycryptodome 时的纯 Python 解密（`--decrypt`），`--crosscheck` 与 forgekit 对账防漂移，见 §3.12.3。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 /  真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳 / 修源 / 源失效了怎么修 / 这个源为什么挂了 / 死因 / 死因分型 / 广告分片 / 广告太多 / HLS 净化 / 写源四门禁 / 模板内联。正门：scripts/probe.py（55 个子命令：monitor/search/harvest/forge/repair/decrypt/shellcrack/hls_clean/quality）；测活走 scripts/livecheck.py（含 --spider 源自验）。"
-version: "1.28.9"
+description: "当用户说「作者仓库还在吗」「找源」「采集线路」「这个源好没好」「修源」「AI项目监测」时使用本技能。探源司·TVBox 上游侦察（可升级·规则54三件套）。能力：①监测上游仓库动态（存活/内容变更/新增文件/活跃度；类目=TVBox上游/AI项目）；②搜更多有效仓库（多平台→rank→verify）；③采线路（sites/lives/parses→测活→去伪→入库）；④GitHub 凭据与配额；⑤多平台适配（GitHub/GitLab/Gitee/工蜂）；⑥类目判据复用整包坊 classify_line；⑦活跃度预测；⑧search 三态取数+合并写；⑨--dry 演示；⑩候选上云；⑪真实测活（点播真拉 vod_play_url / 直播真拉分片，非仅 HTTP 码）；⑫promote 写成品源库 DB_PROD；⑬prune 作者原包 SOP；⑭lightjson 全类型轻量 json；⑮采料去向锚定 D 包；⑯单文件容器 `pak`（S171）；网盘取料 `pan` 已于 2026-11-12 迁至 learn-hub（与 TVBox 无关）；⑰壳源侦察与抠链 `shellcrack`（S196）。★写源 `forge`：`verify <源.py> [--save]` 过验才留档（没验过不许进）、`list` 盘点，见 §3.12；写源四门禁 `gate`（能播放/稳定兜底/内容齐全/精简体积，S223）、模板库内联 `hook`（flags/线路分组/封面/AES兜底打进单文件，S225），见 §3.12.2。★写源自验 `livecheck --spider` 逐接口 5 步真跑，坏源判失败、域名挂判无法判定；`livecheck` 单条/批量输出带死因分型（S221）。★修源 `repair`：死因七型→五路由（换域/接口改道/小补/整站重写/复验），checkup/route/drafts/apply/repair/recon/rewrite 七动作，**没验过不许说修好**，见 §3.17。★广告治理 `hls_clean`：61 域名黑名单 + Allow→Block→启发式三段判定，`quality` 的广告判定已委托它（S225），见 §3.11。★破甲 `decrypt`。★AES 兜底 `scripts/_aes_fallback.py`：羊壳无 pycryptodome 时的纯 Python 解密（`--decrypt`），`--crosscheck` 与 forgekit 对账防漂移，见 §3.12.3。 【边界】手上没源/没仓库要去上游找 → 本技能；已有接口 URL 要加工入库 → tvbox-pipeline；要判断某条源该不该拉黑 → tvbox-core 的拉黑判据。本技能亦承接源库查询：这批线路存哪个库 / 这条源能在哪些包用 / 数据源总库什么状况。 触发词：线路存哪个库 / 这条源能在哪些包用 / 存进源库 / 数据源总库 / 扫一遍底包 / 数据源状况 / 哪个底包能加更多线路 / 哪种线路能进我的包 / 给D包换路线 / 线路失效了点不开 / 某个线路转圈 / 还有哪些站能用 / 这个接口还能用吗 / 这批源帮我验一遍 / 作者仓库还在吗 / 他又更新了什么 / 有没有新的源 / 我的库不够用了 / 这个站能不能做成源 / 帮我写个源 / 这个源好没好 / 复现一下之前的采集 / 上游仓库 / 作者仓库 / 原作者 / 跑路 / 被封 / 删库 / 仓库监测 / 找仓库 / 找源 / 搜索源 / 采集线路 / 采集源 / 扩充库容量 / 探源 /  真实测活 / 成品源库 / 剔除失效 / py线路源 / 换路线 / D包 / 新源 / 上游仓库监测 / 找点播源 / 找直播源 / 扩库容 / 新线路 / 合格线路源 / 监测仓库 / 仓库动态 / 上游侦察 / 剔除失效线路 / 直链轻量版 / 原仓库转json / DmaxPro / 播放页壳 / 壳源 / 抠链 / 抠直链 / 壳库 / 从别的站找壳 / 修源 / 源失效了怎么修 / 这个源为什么挂了 / 死因 / 死因分型 / 广告分片 / 广告太多 / HLS 净化 / 写源四门禁 / 模板内联。正门：scripts/probe.py（56 个子命令：monitor/search/harvest/forge/repair/decrypt/shellcrack/hls_clean/quality/parse4k）；测活走 scripts/livecheck.py（含 --spider 源自验）。"
+version: "1.28.10"
 allowed-tools: Read,Grep,Glob,Bash,Write,Edit,Skill
 ---
 
@@ -97,6 +97,7 @@ allowed-tools: Read,Grep,Glob,Bash,Write,Edit,Skill
 | 写源 | `probe forge verify / list / classify / profile / audit` | 验→留档→列→判→画像，见 §3.12 |
 | 修源 | `probe repair checkup / route / drafts / apply` | 死因七型→五路由，见 §3.17 |
 | 质量 | `probe quality / quality-batch` | 画质/速度/广告，见 §3.11 |
+| 4K解析探测 | `probe parse4k --config <配置>` | ★不按名字标签，用4K片源逐条实测流清单分辨率，见 §3.11.2 |
 | 凭据 | `probe token / limits` | 未鉴权 60 req/h，配 token 升 5000 req/h |
 | 自检 | `probe self-check` | 16 组活体探针 + 假阳性基线；另 `scripts/{atomicio,pushconfig,imgproxy}.py --selftest`（通道三件） |
 
@@ -255,8 +256,25 @@ tvbox probe harvest promote --in <候选.json>
 |---|---|
 | `scripts/quality.py` | 单条：拉主清单 → 读 RESOLUTION → 拉首分片测耗时与速率 → 扫广告特征 → 合成质量分 |
 | `scripts/quality_batch.py` | 接两库：读库 → 取播放地址 → 8 并发评测 → 回填 6 字段 |
+| `scripts/parse4k_scan.py` | ★4K解析批量探测（§3.11.2）：不按名字标签，扫配置全部 parses → 4K片源逐条打 → 读回流清单分辨率判真4K/非4K/无法判定；判据委托 quality.py |
 | `scripts/hls_clean.py` | ★广告治理引擎（S225）：61 域名黑名单 + Allow→Block→启发式三段判定 + m3u8 净化（删广告分片 / 序列号重排 / 时长保护） |
 | `scripts/_aes_fallback.py` | ★纯 Python AES-128-CBC 兜底（S224）：羊壳无 pycryptodome 时唯一的解密路径。两种形态与用法见 §3.12.3 |
+
+### 3.11.2 ★ 4K 解析批量探测：按实测不按标签（2026-11-22）
+
+**问题**：扒解析接口时按名字里的「4K」筛，会两头错——名字标 4K 的未必真 4K（实测十几条只有牛马真出流），没标 4K 的通用接口又可能被漏掉（作者包 8 条 parses 只测了标 4K 的 1 条）。名字标签 ≠ 真实能力（病15：识别范围≠对象范围）。
+
+**命令**：
+```bash
+python3 scripts/parse4k_scan.py --config <配置URL或本地JSON>          # 扫全部 http 解析接口
+python3 scripts/parse4k_scan.py --selftest                            # 无网络自检（10项）
+tvbox probe parse4k --config <配置> --sample <4K片源> --json-out out.json
+```
+
+**判据**（不复制，委托 `quality.py#resolution_level`）：扫配置**所有** parses（不按名字、不按 type 过滤）→ 用已知 4K 片源逐条打 → 从回流清单读 `height>=2160 or width>=3840` 判真 4K。
+- **真4K** = 流清单实测达标（真阳性）；**非4K** = 有流清单但分辨率不达标（真阴性，优先于名字标签）；**无法判定** = 接口超时/404/返回 HTML 跳转页/流不可达/分辨率不可读（含非 http 的 jar 源）。
+- 三态纪律（M-R60）：超时记「无法判定」不是「失败」；名字标 4K 但实测 1080p 一律判「非4K」。
+- 现场：作者包 8 条 → 6 条 http 实测（牛马真4K / 5 条无法判定）+ 2 条非 http 跳过；未标 4K 的 6 条全部纳入，无漏检。
 
 **回填字段**（两库同名）：`最高画质`/`首片耗时`/`下载速率`/`广告判定`/`质量分`/`质量证据`。
 **评分 v3**：画质是门槛、速度只加减分。三条硬限制与四解析坑见正本——**它们都会让「好源被判死」**。

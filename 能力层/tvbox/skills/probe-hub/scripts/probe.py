@@ -5162,6 +5162,17 @@ def cmd_quality_batch_run(a):
     return quality_batch.main(argv)
 
 
+def cmd_parse4k_scan(a):
+    """4K解析批量探测入口。实现全在 parse4k_scan.py，薄封装（不按标签按实测）。"""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import parse4k_scan
+    argv = ['--config', a.config, '--sample', a.sample, '--param', a.param,
+            '--timeout', str(a.timeout), '--workers', str(a.workers)]
+    if getattr(a, 'json_out', ''):
+        argv += ['--json-out', a.json_out]
+    return parse4k_scan.main(argv) or 0
+
+
 def cmd_content_probe_run(a):
     """C8（T6）：内容层探查入口。实现全在 content_probe.py，薄封装。
 
@@ -8992,6 +9003,13 @@ def build_parser():
     qb.add_argument('--timeout', type=int, default=12)
     qb.add_argument('--workers', type=int, default=6, help='并发数（M-R114 B档上限 6）')
     qb.add_argument('--dry', action='store_true', help='只打印不写库')
+    p4 = sub.add_parser('parse4k', help='★4K解析批量探测：不按名字标签，用4K片源逐条实测流清单分辨率')
+    p4.add_argument('--config', required=True, help='配置 URL 或本地 JSON（含 parses 数组）')
+    p4.add_argument('--sample', default='https://www.bilibili.com/video/BV1kN4y197Ph', help='已知4K片源')
+    p4.add_argument('--param', default='url', help='接口接受片源的参数名（默认 url）')
+    p4.add_argument('--timeout', type=int, default=12)
+    p4.add_argument('--workers', type=int, default=6)
+    p4.add_argument('--json-out', default='', help='结果 JSON 路径')
     cpb = sub.add_parser('content-probe', help='内容层探查：读原仓库配置逐站探内容层（需 TVBOX_ORIG_DIR）')
 
     # ★S171 MSITEPK2 单文件资源容器（一个 pak 装 78 个资源）
@@ -9173,6 +9191,7 @@ DISPATCH = {
     ('harvest', 'splitjsm'): cmd_harvest_splitjsm,
     ('quality', None): cmd_quality_one,             # C8 S110 单条质量评测
     ('quality-batch', None): cmd_quality_batch_run,  # C8 S110 批量评测回填
+    ('parse4k', None): cmd_parse4k_scan,  # 4K解析批量探测：不按标签按实测流清单
     ('content-probe', None): cmd_content_probe_run,  # C8 内容层探查
     'pak': cmd_comb_pak,
     ('livecheck',): cmd_livecheck,

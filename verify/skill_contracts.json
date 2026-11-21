@@ -237,13 +237,14 @@
       "kind": "skill",
       "layer": "能力层",
       "path": "能力层/tvbox/skills/probe-hub",
-      "version": "1.28.9",
+      "version": "1.28.10",
       "required_files": [
         "SKILL.md",
         "CHANGELOG.md",
         "artifacts.json",
         "scripts/probe.py",
-        "scripts/livecheck.py"
+        "scripts/livecheck.py",
+        "scripts/parse4k_scan.py"
       ],
       "entry": "scripts/probe.py",
       "trigger_samples": "references/trigger-samples.md"

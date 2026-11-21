@@ -1,3 +1,9 @@
+## v1.28.10 — parse4k：4K解析批量探测按实测不按标签（2026-11-22）
+- **需求**：用户三问「未标4K会不会漏检」成立——作者包 8 条 parses 只测了标 4K 的 1 条，7 条未标漏测；且外部十几条名字标 4K 的接口实测全翻车（超时/404/功能不符）。要把「按实测不按标签」固化成可复用能力，不只是一次性脚本。
+- **落地**：新增 `scripts/parse4k_scan.py`——扫配置全部 parses（不按名字/type 过滤）→ 4K片源逐条打 → 读回流 mpd/m3u8 清单分辨率判真伪。判据委托 `quality.py#resolution_level`（宽高任一达标判 4K，M2 不复制），取流复用 `quality._curl`。三态：真4K/非4K/无法判定；名字标4K但实测1080p判非4K（标签证伪）。
+- **接线**：`probe.py` 加 `parse4k` 子命令（薄封装 cmd_parse4k_scan）+ argparse 参数 + 注册表；SKILL.md 能力表 + §3.11.2 + 脚本表；flow.json 流程项；CHANGELOG 本条。
+- **判据**：`parse4k_scan.py --selftest` 10✓；`test_parse4k_scan.py` 17✓；作者包端到端 8 条（牛马真4K + 5 无法判定 + 2 非http跳过），未标4K全纳入无漏检。
+
 ## v1.28.9 — S233 §六 收口：jadx 类名级壳侦察 + 写源按壳分档（2026-11-15）
 - **需求**：S233 §六 两件事收口——①jadx MCP 接 `probe shellcrack`（`load_apk`→`search_classes_by_keyword` 判源类型，替代 `strings` 粗扫），对 LeeCat 真壳走通并给出类名级证据；②写源按壳分档（有 pycryptodome 用原生 AES，未知用 `_aes_fallback`），判据落 SKILL.md 且 selftest 覆盖两分支。
 - **①落地**：`scripts/shellcrack.py` 增 `JadxMCP` / `_kw_in_fqn` / `classify_shell_types` / `probe_shell_types`；`probe.py` 注册 `shellcrack apk-types <APK> [--jar]`。LeeCat 真壳端到端 rc=0（7428 类 / 26 工具）：`python`→`com.chaquo.python.*`、`quickjs`→`com.whl.quickjs.wrapper.*`、`catvod`/`spider`→`com.lee.catvod.app.spider.*` 判 supported；`php`/`drpy`/`pycryptodome` 属 assets 脚本层，类名 0 命中记「无法判定」**不判不支持**（病15 同型：识别范围仅 dex 类名 ≠ 对象范围含 assets 脚本）。词边界确认覆盖 5 种后接形态、8 形态正反向进 `--selftest`；真壳抓到 2 处子串误命中（`kotlin.internal.IntrinsicConstEvaluation` / `org.bouncycastle.crypto.CipherParameters`）单列不删（B-18）。
