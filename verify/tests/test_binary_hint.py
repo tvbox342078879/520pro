@@ -74,5 +74,49 @@ _miss, _rc_miss = hook_ctx('继续')
 ck('无关 prompt 不注入出场提示', '熔铸司 foundry' not in _miss, _miss[:80])
 ck('无关路径同样不拦截（rc=0）', _rc_miss == 0, _rc_miss)
 
+print('── 借鉴清单第1条：出场前自检（PluginRuntime.healthCheck 对应物）──')
+import tempfile as _tf
+
+_ok, _why = na.skill_health('foundry')
+ck('真 foundry 自检通过', _ok is True, _why)
+
+
+def _fake_skill(state):
+    """构造技能镜像样本：none=无目录 / noskill=无SKILL.md / noscripts=无正门 / ok=完好。
+    每种样本锁住 skill_health 的一个检查分支——删任一支对应判据即红（有牙）。"""
+    r = _tf.mkdtemp(prefix='health_')
+    if state == 'none':
+        return r
+    d = os.path.join(r, 'foundry')
+    os.makedirs(d)
+    if state in ('noscripts', 'ok'):
+        open(os.path.join(d, 'SKILL.md'), 'w').close()
+    if state in ('noskill', 'ok'):
+        sd = os.path.join(d, 'scripts')
+        os.makedirs(sd)
+        open(os.path.join(sd, 'foundry.py'), 'w').close()
+    return r
+
+
+for _state, _label in [('none', '无目录'), ('noskill', '无SKILL.md'), ('noscripts', '无正门脚本')]:
+    _o, _w = na.skill_health('foundry', _fake_skill(_state))
+    ck(f'损坏样本拦下：{_label}', _o is False and bool(_w), f'ok={_o} why={_w}')
+_ok2, _ = na.skill_health('foundry', _fake_skill('ok'))
+ck('完好样本放行', _ok2 is True)
+
+_hp = '看这个 apk 的类源码'
+_h_healthy = na.binary_hint(_hp, _fake_skill('ok'))
+ck('健康→提示加载且标注自检通过', '建议加载' in _h_healthy and '自检通过' in _h_healthy,
+   _h_healthy[:90])
+_h_broken = na.binary_hint(_hp, _fake_skill('none'))
+ck('损坏→不提示加载、改提示重装', '建议加载' not in _h_broken and '重装' in _h_broken,
+   _h_broken[:90])
+ck('无关 prompt 即便技能坏也不触发自检提示', na.binary_hint('继续', _fake_skill('none')) == '')
+
+_src = open(ENGINE, encoding='utf-8').read()
+ck('自检函数源码锚点在位（os.path.isdir+isfile）',
+   'os.path.isdir(d)' in _src and "os.path.isfile(os.path.join(d, 'SKILL.md'))" in _src
+   and 'skill_health' in _src)
+
 print('\n结果：%s' % ('全部通过' if not fails else str(len(fails)) + ' 项失败：' + ','.join(fails)))
 sys.exit(0 if not fails else 2)

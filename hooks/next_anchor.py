@@ -108,8 +108,31 @@ _BINARY_VERB_RE = re.compile(r'(逆向|脱壳|反编译|解包|扒.{0,6}(包|apk
 _BINARY_NOUN_RE = re.compile(r'(apk|dex|so文件|\.so\b|二进制|jadx|class文件|字节码|外壳|壳|应用|安装包|程序|aab)', re.I)
 
 
-def binary_hint(prompt):
-    """软提示：prompt 命中二进制目标 → 返回一句话建议加载熔铸司；否则空串。纯函数。"""
+def skill_health(name, skills_root=None):
+    """出场前自检目标技能是否完好——云取 `PluginRuntime.healthCheck` 的 520 对应物
+    （借鉴清单第1条，transcript L2565：提示去加载工具前先确认工具没坏）。
+
+    只查「即将被提示加载的那一个技能」（病15 对象范围=识别范围），不扫全仓技能。
+    纯函数、只读、可注入 root 供判据构造损坏样本。返回 (ok: bool, reason: str)。
+    """
+    root = skills_root or os.path.join(os.path.expanduser('~'), '.codebuddy', 'skills')
+    d = os.path.join(root, name)
+    if not os.path.isdir(d):
+        return False, f'{name} 技能目录不存在'
+    if not os.path.isfile(os.path.join(d, 'SKILL.md')):
+        return False, f'{name} 缺 SKILL.md'
+    scripts = os.path.join(d, 'scripts')
+    if not os.path.isdir(scripts) or not os.listdir(scripts):
+        return False, f'{name} 缺 scripts/ 正门'
+    return True, 'ok'
+
+
+def binary_hint(prompt, skills_root=None):
+    """软提示：prompt 命中二进制目标 → 先自检目标技能再提示；否则空串。纯函数。
+
+    v0.8.89 借鉴第1条：命中后不直接提示加载——先 healthCheck 目标技能（foundry），
+    健康才建议加载；损坏/未装则提示先重装，杜绝「提示去加载一个坏掉的工具」。
+    """
     if not prompt:
         return ''
     p = str(prompt)
@@ -118,8 +141,12 @@ def binary_hint(prompt):
     hit_noun = bool(_BINARY_NOUN_RE.search(p))
     if not (hit_ext or (hit_verb and hit_noun)):
         return ''
+    ok, reason = skill_health('foundry', skills_root)
+    if not ok:
+        return ('｜🔨 检测到二进制/逆向目标，但熔铸司 foundry 出场自检未过（'
+                f'{reason}）——建议先 bash install.sh 重装再加载，勿直接引用坏工具')
     return ('｜🔨 检测到二进制/逆向目标——建议加载熔铸司 foundry（jadx 26 工具：'
-            '类源码/xref/资源解码），正门 SKILL.md 先读判据再动手')
+            '类源码/xref/资源解码，出场自检通过），正门 SKILL.md 先读判据再动手')
 
 
 def autoclose_inflight(prompt, inflight):
