@@ -3558,6 +3558,17 @@
       "result": "ok",
       "event_ref": "commit 38ba138",
       "note": "38ba138 F06 判例落库：牛马4K解析真伪取证链，流清单分辨率证伪标题标签，event_ref=commit 38ba138"
+    },
+    {
+      "ts": "2026-11-22T05:03:16",
+      "round": "archive 欠账真补_D-f9df83a-F04.md @f9df83a",
+      "artifact": "欠账真补_D-f9df83a-F04.md",
+      "target": "🧬 520进化论/03-子项目演进",
+      "node_id": "jUwmihj5sASAcr4aUdEFNZ",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit f9df83a",
+      "note": "f9df83a F04 演进落库：4K解析批量探测按实测不按标签，event_ref=commit f9df83a"
     }
   ]
 }

@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -3482,6 +3482,24 @@
    "age_commits": 0,
    "first_seen": "2026-11-21",
    "closed_by": "archive 演进_云取二期_20261121.md @f427131 @ 2026-11-21",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-f9df83a-F04",
+   "flow": "F04",
+   "folder": "🧬 520进化论/03-子项目演进",
+   "commit": "f9df83a",
+   "commit_date": "2026-11-22",
+   "parent": "94ac552",
+   "target_version": "",
+   "title": "feat(probe-hub): parse4k 4K解析批量探测——不按名字标签，按实测流清单判真伪",
+   "expect": "演进时间线/逐版交付说明",
+   "evidence": "改动文件: 能力层/tvbox/skills/probe-hub/CHANGELOG.md",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-22",
+   "closed_by": "archive 欠账真补_D-f9df83a-F04.md @f9df83a @ 2026-11-22",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
   }
