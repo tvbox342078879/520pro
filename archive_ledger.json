@@ -3514,6 +3514,28 @@
       "result": "ok",
       "event_ref": "commit a252a19",
       "note": "a252a19 F02 方法论欠账真补，event_ref=commit a252a19，交 scan 核销"
+    },
+    {
+      "ts": "2026-11-21T12:09:41",
+      "round": "archive 欠账真补_D-93b8718-F02.md @93b8718",
+      "artifact": "欠账真补_D-93b8718-F02.md",
+      "target": "🧬 520进化论/01-方法论",
+      "node_id": "EtxXZtGZkhkUK6niXBYCkk",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 93b8718",
+      "note": "93b8718 F02 方法论欠账真补，event_ref=commit 93b8718，交 scan 核销"
+    },
+    {
+      "ts": "2026-11-21T12:09:41",
+      "round": "archive 欠账真补_D-93b8718-F04.md @93b8718",
+      "artifact": "欠账真补_D-93b8718-F04.md",
+      "target": "🧬 520进化论/03-子项目演进",
+      "node_id": "VmdPliBxlrPIyj3xGsZ2i7",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 93b8718",
+      "note": "93b8718 F04 子项目演进欠账真补，event_ref=commit 93b8718，交 scan 核销"
     }
   ]
 }
