@@ -322,6 +322,20 @@
       "entry": "scripts/registry.py",
       "trigger_samples": "",
       "_note": "故意无 SKILL.md：纯共享注册表（云取借鉴第 10 条 adapter 统一底座），平台不注册、不路由、不进上下文；版本真源在 manifest.json。唯一 PLATFORMS 表收敛分享正则/有效期/轮询间隔/进度文案四类差异，share-parser/transfer-poll 按 parents[2]=skills 根 import；判据 test_pan_registry.py 23✓ 含元变异删一条两技能同步失、加一条即刻可见"
+    },
+    "skill-sync-check": {
+      "kind": "skill",
+      "layer": "通用层",
+      "path": "通用层/skills/skill-sync-check",
+      "version": "1.0.0",
+      "required_files": [
+        "SKILL.md",
+        "CHANGELOG.md",
+        "scripts/skill_sync_check.py",
+        "references/trigger-samples.md"
+      ],
+      "entry": "scripts/skill_sync_check.py",
+      "trigger_samples": "references/trigger-samples.md"
     }
   },
   "runtime_dirs": [

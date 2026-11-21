@@ -150,6 +150,13 @@
           "role": "网盘 provider 统一注册表（lib，无 SKILL.md，不注册不路由）：分享正则/有效期/轮询间隔/进度文案四类差异收敛唯一真源，新增网盘只加一条、两技能投影自动可见（云取借鉴第 10 条）",
           "entry": "scripts/registry.py",
           "version": "1.0.0"
+        },
+        "skills/skill-sync-check/SKILL.md": {
+          "install_to": "~/.codebuddy/skills/skill-sync-check/SKILL.md",
+          "role": "技能版本清单对比（云取 4 查更新借鉴：本地 vs 远端 contracts 逐技能四态报告；标准库独立实现，只读不触网）",
+          "entry": "scripts/skill_sync_check.py",
+          "self_check": "python3 scripts/skill_sync_check.py --selftest → OK；python3 verify/tests/test_skill_sync_check.py → 34/0",
+          "version": "1.0.0"
         }
       }
     },
