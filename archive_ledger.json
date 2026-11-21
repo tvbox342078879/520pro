@@ -3503,6 +3503,17 @@
       "result": "ok",
       "event_ref": "commit e47d380",
       "note": "e47d380 F02 方法论欠账真补，event_ref=commit e47d380，交 scan 核销"
+    },
+    {
+      "ts": "2026-11-21T09:08:23",
+      "round": "archive 欠账真补_D-a252a19-F02.md @a252a19",
+      "artifact": "欠账真补_D-a252a19-F02.md",
+      "target": "🧬 520进化论/01-方法论",
+      "node_id": "zNAu2KBLcM4OEInif6lEFy",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit a252a19",
+      "note": "a252a19 F02 方法论欠账真补，event_ref=commit a252a19，交 scan 核销"
     }
   ]
 }
