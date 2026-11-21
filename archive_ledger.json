@@ -3569,6 +3569,17 @@
       "result": "ok",
       "event_ref": "commit f9df83a",
       "note": "f9df83a F04 演进落库：4K解析批量探测按实测不按标签，event_ref=commit f9df83a"
+    },
+    {
+      "ts": "2026-11-22T07:32:50",
+      "round": "archive 欠账真补_D-c82739f-F04.md @c82739f",
+      "artifact": "欠账真补_D-c82739f-F04.md",
+      "target": "🧬 520进化论/03-子项目演进",
+      "node_id": "a1SXnkNxLnJwOiMtv0g43L",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit c82739f",
+      "note": "c82739f F04 演进落库：scan 404三态折叠根源修，notfound不再误判fail白等；event_ref=commit c82739f"
     }
   ]
 }
