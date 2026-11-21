@@ -555,7 +555,10 @@ def main():
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             import guard_cmd
             fp = ti.get('file_path') or ti.get('path') or ti.get('notebook_path') or ''
-            _w = guard_cmd.check_write(fp)
+            # B-05 自动挡：把写入内容一起送进守卫——明文密钥字面量写进仓内普通文件
+            # 也要在「写下去那一刻」挡住（Write=content / Edit=new_string）。
+            _content = ti.get('content') if ti.get('content') is not None else ti.get('new_string')
+            _w = guard_cmd.check_write(fp, _content)
             if _w:
                 probe['via'] = 'write-guard:' + _w['id']
                 _save(d, probe, hit=True)               # 命中守卫也算 hit（否则 probe 看着像没干活）

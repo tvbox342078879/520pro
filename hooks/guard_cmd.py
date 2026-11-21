@@ -201,6 +201,62 @@ def check_flood(now=None):
     return None
 
 
+# G6 内容判据（B-05 自动挡）：写入「仓内普通文件」的 content 里若含真密钥字面量，
+# 也要挡——否则明文先进了 .py/.md，只有提交时 secret_scan 才发现，为时已晚。
+# 判据对象=【高置信度字面量】（固定前缀 + 足够长度），不是通用 api_key=xxx（代码常量
+# 误伤面大，交给事后 secret_scan 分级）。这九条必须逐字 ⊆ secret_scan.PATTERNS，
+# 由 test_guard_cmd.py 子集对账守着——改 secret_scan 正则表单边就红（真源 M2）。
+LITERAL_SECRET_RE = (
+    r'ghp_[A-Za-z0-9]{20,}',
+    r'github_pat_[A-Za-z0-9_]{20,}',
+    r'-----BEGIN (?:RSA|OPENSSH|EC|DSA|PGP) PRIVATE KEY(?: BLOCK)?-----',
+    r'AKIA[0-9A-Z]{16}',
+    r'ASIA[0-9A-Z]{16}',
+    r'xox[baprs]-[A-Za-z0-9-]{10,}',
+    r'AIza[0-9A-Za-z_\-]{35}',
+    r'sk-[A-Za-z0-9]{16,}',
+)
+_LITERAL_COMPILED = tuple(re.compile(p) for p in LITERAL_SECRET_RE)
+# 构造/占位符行豁免：与 secret_scan.is_placeholder_concat 同口径——
+# 整行引号段都 <=8 字符且字符种类 <=2 → 示例拼接，不计真泄漏（病15：整行分段，非匹配片段）。
+_PLACEHOLDER_MARK = re.compile(
+    r'(?i)(your[_-]?token|xxxx+|placeholder|<[^>]{2,20}>|\*\*\*|REDACTED|CHANGEME|example)')
+_CONCAT_RE = re.compile(r'(?:ghp_|github_pat_|sk-|xox[baprs]-)')
+
+
+def _is_construct_line(line):
+    """行是「密钥构造代码/占位符示例」→ True（不计真泄漏）。"""
+    s = line.strip()
+    if s.startswith('#'):
+        return True
+    if 're.compile' in line or 'LITERAL_SECRET_RE' in line or 'PATTERNS' in line:
+        return True
+    if _PLACEHOLDER_MARK.search(line):
+        return True
+    if _CONCAT_RE.search(line) and re.search(r'["\']\s*\+', line):
+        return True
+    segs = re.findall(r'"([^"]*)"', line)
+    if segs and all(len(x) <= 8 and len(set(x)) <= 2 for x in segs):
+        return True
+    return False
+
+
+def find_literal_secret(content):
+    """content 含真密钥字面量→返回命中的规则 dict（G6），否则 None。
+    只认高置信度固定前缀形态；构造行/注释/占位符豁免。"""
+    if not content:
+        return None
+    text = str(content)
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if _is_construct_line(line):
+            continue
+        for pat in _LITERAL_COMPILED:
+            if pat.search(line):
+                return {**WRITE_RULE, 'why': WRITE_RULE['why'] + '（内容命中明文密钥字面量 L%d）' % lineno,
+                        'literal_hit': pat.pattern}
+    return None
+
+
 # 写文件类规则的「规则体」，判据在 check_write()（要看路径，不是命令串）
 WRITE_RULE = {
     'id': 'G6',
@@ -227,11 +283,14 @@ def _in_git_repo(path):
     return False
 
 
-def check_write(path):
-    """Write/Edit 目标是不是「仓内凭据文件」。返回规则 dict 或 None。
+def check_write(path, content=None):
+    """Write/Edit 是否该挡。返回规则 dict 或 None。
 
-    仓外不管：/tmp 里的 .env 不入库就无风险，硬拦只会误伤调试；
-    真正入库的动作由 G5（git add）在那一刻挡。
+    两条命中路径（都要求路径在 git 仓内、且非模板文件）：
+      ① 目标路径是凭据文件名（.env/.pem/credentials.json…）——写下去就等着被 add；
+      ② content 含真密钥字面量（B-05 自动挡）——明文写进普通 .py/.md 也要挡，
+         否则只有提交时 secret_scan 才发现，此时明文已在库里，为时已晚。
+    content=None 时只走①（向后兼容：现有 test/CLI 只传 path）。
     """
     p = str(path or '').strip()
     if not p:
@@ -240,9 +299,15 @@ def check_write(path):
     low = base.lower()
     if any(low.endswith(t) for t in CRED_TEMPLATE):
         return None
-    if not (low in CRED_BASENAMES or low in CRED_EXTRA or low.endswith(CRED_SUFFIXES)):
+    if not _in_git_repo(p):
         return None
-    return WRITE_RULE if _in_git_repo(p) else None
+    # ① 凭据文件名命中
+    if low in CRED_BASENAMES or low in CRED_EXTRA or low.endswith(CRED_SUFFIXES):
+        return WRITE_RULE
+    # ② 内容里的明文密钥字面量命中
+    if content:
+        return find_literal_secret(content)
+    return None
 
 
 def check(command):

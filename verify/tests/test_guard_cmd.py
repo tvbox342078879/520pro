@@ -250,6 +250,66 @@ for p_, why in g6_pass:
     h = G.check_write(p_)
     check(f'G6 放行：{why}', h is None, f'误拦={h["id"] if h else ""}')
 
+# ── G6 内容判定（B-05 自动挡，云取借鉴第2条）：明文密钥写进仓内普通文件也要挡 ──
+# 判据对象=写入 content，识别范围=高置信度固定前缀字面量（病15 对齐）。
+_content_path = os.path.join(ROOT, 'src', 'config.py')  # 普通源文件，非凭据名
+_literal_samples = [
+    ('ghp_' + 'A' * 24, 'GitHub PAT'),
+    ('github_pat_' + 'a' * 30, 'GitHub fine-grained PAT'),
+    ('-----' + 'BEGIN RSA PRIVATE KEY-----', '私钥块'),
+    ('AKIA' + 'A' * 16, 'AWS 长期凭证'),
+    ('sk-' + 'a' * 24, 'OpenAI 风格'),
+]
+for secret, why in _literal_samples:
+    h = G.check_write(_content_path, 'token = "%s"\n' % secret)
+    check(f'G6 内容拦下：{why}', h is not None and h['id'] == 'G6',
+          f'实际={h["id"] if h else "放行"}')
+
+# 反向：构造行/注释/占位符/拼接示例不得误伤（否则逼人关钩子）
+# 所有样例在源码里都用运行时拼接（'g'+'hp_' 等），避免本测试文件自身被 secret_scan 判为明文
+_content_pass = [
+    ('# ' + 'ghp_' + 'A' * 24, '注释里的样例'),
+    ('PATTERNS = [r"' + 'ghp_' + '[A-Za-z0-9]{20,}"]', '正则构造行'),
+    ('token = "your_token_here"', '占位符'),
+    ('k = "' + 'ghp_' + '" + "' + 'AAAAAAAA' + '"', '拼接构造'),
+    ('token = "xxxxxxx"', '混淆占位'),
+    ('x = "sk-' + 'abcdefgh' + '"', '短串不构成真密钥'),
+]
+for content, why in _content_pass:
+    h = G.check_write(_content_path, content)
+    check(f'G6 内容放行：{why}', h is None, f'误拦={h["id"] if h else ""}')
+
+# 仓外文件即使写真密钥也不拦（不入库就无风险；入库动作由 G5 在 add 时挡）
+check('G6 内容判定-仓外放行', G.check_write('/tmp/note.md', 'ghp_' + 'A' * 24) is None)
+# 模板文件即便含字面量也放行（.example 是给示例用的）
+check('G6 内容判定-模板放行',
+      G.check_write(os.path.join(ROOT, 'conf.env.example'), 'ghp_' + 'A' * 24) is None)
+
+# 子集对账：guard 的高置信度判据必须逐字 ⊆ secret_scan.PATTERNS（M2：真源不复制，改单边就红）
+SS = load(os.path.join(ROOT, 'secret_scan.py'))
+_ss_pats = {p.pattern for p in SS.PATTERNS}
+check('G6 字面量判据 ⊆ secret_scan.PATTERNS（真源对账）',
+      set(G.LITERAL_SECRET_RE).issubset(_ss_pats),
+      f'多余={set(G.LITERAL_SECRET_RE) - _ss_pats}')
+
+# 元变异：清空字面量表后真密钥必须溜过（自证内容判定判据真在守，不是永远 deny）
+_mut_src = open(GUARD, encoding='utf-8').read()
+# 清空编译后的判据表（不是 LITERAL_SECRET_RE 源串——`() or (...)` 逻辑上仍是原表）
+_mut_anchor = '_LITERAL_COMPILED = tuple(re.compile(p) for p in LITERAL_SECRET_RE)'
+_mut_disabled = _mut_src.replace(_mut_anchor, '_LITERAL_COMPILED = ()', 1)
+if _mut_disabled != _mut_src:
+    with tempfile.NamedTemporaryFile('w', suffix='.py', delete=False, encoding='utf-8') as _mf:
+        _mf.write(_mut_disabled); _mpath = _mf.name
+    try:
+        _MG = load(_mpath)
+        _mh = _MG.check_write(_content_path, 'token = "ghp_' + 'A' * 24 + '"')
+        check('G6 元变异-清空字面量表后真密钥溜过', _mh is None,
+              f'仍拦={_mh["id"] if _mh else None}')
+    finally:
+        os.unlink(_mpath)
+else:
+    check('G6 元变异-清空字面量表后真密钥溜过', False, '变异未生效（源码锚点没找到）')
+
 # 凭据名单两份必须一致：secret_scan.py 的 CRED_NAMES 是「已追踪凭据」的真源，
 # guard_cmd 的 CRED_BASENAMES 是它的镜像。改了单边就红——不靠「记得改两处」。
 SS = load(os.path.join(ROOT, 'secret_scan.py'))
