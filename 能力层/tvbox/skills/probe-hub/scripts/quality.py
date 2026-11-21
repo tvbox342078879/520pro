@@ -84,24 +84,49 @@ def _curl(url, timeout=12, rng=None):
 
 
 def resolution_level(text):
-    """从 m3u8 文本读最高分辨率档 → ('1080p'|'720p'|'480p'|'360p'|'未知', 高度px)。
+    """从 m3u8 / mpd 文本读最高分辨率档 → ('4K'|'1080p'|'720p'|'480p'|'360p'|'未知', 高度px)。
 
-    兼容两种写法：
+    兼容三种写法：
       · RESOLUTION=1920x1080（HLS 主清单）
       · 1920x1080 裸写在 EXT-X-STREAM-INF 行
-    读不到不代表画质低——单码率清单本来就没有 RESOLUTION 标记，故返 '未知'。
+      · mpd width="2880" height="2160"（DASH 清单，牛马4K解析实测返此格式）
+
+    4K 判据（2026-11-21 实测牛马4K解析后定，真出流非标题标签）：
+      height>=2160 或 width>=3840 → '4K'
+    实测两档都真属 4K：2880x2160（高度达标）、3840x1920（宽度达标，超宽UHD）。
+    故宽高任一达标即判 4K，不能只看高度——否则 3840x1920 会被漏判。
+
+    读不到不代表画质低——单码率清单本就没有 RESOLUTION 标记，故返 '未知'；
+    mpd 读不到 width/height 属性同理。
 
     ★ 分档按**高度**（1080/720/480/360 是行业通称，指短边），
       不要把 1920x1080 里的 1080 当宽度去比 1900 阈值——那样 1080p 会被误判成 480p。
+      4K 是唯一例外：宽高任一达标即可（见上）。
     """
-    heights = [int(m) for m in re.findall(r'RESOLUTION=\d+x(\d+)', text or '')]
-    if not heights:
-        heights = [int(m) for m in re.findall(r'\b\d{3,4}x(\d{3,4})\b', text or '')
-                   if 200 <= int(m) <= 4320]
-    heights = [h for h in heights if h >= 200]
-    if not heights:
+    text = text or ''
+    # ① HLS：RESOLUTION=WxH 或裸 WxH → (w,h) 成对，取真实宽高
+    pairs = [(int(w), int(h)) for w, h in re.findall(r'RESOLUTION=(\d+)x(\d+)', text)]
+    if not pairs:
+        pairs = [(int(w), int(h)) for w, h in re.findall(r'\b(\d{3,4})x(\d{3,4})\b', text)
+                 if 200 <= int(h) <= 4320 and 200 <= int(w) <= 7680]
+    # ② DASH mpd：width="W" height="H" 属性（牛马4K返此格式）。
+    #    \b 边界必要：bandwidth="8846678" 里的 width 不得被当宽度抓——否则带宽数字
+    #    会被误判成 4K（病15：识别范围≠对象范围的又一处实例）。
+    if not pairs:
+        pairs = [(int(w), int(h)) for w, h in
+                 re.findall(r'\bwidth="(\d{2,4})"[^>]*?\bheight="(\d{2,4})"', text)]
+        if not pairs:
+            pairs = [(int(w), int(h)) for w, h in
+                     re.findall(r'\bheight="(\d{2,4})"[^>]*?\bwidth="(\d{2,4})"', text)]
+    pairs = [(w, h) for w, h in pairs if h >= 200 and w >= 200]
+    if not pairs:
         return '未知', 0
-    h = max(heights)
+    # 4K 优先判定：任一对宽高达标即 4K，取其中最高高度档返回。
+    fourk = [(w, h) for w, h in pairs if h >= 2160 or w >= 3840]
+    if fourk:
+        w, h = max(fourk, key=lambda p: p[1])
+        return '4K', h
+    h = max(h for _, h in pairs)
     if h >= 1000:
         return '1080p', h
     if h >= 700:
@@ -144,6 +169,13 @@ def bandwidth_trust(text):
 def _is_m3u8(url, body):
     u = (url or '').lower()
     return u.split('?')[0].endswith('.m3u8') or b'#EXTM3U' in (body or b'')[:2048]
+
+
+def _is_mpd(url, body):
+    """DASH mpd 清单识别（牛马4K解析返此格式）。
+    与 m3u8 分开判：mpd 是 XML，分片是 m4s，HLS 的首片测速/广告判定不适用。"""
+    u = (url or '').lower().split('?')[0]
+    return u.endswith('.mpd') or b'<MPD' in (body or b'')[:2048] or b'<mpd' in (body or b'')[:2048]
 
 
 def _first_segment(m3u_text, base_url):
@@ -221,6 +253,8 @@ def score(quality, first_ms, kbps, ad):
     """
     # 基准分：档位间隔必须 > 修正项最大振幅(8+2=10，加上广告 -30 的极端不影响相对序)。
     # 实测校准后间隔取 16：1080p 92 / 720p 76 / 480p 60 / 360p 44
+    # ★ 4K 档（2026-11-21 牛马4K实测后加）：基准 108，受 100 分上限 clamp。
+    #   4K 是门槛型画质，理应顶格；速度/广告扣分在它身上仍生效，只是最终封顶 100。
     #
     # ★ S196 修：画质「未知」不再折成 56 分。
     #   旧版 base 兜底 56（落在 480p 与 360p 之间），注释写着"读不到不代表差"，
@@ -233,7 +267,7 @@ def score(quality, first_ms, kbps, ad):
     if quality in ('未知', '', None):
         base = None
     else:
-        base = {'1080p': 92, '720p': 76, '480p': 60, '360p': 44}.get(quality, None)
+        base = {'4K': 108, '1080p': 92, '720p': 76, '480p': 60, '360p': 44}.get(quality, None)
 
 
     # 速度修正：±8 分封顶
@@ -289,6 +323,18 @@ def evaluate(play_url, timeout=12, rounds=3):
                 'ad': '未知', 'score': 0, 'evidence': f'm3u8 HTTP {code}（防盗链/已删）'}
 
     text = body.decode('utf-8', errors='ignore')
+
+    # DASH mpd（牛马4K返此格式）→ 读分辨率出画质档，速度/广告标"不适用"。
+    # ★ 为什么要单独分支：mpd 是 XML 清单、分片是 m4s，不是 HLS 的 ts 分片，
+    #   HLS 的首片测速逻辑（拉第一个分片算 KB/s）对 m4s 不适用；
+    #   但画质判据（read width/height）完全适用——这正是牛马4K能被识别的关键路径。
+    #   实测两档：2880x2160 / 3840x1920 均在此分支正确判出 4K。
+    if _is_mpd(url, body):
+        quality, width = resolution_level(text)
+        return {'verdict': '通过', 'quality': quality, 'first_ms': 0, 'kbps': 0,
+                'ad': '不适用', 'score': score(quality, 0, 0, '不适用'),
+                'evidence': f'DASH mpd({width}w)·{quality}·'
+                            f'速度/广告不适用(m4s非HLS分片)'}
 
     # 非 m3u8（可能是 mp4 直链）→ 画质未知，速度也不测
     # ★ 为什么不测：mp4 是整文件，curl --max-time 拉到的只是开头一小段，
