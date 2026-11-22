@@ -3580,6 +3580,29 @@
       "result": "ok",
       "event_ref": "commit c82739f",
       "note": "c82739f F04 演进落库：scan 404三态折叠根源修，notfound不再误判fail白等；event_ref=commit c82739f"
+    },
+    {
+      "ts": "2026-11-22T08:59:00",
+      "round": "archive 欠账真补_D-9c111ad-F02.md @9c111ad",
+      "artifact": "欠账真补_D-9c111ad-F02.md",
+      "target": "🧬 520进化论/01-方法论",
+      "node_id": "Iqom2fT0Fj11snlcW8RFWs",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 9c111ad",
+      "note": "9c111ad F02 方法论落库：csp jar 三态折叠根治形态+修法+实例坐标，event_ref=commit 9c111ad"
+    },
+    {
+      "ts": "2026-11-22T08:59:10",
+      "round": "archive 欠账真补_D-9c111ad-F04.md @9c111ad",
+      "artifact": "欠账真补_D-9c111ad-F04.md",
+      "target": "🧬 520进化论/03-子项目演进",
+      "node_id": "omJXpUqJIPbuXoeRquN3nr",
+      "idx_row": "",
+      "result": "ok",
+      "event_ref": "commit 9c111ad",
+      "note": "9c111ad F04 演进落库：v1.28.12 csp jar 三态折叠根治，406→165 csp_pending，event_ref=commit 9c111ad"
     }
+
   ]
 }
