@@ -1,3 +1,10 @@
+## v1.28.12 — csp jar 三态折叠修复：404/4xx 不再冒充"无法判定"（2026-11-22）
+- **需求**：原仓库 royalhayga/tvbox-master-aggregator 2471 条 sites 实测，406 条 `csp_jar_unknown` 中 321 条"jar 下载失败"实为三种状态；22 个唯一 jar URL 实探：404/410×10、其他4xx×2、超时×7、200×3。用户要求"从根上修三态折叠"。
+- **根因**：`mount_judge.py#fetch_jar` 取 `http_get` 的 `(st, payload, _)` 丢弃第三位 reason，而 core.http_get 把 HTTP 状态码编码在 reason（`http_404`）；于是"确认不存在"（404 真阴性）与"网络无法判定"（timeout/conn/dns）全压成 `jar=None`→ 上层一律 `csp_jar_unknown`，该剔除的真死源混进待判定池。病15 同型：识别范围（下载返回失败）≠ 对象范围（是真 404 还是超时）。
+- **落地**：新增 `fetch_jar_ex` 返回 `(data, kind, detail)` 三态——4xx/HTML兜底/空 body→`dead`，timeout/conn/dns/5xx/ssrf→`unknown`，有效 jar→`ok`；`fetch_jar` 保留 bytes/None 薄壳兼容隐藏调用者。`_judge_csp` 按 kind 分派：`dead`→`csp_dead`（真阴性剔除）、`unknown`→`csp_jar_unknown`（无法判定≠死）。缓存值改三元组，外部无直接读者（已 grep）。
+- **判据**：`scripts/test_jar_tristate.py` 25 向量（404/410/401/403→dead；timeout/conn/dns/unknown/scheme/503/ssrf→unknown；HTML兜底/空→dead；同名类命中→csp_ok、无→csp_dead、解析不出→csp_jar_unknown；缓存兼容）；`verify/tests/test_jar_tristate.py` 薄壳转发。
+- **效果**：真实 2471 回归——`csp_pending` 406→165（-241）、`csp_dead` 83→324（+241），`usable` 1707 不变（没误伤可用源）；241 条该剔除的真 404/4xx 归位，241 条超时等仍正确留"无法判定"。
+
 ## v1.28.11 — harvest scan 三态折叠修复：404 不再冒充"网络失败"（2026-11-22）
 - **需求**：重采试点 10 仓，5 仓 `scan rc=2「全部候选拉取失败＝网络问题」`，每仓白等 112–150s；但独立 tree/API 诊断铁证显示 API 全 HTTP 200、仓库根本无配置文件。用户要求"从脚本根源解决、不返工、用实测数据"。
 - **根因（实测）**：`core.http_get` 在默认 `err_body=False` 下对 HTTP 404/410 返回 `('error', None, 'http_404')`——状态码只在 reason、payload=None。旧 `_fetch` 只认 `st=='ok'` 的 `(code,body)`（尾部 `code in (404,410)` 只对 ok 分支生效），于是 error+404 走不到 notfound，被折叠成 `fail`→ 逐个重试 3 条 URL ×2 次（实测 config.json 28.8s/候选）→ scan 判 `n_fail==n_tried` 报 rc=2，把"文件不存在（真阴性）"说成"网络问题（无法判定）"。病15 同型：识别范围（拉取返回 error）≠ 对象范围（文件真不在）。

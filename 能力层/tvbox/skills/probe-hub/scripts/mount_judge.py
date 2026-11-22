@@ -17,7 +17,9 @@ mount_judge.py — 挂载决定论判定器（探源司升级·S113 / S113b）
        spider jar（site 级或包级 ./jar/xs.jar）→ 下载 → 解 dex → 列类名
          → 含 csp_ 后缀同名类（com.github.catvod.spider.XBPQ）= 作者挂了这个类 → 可用
          → 不含 = 作者没挂这个类 → 剔除
-         → 下载失败/无 spider 地址 = 无法判定 ≠ 死（M-R60）
+         → 4xx(404/410/403等)/HTML兜底 = 确认不存在 → csp_dead（真阴性）
+         → 超时/连接失败/DNS/5xx/SSRF/无 spider 地址 = 无法判定 ≠ 死（M-R60）
+       （S234b 三态折叠修复：旧版把 404 与超时全记 csp_jar_unknown，现已分开）
   ③ 绝对 http：标记「待测活」（与作者挂载无关，看第三方存活）
 
 dex 解析口径（纯 stdlib，无外部工具依赖）：
@@ -209,27 +211,65 @@ _JAR_CACHE = {}
 _JAR_LOCK = threading.Lock()
 
 
-def fetch_jar(url, timeout=30):
-    """下载 spider jar（进程内缓存，同 URL 只下一次）。返回 bytes 或 None。
+# 下载三态（S234b·病15 三态折叠修复）：
+#   ok      → 拿到真 jar 字节（非 HTML 兜底）
+#   dead    → 确认不存在/拒绝：http_404/410/401/403 等 4xx、200 但 HTML 兜底/空 body
+#   unknown → 网络层无法判定：timeout/conn/dns/unknown/scheme/5xx、blocked(ssrf)
+# 关键：core.http_get 的状态码编码在 reason（'http_<code>'），旧实现丢弃 reason
+#       把 404（真阴性）与超时（无法判定）全压成 None → 假 csp_jar_unknown。
+_JAR_DEAD_REASONS = ('http_400', 'http_401', 'http_403', 'http_404', 'http_410')
 
-    自动剥离 TVBox 的 `;md5;` 后缀（pipeline.py cmd_spider 同口径）。
-    底层统一走 core.http_get（C1：收敛取数入口，as_text=False 保二进制）。
+
+def _jar_fail_kind(st, reason):
+    """把 core.http_get 的三态结果归一成 jar 下载三态（ok/dead/unknown）。"""
+    if st == 'ok':
+        return 'ok'
+    if st == 'blocked':
+        return 'unknown'          # SSRF 拦截：无法判定，不硬杀
+    r = (reason or '').lower()
+    if r in _JAR_DEAD_REASONS or (r.startswith('http_4') and r[5:].isdigit()):
+        return 'dead'             # 明确的 4xx：资源不存在/拒绝 = 真阴性
+    return 'unknown'              # timeout/conn/dns/unknown/scheme/5xx = 无法判定
+
+
+def fetch_jar_ex(url, timeout=30):
+    """下载 spider jar 并返回 (data, kind, detail) 三态。
+
+    kind: ok（data 为 jar 字节）/ dead（确认不存在）/ unknown（无法判定≠死）。
+    detail: 原始 reason 或判定说明，供上层写 verdict reason。
+    自动剥离 `;md5;` 后缀；底层走 core.http_get（C1 统一入口）。
     """
     if not url:
-        return None
+        return None, 'unknown', '无 jar 地址'
     url = url.split(';md5;')[0].strip()
     if not url:
-        return None
+        return None, 'unknown', '无 jar 地址'
     with _JAR_LOCK:
         if url in _JAR_CACHE:
             return _JAR_CACHE[url]
-    st, payload, _ = http_get(url, timeout=timeout, ua=UA, as_text=False)
-    data = payload if (st == 'ok' and payload) else b''
-    # HTML 兜底页 ≠ jar（SPA catch-all 会把不存在路径也返 200+主页）
-    out = None if (not data or data.lstrip()[:1] == b'<') else data
+    st, payload, reason = http_get(url, timeout=timeout, ua=UA, as_text=False)
+    kind = _jar_fail_kind(st, reason)
+    detail = reason or st
+    if kind == 'ok':
+        data = payload if payload else b''
+        # HTML 兜底页 ≠ jar（SPA catch-all 会把不存在路径也返 200+主页）
+        if not data or data.lstrip()[:1] == b'<':
+            kind, detail = 'dead', 'http_200_html_fallback'
+            out = None
+        else:
+            out = data
+    else:
+        out = None
+    result = (out, kind, detail)
     with _JAR_LOCK:
-        _JAR_CACHE[url] = out
-    return out
+        _JAR_CACHE[url] = result
+    return result
+
+
+def fetch_jar(url, timeout=30):
+    """兼容薄壳：返回 bytes 或 None（三态细节见 fetch_jar_ex）。"""
+    data, _kind, _detail = fetch_jar_ex(url, timeout=timeout)
+    return data
 
 
 def _simple_name(csp_key):
@@ -338,10 +378,16 @@ def _judge_csp(d, site, api, name, ext, base, spider):
         d['verdict'] = 'csp_jar_unknown'
         d['reason'] = 'csp 无 spider 地址（site 级/包级都没有），jar 挂载无法判定≠死'
         return
-    jar = fetch_jar(sp_url)
-    if jar is None:
+    jar, jar_kind, jar_detail = fetch_jar_ex(sp_url)
+    if jar_kind == 'dead':
+        d['verdict'] = 'csp_dead'
+        d['reason'] = (f'csp spider jar 确认不存在/拒绝（{jar_detail}，'
+                       f'{sp_url[:60]}），真阴性剔除')
+        return
+    if jar_kind == 'unknown':
         d['verdict'] = 'csp_jar_unknown'
-        d['reason'] = f'csp spider jar 下载失败（{sp_url[:60]}），无法判定≠死'
+        d['reason'] = (f'csp spider jar 下载无法判定（{jar_detail}，'
+                       f'{sp_url[:60]}），无法判定≠死')
         return
     classes = jar_class_names(jar)
     d['jar_classes'] = len(classes)
