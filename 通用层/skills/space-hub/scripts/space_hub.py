@@ -1751,7 +1751,11 @@ def _upload_any(p, parent_id, title=None):
         out = (r.stdout or '') + (r.stderr or '')
         try:
             _j = json.loads(r.stdout or '')
-            _nid = ((_j.get('data') or {}).get('node_id') or '').strip()
+            _data = _j.get('data') or {}
+            # library 新正门 document.py create 返回 data.nodeBlockId（非 node_id）。
+            # 旧正门 create_doc.py 才是 KS_DOC_CREATE\t<id> 文本协议。取错字段 → node_id
+            # 恒空 → 写后回读必判失败 → 回执写不出 → archive 欠账永远核销不了。
+            _nid = (str(_data.get('nodeBlockId') or '') or str(_data.get('node_id') or '')).strip()
             if _nid:
                 return _nid, ''
         except (ValueError, AttributeError):
@@ -1827,14 +1831,23 @@ def _archive_file(p, category='', source='', note='', keep=False, quiet=False,
                   f'→ 已落「{ARCHIVE_TITLE}/未归类」，可在该技能加声明自动归类')
     node_id, uerr = _upload_any(p, cfid, title=name)
     out = uerr or ''
-    # 写后回读：新建节点服务端目录索引有传播延迟（S200 实测首查即 miss）→ 3 次重试
-    kids_ids = set()
-    for _i in range(3):
-        kids_ids = {n.get('id') for n in _kids(cfid)}
-        if node_id and node_id in kids_ids:
-            break
-        time.sleep(3)
-    if not node_id or node_id not in kids_ids:
+    # 写后回读：node-info 的 parentId 是强凭据（按 id 直查、即时一致）；_kids 目录枚举
+    # 有传播延迟（S200/S169 实测首查即 miss，本次 b1db724 6 秒窗口内枚举不到但 node-info
+    # 已确认在夹）。与 move 回读口径统一：parentId 优先，枚举兜底，避免"文档已落库却判
+    # 失败→回执写不出→欠账永远核销不了"（v2.8.0 回执绑定回读，卡住即整条链断）。
+    _placed = False
+    if node_id:
+        _ok, _pid, _why = _parent_of(node_id)
+        _placed = bool(_ok and _pid == cfid)
+    if not _placed:
+        kids_ids = set()
+        for _i in range(3):
+            kids_ids = {n.get('id') for n in _kids(cfid)}
+            if node_id and node_id in kids_ids:
+                _placed = True
+                break
+            time.sleep(3)
+    if not _placed:
         return False, f'上传失败或回读不符：{out[:180]}'
     say(f'  ✅ 文件已落库并回读确认：{name}（{node_id}）')
     # ② 索引记录（write_index=False 的附件不单独建索引，只进 archive_log）
