@@ -66,6 +66,22 @@ with tempfile.TemporaryDirectory() as td:
     ck('非 dict 返回 None', na.env_anchor(td) is None)
 ck('env_anchor_line(None) 返回空串', na.env_anchor_line(None) == '')
 
+print('── 非 git 工作区：带 ENV_ID.json 的目录作合法 root + 读 PROGRESS.md 锚点（防「看不了进度」回归）──')
+with tempfile.TemporaryDirectory() as _ng:
+    with open(os.path.join(_ng, 'ENV_ID.json'), 'w', encoding='utf-8') as _f:
+        json.dump({'env_id': 'netdisk-app-dev', 'role': '网盘助手', 'version': 'P0.39'}, _f)
+    with open(os.path.join(_ng, 'PROGRESS.md'), 'w', encoding='utf-8') as _f:
+        _f.write('# 进度\n\n## 下一步\nNext: 真机验证12平台APK — 起点：d19a696b — 完成判据：用户截图确认\n')
+    _p = {'via': 'none'}
+    _root = na._resolve_root({}, _ng, '', _p)
+    ck('非git仓+身份锚→cwd-env定位', _root == os.path.normpath(_ng) and _p.get('via') == 'cwd-env', _p)
+    ck('非git仓未打unaligned', _p.get('unaligned') is not True, _p)
+    _line = na._next_line(_root)
+    ck('非git仓读PROGRESS.md的Next', '真机验证12平台APK' in _line, _line)
+    _p2 = {'via': 'none'}
+    na._resolve_root({}, '/tmp', '', _p2)
+    ck('无身份锚仍落none不误认', _p2.get('via') == 'none', _p2)
+
 print('── 单元：last_repo 回退打标（纯函数级）──')
 _saved = na._read_state()
 _probe = {'via': 'none'}

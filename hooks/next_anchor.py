@@ -245,13 +245,30 @@ def _cmd_candidates(command):
 
 
 def _next_line(root):
-    """取最近一条提交里以 Next: 开头的行（commit-msg 闸保证格式：做什么—起点—完成判据）。"""
+    """取当前进度锚点：git 仓读最近 commit 的 Next: 行；非 git 的工作区读 PROGRESS.md 的 Next: 行。
+
+    双源（2026-11-26 用户实证「看不了进度」根治）：原实现只认 git commit，
+    netdisk-app 等非 git 工作区（无 .git、无 commit）永远拿不到锚点，定位回退
+    last_repo=520pro，每轮注入错位进度。补第二源：身份锚已确认的非 git 工作区
+    把进度真源落 PROGRESS.md，格式同为「做什么—起点—完成判据」。
+    """
+    # 源1：git 仓最近 commit 的 Next: 行
     try:
         r = subprocess.run(['git', '-C', root, 'log', '-1', '--format=%B'],
                            capture_output=True, text=True, timeout=5)
-        for line in r.stdout.splitlines():
-            if line.startswith('Next: '):
-                return line[6:].strip()
+        if r.returncode == 0:
+            for line in r.stdout.splitlines():
+                if line.startswith('Next: '):
+                    return line[6:].strip()
+    except Exception:
+        pass
+    # 源2：非 git 工作区的 PROGRESS.md（身份锚 ENV_ID.json 已确认）
+    try:
+        pp = os.path.join(root, 'PROGRESS.md')
+        if os.path.isfile(pp):
+            for line in open(pp, encoding='utf-8'):
+                if line.startswith('Next: '):
+                    return line[6:].strip()
     except Exception:
         pass
     return ''
@@ -273,11 +290,19 @@ def _resolve_root(d, cwd, command, probe):
     if r:
         probe['via'] = 'cwd'
         return r
+    # 非 git 仓但带合法 ENV_ID.json → payload 明确指向的工作区，作 root（对齐，不打 unaligned）。
+    # netdisk-app 等非 git 项目此前三级回退前两级全废、静默串到 last_repo=520pro（用户实证痛点）。
+    if cwd and env_anchor(cwd):
+        probe['via'] = 'cwd-env'
+        return os.path.normpath(cwd)
     for cand in _cmd_candidates(command):
         r = _repo_root(cand)
         if r:
             probe['via'] = 'command'
             return r
+        if env_anchor(cand):
+            probe['via'] = 'command-env'
+            return os.path.normpath(cand)
     last = d.get('last_repo') or ''
     if last and os.path.isdir(last):
         r = _repo_root(last)

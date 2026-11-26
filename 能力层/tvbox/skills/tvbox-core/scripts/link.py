@@ -832,7 +832,7 @@ def cmd_snapshot(a):
     print(f'   当前有效快照 id 已记录 → {SNAP_ID_FILE}')
     # 检查协作约定是否写死了 id（应改为「取最新一份」的稳健指引）
     if cur and cur!=nid:
-        s=api('doc/get_doc_reviews.py','--page-id',DOC_CONV)
+        s=api('doc/scripts/document.py','comments',DOC_CONV)
         hard=cur in s or nid in s
         if hard:
             print(f'   ⚠️ 协作约定中写死了快照 id，需改为「取标题为…的最新一份」的稳健指引')
@@ -872,7 +872,7 @@ def cmd_audit(a):
     def _fetch(kv):
         f,pid=kv
         try:
-            return f, api('doc/get_doc_reviews.py','--page-id',pid,_cache=False)
+            return f, api('doc/scripts/document.py','comments',pid,_cache=False)
         except Exception as e:
             return f, ''
     # ★ S163：改走统一入口（A 档：打自家 API）

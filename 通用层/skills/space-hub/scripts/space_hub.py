@@ -1740,17 +1740,22 @@ def _upload_any(p, parent_id, title=None):
         # 标题用记录名（v0.8.12）：学习成品的主文档文件叫 index.md，用文件名当标题
         # 会在云端出现一堆叫「index」的文档，等于没归档（实测）。
         title = (title or '').strip() or os.path.splitext(name)[0]
-        r = subprocess.run([sys.executable, f'{LIB}/doc/create_doc.py',
+        # 正门迁移（library 平台升级）：doc/create_doc.py 已并入 doc/scripts/document.py
+        # 的 create 子命令；旧 KS_DOC_CREATE\t<id> 文本协议改 JSON data.node_id。
+        r = subprocess.run([sys.executable, f'{LIB}/doc/scripts/document.py',
+                            'create',
                             '--title', title,
                             '--space-id', SPACE, '--parent-id', parent_id,
                             '--content-file', p],
                            capture_output=True, text=True)
         out = (r.stdout or '') + (r.stderr or '')
-        for ln in out.splitlines():
-            if ln.startswith('KS_DOC_CREATE'):
-                parts = ln.split('\t')
-                if len(parts) >= 2 and parts[1].strip():
-                    return parts[1].strip(), ''
+        try:
+            _j = json.loads(r.stdout or '')
+            _nid = ((_j.get('data') or {}).get('node_id') or '').strip()
+            if _nid:
+                return _nid, ''
+        except (ValueError, AttributeError):
+            pass
         return '', out[:200]
     r = subprocess.run([sys.executable, f'{LIB}/drive/upload_drive_file.py',
                         p, '--parent-id', parent_id, '--space-id', SPACE],
