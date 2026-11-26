@@ -7,7 +7,7 @@
   "waived_until": "豁免期限 YYYY-MM-DD，到期自动转 open"
  },
  "version": "1.0.0",
- "updated": "2026-11-22",
+ "updated": "2026-11-26",
  "thresholds": {
   "red_age_commits": 3,
   "waive_max_days": 90
@@ -3554,6 +3554,24 @@
    "age_commits": 0,
    "first_seen": "2026-11-22",
    "closed_by": "archive 欠账真补_D-f9df83a-F04.md @f9df83a @ 2026-11-22",
+   "waived_until": "",
+   "note": "机器核销：ledger 回执已现"
+  },
+  {
+   "id": "D-b1db724-F02",
+   "flow": "F02",
+   "folder": "🧬 520进化论/01-方法论",
+   "commit": "b1db724",
+   "commit_date": "2026-11-26",
+   "parent": "50fac1f",
+   "target_version": "",
+   "title": "fix(next-anchor): 容器根 cwd=/workspace 补级根治「看不了进度」二次串仓",
+   "expect": "方法论条目（形态+修法+实例坐标）",
+   "evidence": "Lesson: 病15 同型——判据「无身份锚落 none」误用 /tmp 做 fixture，而 /tmp 下恰有前序测试建的带 ENV_ID+PROGRESS 子目录，扫 ",
+   "status": "closed",
+   "age_commits": 0,
+   "first_seen": "2026-11-26",
+   "closed_by": "archive 容器根进度锚定位方法论_b1db724.md @b1db724 @ 2026-11-26",
    "waived_until": "",
    "note": "机器核销：ledger 回执已现"
   }
