@@ -78,16 +78,49 @@ with tempfile.TemporaryDirectory() as _ng:
     ck('非git仓未打unaligned', _p.get('unaligned') is not True, _p)
     _line = na._next_line(_root)
     ck('非git仓读PROGRESS.md的Next', '真机验证12平台APK' in _line, _line)
-    _p2 = {'via': 'none'}
-    na._resolve_root({}, '/tmp', '', _p2)
-    ck('无身份锚仍落none不误认', _p2.get('via') == 'none', _p2)
+    with tempfile.TemporaryDirectory() as _empty:
+        _p2 = {'via': 'none'}
+        na._resolve_root({}, _empty, '', _p2)
+        ck('无身份锚仍落none不误认', _p2.get('via') == 'none', _p2)
+
+print('── 容器根回退：cwd=/workspace 类容器扫一级子目录定位非 git 工作区（防「看不了进度」二次回归）──')
+with tempfile.TemporaryDirectory() as _container:
+    # 候选1：非 git + ENV_ID + PROGRESS.md（netdisk-app 型，三级回退唯一漏掉的类型）
+    _app = os.path.join(_container, 'netdisk-app')
+    os.mkdir(_app)
+    with open(os.path.join(_app, 'ENV_ID.json'), 'w', encoding='utf-8') as _f:
+        json.dump({'env_id': 'netdisk-app-dev', 'role': '网盘助手', 'version': 'P0.39'}, _f)
+    with open(os.path.join(_app, 'PROGRESS.md'), 'w', encoding='utf-8') as _f:
+        _f.write('## 下一步\nNext: 容器根真机验证12平台APK — 起点：d19a696b — 完成判据：截图确认\n')
+    # 候选2：git 仓 + ENV_ID，无 PROGRESS（520pro 型，须被此级跳过——进度走 commit）
+    _gitrepo = os.path.join(_container, '520pro')
+    os.mkdir(_gitrepo)
+    subprocess.run(['git', 'init', '-q', _gitrepo], check=True)
+    with open(os.path.join(_gitrepo, 'ENV_ID.json'), 'w', encoding='utf-8') as _f:
+        json.dump({'env_id': '520pro-main', 'role': '源仓', 'version': '0.8.89'}, _f)
+    _p3 = {'via': 'none'}
+    _root3 = na._resolve_root({}, _container, '', _p3)
+    ck('容器根定位到非git工作区', _root3 == os.path.normpath(_app) and _p3.get('via') == 'cwd-child-progress', _p3)
+    ck('容器根命中未打unaligned', _p3.get('unaligned') is not True, _p3)
+    ck('容器根读到PROGRESS锚点', '容器根真机验证12平台APK' in na._next_line(_root3), na._next_line(_root3))
+    # 多命中：再加一个非 git+ENV_ID+PROGRESS 子目录 → 打歧义标记，不臆测
+    _app2 = os.path.join(_container, 'other-app')
+    os.mkdir(_app2)
+    with open(os.path.join(_app2, 'ENV_ID.json'), 'w', encoding='utf-8') as _f:
+        json.dump({'env_id': 'other-dev', 'role': '其他', 'version': '1.0'}, _f)
+    with open(os.path.join(_app2, 'PROGRESS.md'), 'w', encoding='utf-8') as _f:
+        _f.write('Next: 别的进度\n')
+    _p4 = {'via': 'none'}
+    na._resolve_root({}, _container, '', _p4)
+    ck('多命中打child_ambiguous不臆测', len(_p4.get('child_ambiguous', [])) == 2 and _p4.get('via') != 'cwd-child-progress', _p4)
 
 print('── 单元：last_repo 回退打标（纯函数级）──')
 _saved = na._read_state()
 _probe = {'via': 'none'}
 try:
-    na._resolve_root({'last_repo': ROOT}, '/tmp', '', _probe)
-    # /tmp 非仓、command 空 → 落到 last_repo 分支
+    with tempfile.TemporaryDirectory() as _empty2:
+        na._resolve_root({'last_repo': ROOT}, _empty2, '', _probe)
+    # 空目录非仓、command 空 → 落到 last_repo 分支
     ck('回退命中打 unaligned', _probe.get('via') == 'last_repo' and _probe.get('unaligned') is True,
        _probe)
 finally:
@@ -117,6 +150,13 @@ ck('SessionStart rc=0', rc == 0, rc)
 ctx2, rc2 = run_hook('UserPromptSubmit', ROOT)
 ck('UserPromptSubmit 注入身份自报', '🪪 环境身份' in ctx2 and '520pro-main' in ctx2, ctx2[:200])
 ck('UserPromptSubmit rc=0', rc2 == 0, rc2)
+# 活场景（本轮实证用户对话 cwd=/workspace）：应注入 netdisk-app 的进度锚点，
+# 不是 520pro 的「推送两笔」，且不打「身份未对齐」。
+if os.path.isdir('/workspace/netdisk-app'):
+    ctx3, rc3 = run_hook('UserPromptSubmit', '/workspace')
+    ck('容器根/workspace 注入netdisk-app进度', '真机验证' in ctx3 and 'netdisk-app' in ctx3, ctx3[:300])
+    ck('容器根/workspace 不再串520pro推送', '推送' not in ctx3.split('下一步')[0][:200], ctx3[:200])
+    ck('容器根/workspace 不打身份未对齐', '身份未对齐' not in ctx3, ctx3[:300])
 
 print('\n结果：%s' % ('全部通过' if not fails else str(len(fails)) + ' 项失败：' + ','.join(fails)))
 sys.exit(0 if not fails else 2)

@@ -303,6 +303,31 @@ def _resolve_root(d, cwd, command, probe):
         if env_anchor(cand):
             probe['via'] = 'command-env'
             return os.path.normpath(cand)
+    # 容器根回退：cwd 本身非 git、无身份锚（典型 /workspace——用户对话 cwd 恒定），
+    # 扫其一级子目录中的「非 git + 带 PROGRESS.md 的 ENV_ID 工作区」。这类工作区
+    # 既非 git 仓（拿不到 commit Next）、command 也不带路径，三级回退全废，此前静默
+    # 串到 last_repo=520pro（用户实证「看不了进度」二次根因：上一轮只补了 cwd-env /
+    # command-env，漏掉 cwd=/workspace 容器根这一实际场景，纯文字消息仍串仓）。
+    # git 子仓（520pro/新生态）不参与此级：其进度在 commit message，cwd/command 命中
+    # 已被上面几级覆盖；只在唯一命中时定位，多命中打歧义标记仍走 last_repo（不臆测）。
+    if cwd and os.path.isdir(cwd) and not _repo_root(cwd) and not env_anchor(cwd):
+        try:
+            children = []
+            for name in os.listdir(cwd):
+                sub = os.path.join(cwd, name)
+                if not os.path.isdir(sub) or not env_anchor(sub):
+                    continue
+                if _repo_root(sub):                      # git 仓不靠 PROGRESS.md，跳过
+                    continue
+                if os.path.isfile(os.path.join(sub, 'PROGRESS.md')):
+                    children.append(sub)
+            if len(children) == 1:
+                probe['via'] = 'cwd-child-progress'
+                return os.path.normpath(children[0])
+            if len(children) > 1:
+                probe['child_ambiguous'] = children
+        except Exception:
+            pass
     last = d.get('last_repo') or ''
     if last and os.path.isdir(last):
         r = _repo_root(last)
